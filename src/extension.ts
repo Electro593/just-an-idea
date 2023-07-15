@@ -2,26 +2,75 @@ import { exec } from "child_process";
 import {
   Definition,
   ExtensionContext,
+  Location,
   Position,
   ProviderResult,
+  Range,
   TextDocument,
+  Uri,
   languages,
   window,
   workspace,
 } from "vscode";
 
-interface DefinitionKey {
-  document: TextDocument;
-  position: Position;
+interface FoundDefinition {
+  key: string;
+  path: string;
+  start: {
+    line: number;
+    column: number;
+  };
+  end: {
+    line: number;
+    column: number;
+  };
 }
 
-const definitionCache: Record<string, ProviderResult<Definition>> = {};
+let definitionCache: Record<string, Definition> = {};
 
-export function activate(/*context: ExtensionContext*/) {
-  console.log("Activating the Just an Idea extension...");
+const formatFileName = (name: string) =>
+  name.replace(/\\/g, "/").replace(/^[a-z]:\//, (x) => x.toUpperCase());
 
+export function activate(context: ExtensionContext) {
   const jaiExePath =
     workspace.getConfiguration("just-an-idea").get("jaiPath") ?? "jai";
+
+  // const currentFile = formatFileName(
+  //   window.activeTextEditor?.document.fileName ?? ""
+  // );
+  const currentFile = "main.jai";
+
+  const extensionPath: string = formatFileName(context.extensionPath);
+
+  if (currentFile?.endsWith(".jai")) {
+    exec(
+      `"${jaiExePath}" "${currentFile}" -- import_dir "${extensionPath}/src/" meta extension`,
+      { maxBuffer: undefined },
+      (error, stdout, stderr) => {
+        const foundDefinitions: FoundDefinition[] = JSON.parse(stdout);
+
+        if (error) {
+          console.log(
+            `Error when running the jai compiler (exit code ${error.code}): ${error.message}`
+          );
+          console.log(`[Standard Out]: ${stdout}`);
+          console.log(`[Standard Error]: ${stderr}`);
+        } else {
+          definitionCache = {};
+          foundDefinitions.forEach(
+            (def) =>
+              (definitionCache[def.key] = new Location(
+                Uri.file(def.path),
+                new Range(
+                  new Position(def.start.line - 1, def.start.column - 1),
+                  new Position(def.end.line - 1, def.end.column - 1)
+                )
+              ))
+          );
+        }
+      }
+    );
+  }
 }
 
 export function deactivate() {}
@@ -30,10 +79,16 @@ languages.registerDefinitionProvider(
   { language: "jai", scheme: "file" },
   {
     provideDefinition: (document, position) => {
-      //TODO: Caching
       const range = document.getWordRangeAtPosition(position);
+      if (!range) {
+        return null;
+      }
       const identifier = document.getText(range);
-      return definitionCache[identifier];
+      const file = formatFileName(document.fileName);
+      const key = `${file}:${range.start.line + 1}:${
+        range.start.character + 1
+      }`;
+      return definitionCache[key];
     },
   }
 );
