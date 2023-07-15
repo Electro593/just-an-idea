@@ -1,4 +1,21 @@
-#import "Basic";
+#import "Basic"; // Hello!
+H :: #import"Hash_Table"; // Hello!
+
+// Hello!
+
+/*
+  /*
+    Nested comment
+  */
+*/
+
+str :: "Tab:\tLine:\nCR:\rNull:\0Hex:\x23Uni:\u1234Slash:\\Quote:\"End";
+
+here\ _str: : #string __STR
+  asbcsdx // asd
+__STR;
+
+#run print("%\n", str);
 
 Test_Struct :: struct {
   a: int;

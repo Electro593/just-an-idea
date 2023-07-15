@@ -21,7 +21,7 @@
         "aliases": [
           "Jai"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./syntaxes/language-configuration.json"
       }
     ],
     "configuration":[
@@ -34,6 +34,13 @@
             "description": "The location of the jai compiler executable."
           }
         }
+      }
+    ],
+    "__grammars": [
+      {
+        "language": "jai",
+        "scopeName": "source.jai",
+        "path": "./syntaxes/jai.tmLanguage.json"
       }
     ]
   },

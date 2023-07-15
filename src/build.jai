@@ -16,5 +16,5 @@
 	set_optimization(*options, .VERY_DEBUG);
 	set_build_options(options, workspace);
 
-  add_build_file("extension.jai", workspace);
+  add_build_file(meta_options.compile_time_command_line[0], workspace);
 }
