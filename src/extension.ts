@@ -32,9 +32,11 @@ const formatFileName = (name: string) =>
   name.replace(/\\/g, "/").replace(/^[a-z]:\//, (x) => x.toUpperCase());
 
 export function activate(context: ExtensionContext) {
-  const jaiExePath =
-    workspace.getConfiguration("just-an-idea").get("jaiPath") ?? "jai";
+  const jaiExePath = formatFileName(
+    workspace.getConfiguration("just-an-idea").get("jaiPath") ?? "jai"
+  );
 
+  // TODO: Find module in current folder
   // const currentFile = formatFileName(
   //   window.activeTextEditor?.document.fileName ?? ""
   // );

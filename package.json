@@ -18,7 +18,10 @@
         "extensions": [
           ".jai"
         ],
-        "configuration": "./jai-configuration.json"
+        "aliases": [
+          "Jai"
+        ],
+        "configuration": "./language-configuration.json"
       }
     ],
     "configuration":[

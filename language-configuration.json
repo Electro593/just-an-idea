@@ -1,0 +1,37 @@
+{
+  "comments": {
+    "lineComment": "//",
+    "blockComment": [ "/*", "*/" ]
+  },
+  "brackets": [
+    [ "(", ")" ],
+    [ "[", "]" ],
+    [ "{", "}" ],
+    [ "/*", "*/" ]
+  ],
+  "colorizedBracketPairs": [
+    [ "(", ")" ],
+    [ "[", "]" ],
+    [ "{", "}" ]
+  ],
+  "autoClosingPairs": [
+    { "open": "{", "close": "}" },
+    { "open": "[", "close": "]" },
+    { "open": "(", "close": ")" },
+    { "open": "\"", "close": "\"", "notIn": ["string", "comment"] },
+    { "open": "/*", "close": "*/", "notIn": ["string"] }
+  ],
+  "autoCloseBefore": ";,}]) \n\t",
+  "surroundingPairs": [
+    ["{", "}"],
+    ["[", "]"],
+    ["(", ")"],
+    ["\"", "\""]
+  ],
+  "wordPattern": "[a-zA-Z_](([a-zA-Z0-9_]|\\\\ *)*[a-zA-Z0-9_])?",
+  "indentationRules": {
+    "increaseIndentPattern": "[\\{\\[\\(]$",
+    "decreaseIndentPattern": "[\\}\\]\\)]$",
+    "indentNextLinePattern": "(if|for|while).*^[\\{\\[\\(;]$"
+  }
+}
