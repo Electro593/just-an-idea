@@ -4,8 +4,9 @@
   "description": "Language support for the Jai language",
   "version": "0.0.1",
   "publisher": "electro593",
+  "license": "Unlicense",
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.81.0"
   },
   "categories": [
     "Programming Languages"
