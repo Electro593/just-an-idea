@@ -132,7 +132,7 @@ find_definitions :: (node: *Code_Node) {
 						case .GLOBAL_SYMBOL;
 							find_definitions(global_symbol);
 
-						case .DATA_POINTER;
+						case .STRING_OR_ARRAY_LITERAL_DATA_POINTER;
 							find_definitions(string_or_array_literal);
 					}
 			}
@@ -425,6 +425,7 @@ find_definitions :: (node: *Code_Node) {
 	options := get_build_options(workspace);
 	options.output_type = .NO_OUTPUT;
 	options.write_added_strings = false;
+	options.dead_code_elimination = .NONE;
 	set_optimization(*options, .VERY_DEBUG);
 	set_build_options(options, workspace);
 
@@ -432,7 +433,12 @@ find_definitions :: (node: *Code_Node) {
 	errored := false;
 
 	compiler_begin_intercept(workspace);
-	add_build_file(file_name, workspace);
+	if meta_options.compile_time_command_line[1] == {
+		case "module";
+			add_build_string(tprint("#import \"%\";", file_name), workspace);
+		case "file";
+			add_build_file(file_name, workspace);
+	}
 	while true {
 		message := compiler_wait_for_message();
 		if message.workspace != workspace continue;

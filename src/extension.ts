@@ -1,5 +1,5 @@
-import { exec } from "child_process";
-import { readFile } from "fs";
+import { SpawnSyncReturns, exec, execFileSync } from "child_process";
+import { readFile, opendir, open, close } from "fs";
 import {
   Definition,
   ExtensionContext,
@@ -8,6 +8,7 @@ import {
   Range,
   Uri,
   languages,
+  window,
   workspace,
 } from "vscode";
 
@@ -24,58 +25,84 @@ interface FoundDefinition {
   };
 }
 
+let jaiExePath: string;
+let extensionPath: string;
 let definitionCache: Record<string, Definition> = {};
 
 const formatFileName = (name: string) =>
   name.replace(/\\/g, "/").replace(/^[a-z]:\//, (x) => x.toUpperCase());
 
+const getDirPath = (name: string) => name.match(/^(.*)[\/\\].*/)?.[1];
+
+const getModulePath = (name: string) => `${getDirPath(name)}/module.jai`;
+
+const getModuleName = (name: string) => name.match(/[\/\\]?([^\/\\]+)[\/\\]module\.jai$/)?.[1] ?? "";
+
+const parseDefinitions = () => {
+  readFile("defs.out", (err, data) => {
+    if (err) {
+      console.log(err.message);
+    } else {
+      const foundDefinitions: FoundDefinition[] = JSON.parse(data.toString());
+      for (const foundDefinition of foundDefinitions) {
+        definitionCache[foundDefinition.key] = new Location(
+          Uri.file(foundDefinition.path),
+          new Range(
+            new Position(
+              foundDefinition.start.line - 1,
+              foundDefinition.start.column - 1
+            ),
+            new Position(
+              foundDefinition.end.line - 1,
+              foundDefinition.end.column - 1
+            )
+          )
+        );
+      }
+    }
+  });
+};
+
+const runCompiler = (file: string, type: "module" | "file") => {
+  try {
+    execFileSync(
+      jaiExePath,
+      [file, type, "--", "import_dir", `${extensionPath}/src/`, "meta", "extension"],
+      { maxBuffer: undefined }
+    );
+    
+    parseDefinitions();
+  } catch (e) {
+    console.log(e);
+  }
+};
+
+const loadMore = () => {
+  const currentFile = formatFileName(
+    window.activeTextEditor?.document.fileName ?? ""
+  );
+
+  if (currentFile?.endsWith(".jai")) {
+    const moduleFile = getModulePath(currentFile);
+    open(moduleFile, (err, fd) => {
+      if (err) {
+        runCompiler(currentFile, "file");
+      } else {
+        close(fd);
+        runCompiler(getModuleName(moduleFile), "module");
+      }
+    });
+  }
+};
+
 export function activate(context: ExtensionContext) {
-  const jaiExePath = formatFileName(
+  jaiExePath = formatFileName(
     workspace.getConfiguration("just-an-idea").get("jaiPath") ?? "jai"
   );
 
-  // TODO: Find module in current folder
-  // const currentFile = formatFileName(
-  //   window.activeTextEditor?.document.fileName ?? ""
-  // );
-  const currentFile = "main.jai";
-
-  const extensionPath: string = formatFileName(context.extensionPath);
-
-  if (currentFile?.endsWith(".jai")) {
-    exec(
-      `"${jaiExePath}" "${currentFile}" -- import_dir "${extensionPath}/src/" meta extension`,
-      { maxBuffer: undefined },
-      (error, stdout, stderr) => {
-        if (error) {
-          console.log(
-            `Error when running the jai compiler (exit code ${error.code}): ${error.message}`
-          );
-          console.log(`[Standard Out]: ${stdout}`);
-          console.log(`[Standard Error]: ${stderr}`);
-        } else {
-          readFile("defs.out", (err, data) => {
-            if (!err) {
-              const foundDefinitions: FoundDefinition[] = JSON.parse(
-                data.toString()
-              );
-              definitionCache = {};
-              foundDefinitions.forEach(
-                (def) =>
-                  (definitionCache[def.key] = new Location(
-                    Uri.file(def.path),
-                    new Range(
-                      new Position(def.start.line - 1, def.start.column - 1),
-                      new Position(def.end.line - 1, def.end.column - 1)
-                    )
-                  ))
-              );
-            }
-          });
-        }
-      }
-    );
-  }
+  extensionPath = formatFileName(context.extensionPath);
+  
+  parseDefinitions();
 }
 
 export function deactivate() {}
@@ -88,12 +115,15 @@ languages.registerDefinitionProvider(
       if (!range) {
         return null;
       }
-      const identifier = document.getText(range);
       const file = formatFileName(document.fileName);
       const key = `${file}:${range.start.line + 1}:${
         range.start.character + 1
       }`;
-      return definitionCache[key];
+      const definition = definitionCache[key];
+      if (!definition) {
+        loadMore();
+      }
+      return definition;
     },
   }
 );
