@@ -111,6 +111,7 @@ languages.registerDefinitionProvider(
   { language: "jai", scheme: "file" },
   {
     provideDefinition: (document, position) => {
+      console.log("Looking for definition");
       const range = document.getWordRangeAtPosition(position);
       if (!range) {
         return null;

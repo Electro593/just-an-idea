@@ -28,7 +28,7 @@
     ],
     "configuration": [
       {
-        "title": "General",
+        "title": "Just an Idea",
         "properties": {
           "just-an-idea.jaiPath": {
             "type": "string",

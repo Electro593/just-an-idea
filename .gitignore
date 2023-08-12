@@ -2,6 +2,7 @@ out
 node_modules
 .vscode-test/
 .build/
+*.js
 *.map
 *.vsix
 *.out
