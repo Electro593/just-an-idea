@@ -1,6 +1,7 @@
 #import "Basic";
 #import "Compiler";
 #import "Hash_Table";
+#import "File";
 
 Position :: struct {
 	line: int;
@@ -48,9 +49,8 @@ defcmp :: (a: string, b: string) -> bool {
 definitions: Table(string, Location, given_compare_function=defcmp);
 declarations: Table(*Code_Node, *Code_Declaration);
 
-append_definition :: (builder: *String_Builder, key: string, using definition: Location, is_last: bool) {
-	print_to_builder(
-		builder,
+write_definition :: (file: *File, key: string, using definition: Location, is_last: bool) {
+	output := tprint(
 		DEFINITION_FORMAT,
 		key,
 		path,
@@ -58,6 +58,8 @@ append_definition :: (builder: *String_Builder, key: string, using definition: L
 		end.line, end.column,
 		ifx is_last then "" else ","
 	);
+
+	file_write(file, output);
 }
 
 add_definition :: (load: *Message_File, ident_l0: int, ident_c0: int, decl: *Code_Declaration) {
@@ -454,16 +456,19 @@ find_definitions :: (node: *Code_Node) {
 	compiler_end_intercept(workspace);
 
 	if !errored {
-		builder: String_Builder;
-		init_string_builder(*builder);
-		append(*builder, "[");
-		i := 0;
-		for definitions {
-			append_definition(*builder, it_index, it, i == definitions.count-1);
-			i += 1;
+		file, success := file_open("./defs.out", for_writing=true, keep_existing_content=false);
+		if success {
+			defer file_close(*file);
+			file_write(*file, "[");
+
+			i := 0;
+			for definitions {
+				write_definition(*file, it_index, it, i == definitions.count-1);
+				i += 1;
+			}
+
+			file_write(*file, "]");
 		}
-		append(*builder, "]");
-		print("%", builder_to_string(*builder));
 	}
 
 	debug_print("Nodes processed: %\n", total);

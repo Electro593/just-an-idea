@@ -1,15 +1,13 @@
 import { exec } from "child_process";
+import { readFile } from "fs";
 import {
   Definition,
   ExtensionContext,
   Location,
   Position,
-  ProviderResult,
   Range,
-  TextDocument,
   Uri,
   languages,
-  window,
   workspace,
 } from "vscode";
 
@@ -49,8 +47,6 @@ export function activate(context: ExtensionContext) {
       `"${jaiExePath}" "${currentFile}" -- import_dir "${extensionPath}/src/" meta extension`,
       { maxBuffer: undefined },
       (error, stdout, stderr) => {
-        const foundDefinitions: FoundDefinition[] = JSON.parse(stdout);
-
         if (error) {
           console.log(
             `Error when running the jai compiler (exit code ${error.code}): ${error.message}`
@@ -58,17 +54,24 @@ export function activate(context: ExtensionContext) {
           console.log(`[Standard Out]: ${stdout}`);
           console.log(`[Standard Error]: ${stderr}`);
         } else {
-          definitionCache = {};
-          foundDefinitions.forEach(
-            (def) =>
-              (definitionCache[def.key] = new Location(
-                Uri.file(def.path),
-                new Range(
-                  new Position(def.start.line - 1, def.start.column - 1),
-                  new Position(def.end.line - 1, def.end.column - 1)
-                )
-              ))
-          );
+          readFile("defs.out", (err, data) => {
+            if (!err) {
+              const foundDefinitions: FoundDefinition[] = JSON.parse(
+                data.toString()
+              );
+              definitionCache = {};
+              foundDefinitions.forEach(
+                (def) =>
+                  (definitionCache[def.key] = new Location(
+                    Uri.file(def.path),
+                    new Range(
+                      new Position(def.start.line - 1, def.start.column - 1),
+                      new Position(def.end.line - 1, def.end.column - 1)
+                    )
+                  ))
+              );
+            }
+          });
         }
       }
     );

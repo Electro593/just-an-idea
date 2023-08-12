@@ -42,6 +42,13 @@
         "scopeName": "source.jai",
         "path": "./syntaxes/jai.tmLanguage.json"
       }
+    ],
+    "grammars": [
+      {
+        "language": "jai",
+        "scopeName": "source.jai",
+        "path": "./syntaxes/iain.tmLanguage.json"
+      }
     ]
   },
   "scripts": {
