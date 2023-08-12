@@ -4,6 +4,7 @@
   "description": "Language support for the Jai language",
   "version": "0.0.1",
   "publisher": "electro593",
+  "repository": "https://github.com/Electro593/just-an-idea.git",
   "license": "Unlicense",
   "engines": {
     "vscode": "^1.81.0"
