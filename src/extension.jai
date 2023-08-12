@@ -419,6 +419,9 @@ find_definitions :: (node: *Code_Node) {
 		do_output=false, 
 		write_added_strings=false
 	});
+	
+	// Avoid infinite loop when editing this file
+	if meta_options.compile_time_command_line.count < 2 return;
 
 	workspace := compiler_create_workspace("Target");
 	
@@ -426,6 +429,7 @@ find_definitions :: (node: *Code_Node) {
 	options.output_type = .NO_OUTPUT;
 	options.write_added_strings = false;
 	options.dead_code_elimination = .NONE;
+	options.compile_time_command_line = .[];
 	set_optimization(*options, .VERY_DEBUG);
 	set_build_options(options, workspace);
 
