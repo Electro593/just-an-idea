@@ -39,7 +39,7 @@ const getModulePath = (name: string) => `${getDirPath(name)}/module.jai`;
 const getModuleName = (name: string) => name.match(/[\/\\]?([^\/\\]+)[\/\\]module\.jai$/)?.[1] ?? "";
 
 const parseDefinitions = () => {
-  readFile("defs.out", (err, data) => {
+  readFile(`${extensionPath}defs.out`, (err, data) => {
     if (err) {
       console.log(err.message);
     } else {
