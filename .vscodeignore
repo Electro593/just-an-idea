@@ -1,7 +1,8 @@
 **
 
-!out/**
-!src/**
+!client/out/extension.js
+!server/out/server
+
 !syntaxes/**
 !icons/**
 

@@ -4,13 +4,13 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"type": "npm",
-			"script": "watch",
-			"problemMatcher": "$tsc-watch",
-			"isBackground": true,
-			"presentation": {
-				"reveal": "never"
-			},
+			"label": "Build Program (MS)",
+			"type": "shell",
+			"command": "yarn",
+			"args": [
+				"run",
+				"compile"
+			],
 			"group": {
 				"kind": "build",
 				"isDefault": true
