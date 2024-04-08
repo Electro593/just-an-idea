@@ -1,28 +1,13 @@
+LOG_FOLDER :: "log";
+
 #run {
   make_directory_if_it_does_not_exist("../out");
+  delete_directory(tprint("../../%", LOG_FOLDER));
   
   set_build_options_dc(.{
     output_executable_name = "server",
     output_path = "../out"
   });
-}
-
-send_error :: (loc: Source_Code_Location, message: string) -> bool {
-  write_to_file(message);
-  return true;
-}
-
-write_to_file :: (message: string) {
-  #if OS == .WINDOWS {
-    stdin := File.{GetStdHandle(STD_INPUT_HANDLE)};
-  }
-  
-  file, file_opened := file_open(filename, true, true, false);
-  if file_opened {
-    file_seek(file, 0, .END);
-    file_write(*file, message);
-    file_close(*file);
-  }
 }
 
 read_next :: (buffer: *u8, to_read: s64) -> bytes_read: u32 {
@@ -45,7 +30,6 @@ read_into :: (buffer: *[..]u8) {
 
 read_until :: (buffer: *[..]u8, delimiter: string) -> offset: s64, count: s64 {
   count_start := buffer.count;
-  buffer_start := buffer.data;
   output_start := buffer.data + count_start;
   
   output: string;
@@ -58,16 +42,13 @@ read_until :: (buffer: *[..]u8, delimiter: string) -> offset: s64, count: s64 {
       sleep_milliseconds(10);
       read_into(buffer);
       output_start = buffer.data + count_start;
-      if buffer.allocated >= 1024 * 1024 {
-        assert(false, "Corrupdated header encountered, terminating.");
-        exit(1);
-      }
-      
+      if buffer.allocated >= 1024 * 1024
+        assert(false, "Corrupdated header encountered");
       output.data = output_start + i;
     }
-    output.data = output_start + i;
     if output == delimiter break;
     i += 1;
+    output.data = output_start + i;
   }
   
   return count_start, i;
@@ -77,7 +58,7 @@ parse_string :: (value: string) -> string {
   assert(value.data[0] == #char "\"" && value.data[value.count-1] == #char "\"", "Expected the value to be a string, but got '%'", value);
   result: string;
   result.count = value.count - 2;
-  result.data = talloc(result.count);
+  result.data = alloc(result.count);
   memcpy(result.data, value.data + 1, result.count);
   return result;
 }
@@ -89,7 +70,7 @@ parse_header :: (buffer: *[..]u8) -> content_length: int, content_type: string {
   header_offset, header_count := read_until(buffer, "{");
   header := string.{header_count, buffer.data + header_offset};
   
-  lines := split(header, "\r\n");
+  lines := split(header, "\r\n",, temp);
   for lines {
     if it == "" continue;
     success, key, value := split_from_left(it, ": ");
@@ -100,7 +81,7 @@ parse_header :: (buffer: *[..]u8) -> content_length: int, content_type: string {
         content_length = string_to_int(value);
       
       case "Content-Type";
-        content_type = parse_string(value);
+        content_type = parse_string(value,, temp);
       
       case;
         assert(false, "Encountered an unknown header field '%'", key);
@@ -109,7 +90,7 @@ parse_header :: (buffer: *[..]u8) -> content_length: int, content_type: string {
   
   assert(content_type == "application/vscode-jsonrpc; charset=utf-8", "Received 'Content-Type: %', but only 'application/vscode-jsonrpc; charset=utf-8' is supported", content_type);
   
-  write_to_file(tprint("Parsed:\nContent-Length: %\nContent-Type: %\n\n", content_length, content_type));
+  rpc_debug_log("Header:\nContent-Length: %\r\nContent-Type: \"%\"\r\n\r\n", content_length, content_type);
   
   buffer.count -= header_offset + header_count;
   memcpy(buffer.data, header.data + header_count, buffer.count);
@@ -117,44 +98,71 @@ parse_header :: (buffer: *[..]u8) -> content_length: int, content_type: string {
   return content_length, content_type;
 }
 
-filename: string;
+read_request : JSON_RPC_Read_Request : (_data: *void) -> string {
+  data: *Data = xx _data;
+  
+  size, type := parse_header(*data.buffer);
+  
+  content: string;
+  content.data = alloc(size);
+  content.count = data.buffer.count;
+  memcpy(content.data, data.buffer.data, data.buffer.count);
+  data.buffer.count = 0;
+  
+  while content.count < size {
+    if content.count sleep_milliseconds(1);
+    content.count += read_next(content.data + content.count, size - content.count);
+  }
+  
+  return content;
+}
+
+send_response : JSON_RPC_Send_Response : (data: *void, response: string) {
+  print(response);
+}
+
+debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string) {
+  data: *Data = xx _data;
+  
+  #if OS == .WINDOWS {
+    stdin := File.{GetStdHandle(STD_INPUT_HANDLE)};
+  }
+  
+  file, file_opened := file_open(data.filename, true, true, false);
+  if file_opened {
+    file_seek(file, 0, .END);
+    file_write(*file, message);
+    file_close(*file);
+  }
+}
+
+lsp_initialize : JSON_RPC_Method : (data: *void, params: *JSON_Element) -> *JSON_Element {
+  return make_null();
+}
+
+Data :: struct {
+  buffer: [..] u8;
+  filename: string;
+}
 
 main :: () {
-  delete_directory("jai_lsp_test");
-  make_directory_if_it_does_not_exist("jai_lsp_test");
-  random_seed(current_time_monotonic().low);
-  filename = sprint("jai_lsp_test/%", random_get());
+  #if OS == .WINDOWS {
+    timeBeginPeriod(1);
+  }
   
-  // context.assertion_failed = send_error;
+  data: Data;
   
-  buffer: [..]u8;
+  make_directory_if_it_does_not_exist(LOG_FOLDER);
+  data.filename = sprint("%/%.log", LOG_FOLDER, current_time_monotonic().low);
   
   methods: Table(string, JSON_RPC_Method);
+  table_set(*methods, "initialize", lsp_initialize);
+  
+  initialize_rpc(*data, methods, read_request, send_response, debug_log);
   
   while true {
     reset_temporary_storage();
-    
-    size, type := parse_header(*buffer);
-    
-    content: string;
-    content.data = talloc(size);
-    content.count = buffer.count;
-    memcpy(content.data, buffer.data, buffer.count);
-    buffer.count = 0;
-    
-    while content.count < size {
-      if content.count sleep_milliseconds(1);
-      content.count += read_next(content.data + content.count, size - content.count);
-    }
-    
-    request := parse_json(content);
-    write_to_file(print_element(request));
-    write_to_file("\n\n");
-    
-    response := handle_rpc_request(methods, request);
-    write_to_file(print_element(response));
-    write_to_file("\n\n");
-    print(print_element(response));
+    rpc_read_and_respond();
   }
 }
 
@@ -165,7 +173,6 @@ main :: () {
 #import "File";
 #import "String";
 #import "Hash_Table";
-#import "Random";
 
 #if OS == .WINDOWS {
   #import "Windows";

@@ -54,101 +54,161 @@ parse_json :: (text: string) -> *JSON_Element {
   return parse_json(*json);
 }
 
-get_element :: (object: *JSON_Object, name: string, default := null) -> *JSON_Element {
+copy_json :: (element: *JSON_Element) -> *JSON_Element {
+  if !element return null;
+  
+  if #complete element.kind == {
+    case .NULL; return make_null();
+    case .BOOLEAN; return make_boolean(as_boolean(element).value);
+    case .NUMBER; return make_number(as_number(element).value);
+    case .STRING; return make_string(copy_string(as_string(element).value));
+    
+    case .ARRAY;
+      array := make_array();
+      for as_array(element).value
+        array_add(*array.value, copy_json(it));
+      return array;
+      
+    case .OBJECT;
+      object := make_object();
+      for as_object(element).value
+        table_add(*object.value, copy_string(it_index), copy_json(it));
+      return object;
+  }
+}
+
+free_json :: (element: *JSON_Element) {
+  if !element return;
+  
+  if #complete element.kind == {
+    case .NULL; #through;
+    case .BOOLEAN; #through;
+    case .NUMBER; #through;
+    case .STRING;
+      free(element);
+    
+    case .ARRAY;
+      elem := as_array(element);
+      for elem.value free_json(it);
+      array_free(elem.value);
+      free(element);
+      
+    case .OBJECT;
+      elem := as_object(element);
+      for elem.value free_json(it);
+      deinit(*elem.value);
+      free(element);
+  }
+}
+
+get_element :: inline (object: *JSON_Object, name: string, default := null) -> *JSON_Element {
+  assert(xx object, "Attempted to get \"%\" from an object, but it was null", name);
   value, success := table_find(*object.value, name);
   if !success then value = default;
   return value;
 }
 
-get_element :: (array: *JSON_Array, index: int, default := null) -> *JSON_Element {
+get_element :: inline (array: *JSON_Array, index: int, default := null) -> *JSON_Element {
+  assert(xx object, "Attempted to get index % from an array, but it was null", index);
   if index >= array.value.count then return default;
   return array.value[index];
 }
 
-as_null :: (element: *JSON_Element) -> *JSON_String {
-  assert(element && element.kind == .NULL, "Attempted to interpret a % json object as a null", element.kind);
+as_null :: inline (element: *JSON_Element) -> *JSON_String {
+  if element assert(element.kind == .NULL, "Attempted to interpret a % as a null", element.kind);
   return xx element;
 }
 
-as_boolean :: (element: *JSON_Element) -> *JSON_Boolean {
-  assert(element && element.kind == .BOOLEAN, "Attempted to interpret a % json object as a boolean", element.kind);
+as_boolean :: inline (element: *JSON_Element) -> *JSON_Boolean {
+  if element assert(element.kind == .BOOLEAN, "Attempted to interpret a % as a boolean", element.kind);
   return xx element;
 }
 
-as_number :: (element: *JSON_Element) -> *JSON_Number {
-  assert(element && element.kind == .NUMBER, "Attempted to interpret a % json object as a number", element.kind);
+as_number :: inline (element: *JSON_Element) -> *JSON_Number {
+  if element assert(element.kind == .NUMBER, "Attempted to interpret a % as a number", element.kind);
   return xx element;
 }
 
-as_string :: (element: *JSON_Element) -> *JSON_String {
-  assert(element && element.kind == .STRING, "Attempted to interpret a % json object as a string", element.kind);
+as_string :: inline (element: *JSON_Element) -> *JSON_String {
+  if element assert(element.kind == .STRING, "Attempted to interpret a % as a string", element.kind);
   return xx element;
 }
 
-as_array :: (element: *JSON_Element) -> *JSON_Array {
-  assert(element && element.kind == .ARRAY, "Attempted to interpret a % json object as an array", element.kind);
+as_array :: inline (element: *JSON_Element) -> *JSON_Array {
+  if element assert(element.kind == .ARRAY, "Attempted to interpret a % as an array", element.kind);
   return xx element;
 }
 
-as_object :: (element: *JSON_Element) -> *JSON_Object {
-  assert(element && element.kind == .OBJECT, "Attempted to interpret a % json object as an object", element.kind);
+as_object :: inline (element: *JSON_Element) -> *JSON_Object {
+  if element assert(element.kind == .OBJECT, "Attempted to interpret a % as an object", element.kind);
   return xx element;
 }
 
-make_null :: () -> *JSON_Null {
-  elem: *JSON_Null = talloc(size_of(JSON_Null));
+make_null :: inline () -> *JSON_Null {
+  elem: *JSON_Null = alloc(size_of(JSON_Null));
   elem.* = .{};
   return elem;
 }
 
-make_boolean :: (value: bool) -> *JSON_Boolean {
-  elem: *JSON_Boolean = talloc(size_of(JSON_Boolean));
+make_boolean :: inline (value: bool = false) -> *JSON_Boolean {
+  elem: *JSON_Boolean = alloc(size_of(JSON_Boolean));
   elem.* = .{value = value};
   return elem;
 }
 
-make_number :: (value: float64) -> *JSON_Number {
-  elem: *JSON_Number = talloc(size_of(JSON_Number));
+make_number :: inline (value: float64 = 0) -> *JSON_Number {
+  elem: *JSON_Number = alloc(size_of(JSON_Number));
   elem.* = .{value = value};
   return elem;
 }
 
-make_string :: (value: string) -> *JSON_String {
-  elem: *JSON_String = talloc(size_of(JSON_String));
+make_string :: inline (value: string = "") -> *JSON_String {
+  elem: *JSON_String = alloc(size_of(JSON_String));
   elem.* = .{value = value};
   return elem;
 }
 
-make_array :: (value: [..]*JSON_Element) -> *JSON_Array {
-  elem: *JSON_Array = talloc(size_of(JSON_Array));
+make_array :: inline (value: [..]*JSON_Element) -> *JSON_Array {
+  elem: *JSON_Array = alloc(size_of(JSON_Array));
   elem.* = .{value = value};
   return elem;
 }
 
-make_object :: (value: Table(string, *JSON_Element)) -> *JSON_Object {
-  elem: *JSON_Object = talloc(size_of(JSON_Object));
+make_array :: inline () -> *JSON_Array {
+  elem: *JSON_Array = alloc(size_of(JSON_Array));
+  elem.* = .{};
+  return elem;
+}
+
+make_object :: inline (value: Table(string, *JSON_Element) = .{}) -> *JSON_Object {
+  elem: *JSON_Object = alloc(size_of(JSON_Object));
   elem.* = .{value = value};
   return elem;
 }
 
 set_element :: (object: *JSON_Object, name: string, element: *JSON_Element) {
+  assert(xx object, "Attempting to set \"%\" to element, but the object is null", name, print_json(element,,temp));
   if element then table_set(*object.value, name, element);
 }
 
 set_element :: (array: *JSON_Array, index: int, element: *JSON_Element) {
+  assert(xx array, "Attempting to set index % to %, but the array is null", index, print_json(element,,temp));
   if element {
+    assert(index >= 0, "Attempting to set % at index % of %", print_json(element,,temp), index, print_json(array,,temp));
     if (index >= array.value.count)
       array_resize(*array.value, index + 1, true);
     array.value[index] = element;
   }
 }
 
-print_element :: (element: *JSON_Element) -> string {
+print_json :: (element: *JSON_Element) -> string {
+  if !element return "";
+  
   builder: String_Builder;
   init_string_builder(*builder);
   
   append_element :: (builder: *String_Builder, element: *JSON_Element) {
-    if element.kind == {
+    if #complete element.kind == {
       case .NULL;
         append(builder, "null");
         
@@ -375,7 +435,7 @@ parse_value :: (json: *JSON) -> *JSON_Element {
   if token == {
     case "{"; element = make_object(parse_object(json));
     case "["; element = make_array(parse_array(json));
-    case "\""; element = make_string(parse_string(json));
+    case "\""; element = make_string(copy_string(parse_string(json)));
     
     case "true";
       skip(json, token.count);
@@ -425,7 +485,7 @@ parse_members :: (json: *JSON) -> Table(string, *JSON_Element) {
 
 parse_member :: (json: *JSON) -> string, *JSON_Element {
   parse_whitespace(json);
-  key := parse_string(json);
+  key := copy_string(parse_string(json));
   parse_whitespace(json);
   consume(json, ":");
   value := parse_element(json);
@@ -471,8 +531,7 @@ parse_characters :: (json: *JSON) -> string {
   characters := peek(json, 0);
   while peek(json) != "\""
     characters.count += parse_character(json).count;
-  
-  return characters;
+  return copy_string(characters);
 }
 
 parse_character :: (json: *JSON) -> string {
@@ -655,7 +714,9 @@ consume :: (json: *JSON, expected: string) {
 }
 
 assert_syntax :: inline (arg: bool, json: *JSON, message: string, args: .. Any, loc := #caller_location) {
-  assert(arg, tprint("Invalid JSON syntax at column %: %", json.index, message), ..args, loc = loc);
+  assert_message := sprint("Invalid JSON syntax at column %: %", json.index, message);
+  assert(arg, assert_message, ..args, loc = loc);
+  free(assert_message);
 }
 
 peek_token :: (json: *JSON) -> string {
