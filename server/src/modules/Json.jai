@@ -258,6 +258,8 @@ print_json :: (element: *JSON_Element) -> string {
   return builder_to_string(*builder);
 }
 
+//NOTE: The notes "$Null", "$Boolean", "$Number", "$String", "$Array", and "$Object" will place their
+// respective JSON_*.value values into the Any.
 NOTES :: string.[];
 BLACKLIST :: string.["?"];
 cast_json_log_none :: (f: string, a: .. Any, t := false) -> s64 { return 0; }
@@ -313,45 +315,49 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = NOTES, $blackli
         print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast %% to the variant %% of '%'\", print_json(json,, temp), T);\n", variant_name);
       
       case .ANY;
-        found_non_blacklisted := false;
+        print_to_builder(*builder, "  success := false;\n");
+        has_unblacklisted_notes := false;
         for notes {
-          if !array_find(blacklist, it) {
-            found_non_blacklisted = true;
-            break;
+          if array_find(blacklist, it) continue;
+          has_unblacklisted_notes = true;
+          if it == {
+            case "$Null";    print_to_builder(*builder, "  if !success && json.kind == .NULL    then success, value = true, null;\n");
+            case "$Boolean"; print_to_builder(*builder, "  if !success && json.kind == .BOOLEAN then success, value = true, as_boolean(json).value;\n");
+            case "$Number";  print_to_builder(*builder, "  if !success && json.kind == .NUMBER  then success, value = true, as_number(json).value;\n");
+            case "$String";  print_to_builder(*builder, "  if !success && json.kind == .STRING  then success, value = true, as_string(json).value;\n");
+            case "$Array";   print_to_builder(*builder, "  if !success && json.kind == .ARRAY   then success, value = true, as_array(json).value;\n");
+            case "$Object";  print_to_builder(*builder, "  if !success && json.kind == .OBJECT  then success, value = true, as_object(json).value;\n");
+            case;
+              print_to_builder(*builder, "  if !success {\n");
+              print_to_builder(*builder, "    V :: #insert,scope(CAST_SCOPE) \"#type %;\";\n", it);
+              print_to_builder(*builder, "    test: V;\n");
+              print_to_builder(*builder, "    success = cast_json(json, *test, .[], .%, false, log);\n", blacklist);
+              print_to_builder(*builder, "    if success {\n");
+              print_to_builder(*builder, "      value.type = type_info(V);\n");
+              print_to_builder(*builder, "      value.value_pointer = alloc(size_of(V));\n");
+              print_to_builder(*builder, "      memcpy(value.value_pointer, *test, size_of(V));\n");
+              print_to_builder(*builder, "    }\n");
+              print_to_builder(*builder, "  }\n");
           }
         }
-        if found_non_blacklisted {
-          print_to_builder(*builder, "  success := false;\n");
-          for notes {
-            if array_find(blacklist, it) continue;
-            print_to_builder(*builder, "  if !success {\n");
-            print_to_builder(*builder, "    V :: #insert,scope(CAST_SCOPE) \"#type %;\";\n", it);
-            print_to_builder(*builder, "    test: V;\n");
-            print_to_builder(*builder, "    success = cast_json(json, *test, .[], .%, false, log);\n", blacklist);
-            print_to_builder(*builder, "    if success {\n");
-            print_to_builder(*builder, "      value.type = type_info(V);\n");
-            print_to_builder(*builder, "      value.value_pointer = alloc(size_of(V));\n");
-            print_to_builder(*builder, "      memcpy(value.value_pointer, *test, size_of(V));\n");
-            print_to_builder(*builder, "    }\n");
-            print_to_builder(*builder, "  }\n");
-          }
+        if has_unblacklisted_notes {
           print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast %% to any of the following: [");
-          for notes {
-            if !array_find(blacklist, it)
-            if it_index append(*builder, ", ");
-            append(*builder, it);
-          }
-          print_to_builder(*builder, "  ]\", print_json(json,, temp));\n");
         } else {
           print_to_builder(*builder, "  if #complete json.kind == {\n");
-          print_to_builder(*builder, "    case .NULL; value = null;\n");
+          print_to_builder(*builder, "    case .NULL;    value = null;\n");
           print_to_builder(*builder, "    case .BOOLEAN; value = as_boolean(json).value;\n");
-          print_to_builder(*builder, "    case .NUMBER; value = as_number(json).value;\n");
-          print_to_builder(*builder, "    case .STRING; value = as_string(json).value;\n");
-          print_to_builder(*builder, "    case .ARRAY; value = as_array(json).value;\n");
-          print_to_builder(*builder, "    case .OBJECT; value = as_object(json).value;\n");
+          print_to_builder(*builder, "    case .NUMBER;  value = as_number(json).value;\n");
+          print_to_builder(*builder, "    case .STRING;  value = as_string(json).value;\n");
+          print_to_builder(*builder, "    case .ARRAY;   value = as_array(json).value;\n");
+          print_to_builder(*builder, "    case .OBJECT;  value = as_object(json).value;\n");
           print_to_builder(*builder, "  }\n");
         }
+        for notes {
+          if !array_find(blacklist, it)
+          if it_index append(*builder, ", ");
+          append(*builder, it);
+        }
+        print_to_builder(*builder, "  ]\", print_json(json,, temp));\n");
       
       case .ARRAY;
         t: *Type_Info_Array = xx type;

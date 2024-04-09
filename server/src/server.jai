@@ -151,11 +151,15 @@ main :: () {
   make_directory_if_it_does_not_exist(LOG_FOLDER);
   data.filename = sprint("%/%.log", LOG_FOLDER, current_time_monotonic().low);
   
-  methods: Table(string, JSON_RPC_Method);
-  table_set(*methods, "$/cancelRequest", lsp__cancel_request);
-  table_set(*methods, "initialize", lsp_initialize);
+  initialize_rpc(*data, read_request, send_response, debug_log);
   
-  initialize_rpc(*data, methods, read_request, send_response, debug_log);
+  test :: (data: *void, params: Data) -> Data {
+    return .{};
+  }
+  
+  // add_rpc_method("$/cancelRequest", lsp__cancel_request);
+  // add_rpc_method("$/progress", lsp__progress);
+  add_rpc_method("initialize", lsp_initialize);
   
   while true {
     reset_temporary_storage();

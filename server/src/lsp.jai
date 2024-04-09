@@ -1,53 +1,34 @@
-LSP_Type :: enum {
-  NULL;
+lsp_initialize :: (data: *void, params: LSP_Initialize_Params) -> LSP_Null {
+  return .{};
+}
+
+#scope_file
+
+LSP_Boolean  :: bool;
+LSP_Integer  :: s32;
+LSP_UInteger :: u32;
+LSP_Decimal  :: float64;
+LSP_String   :: string;
+LSP_Array    :: [..] LSP_Any;
+LSP_Null     :: struct { value: Any; @$Null }
+LSP_Object   :: struct { value: Any; @$Object }
+LSP_Any      :: struct {
+  value: Any; @LSP_Null @LSP_Boolean @LSP_Integer @LSP_UInteger @LSP_Decimal @LSP_String @LSP_Array @LSP_Object
+}
+
+LSP_Cancel_Params :: struct {
+  id: Any; @LSP_Integer @LSP_String
+}
+
+LSP_Progress_Params :: struct {
+  LSP_Progress_Token :: struct {
+    value: Any; @LSP_Integer @LSP_String
+  }
   
-  BOOLEAN;
-  INTEGER;
-  UINTEGER;
-  DECIMAL;
-  STRING;
-  ARRAY;
-  OBJECT;
+  token: LSP_Progress_Token;
+  value: Any;
 }
 
-LSP_Boolean  :: #type,distinct bool;
-LSP_Integer  :: #type,distinct s32;
-LSP_UInteger :: #type,distinct u32;
-LSP_Decimal  :: #type,distinct float64;
-LSP_String   :: #type,distinct string;
-LSP_Array    :: #type,distinct [..] LSP_Any;
-LSP_Object   :: #type,distinct *Table(string, LSP_Any);
-
-LSP_Integer_Or_String :: struct @LSP_Compound_Type {
-  type: enum {
-    INTEGER :: LSP_Type.INTEGER;
-    STRING :: LSP_Type.STRING;
-  };
-  union {
-    integer: LSP_Integer;
-    str: LSP_String;
-  };
-}
-
-LSP_Any :: struct @LSP_Compound_Type {
-  type: LSP_Type;
-  union {
-    boolean:  LSP_Boolean;
-    integer:  LSP_Integer;
-    uinteger: LSP_UInteger;
-    decimal:  LSP_Decimal;
-    str:      LSP_String;
-    array:    LSP_Array;
-    object:   LSP_Object;
-  };
-}
-
-lsp__cancel_request : JSON_RPC_Method : (data: *void, _params: *JSON_Element) -> *JSON_Element {
-  return make_null();
-}
-
-lsp_initialize : JSON_RPC_Method : (data: *void, _params: *JSON_Element) -> *JSON_Element {
-  // params: LSP_Cancel_Params;
-  // lsp_cast(_params, *params);
-  return make_null();
+LSP_Initialize_Params :: struct {
+  
 }

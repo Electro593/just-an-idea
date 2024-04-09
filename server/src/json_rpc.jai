@@ -15,30 +15,60 @@ JSON_RPC_Error_Code :: enum {
 JSON_RPC_Send_Response :: #type (data: *void, response: string);
 JSON_RPC_Read_Request :: #type (data: *void) -> request: string;
 JSON_RPC_Debug_Log :: #type (data: *void, message: string);
-JSON_RPC_Method :: #type (data: *void, params: *JSON_Element) -> result: *JSON_Element;
 
-initialize_rpc :: (data: *void, methods: Table(string, JSON_RPC_Method), read_request: JSON_RPC_Read_Request, send_response: JSON_RPC_Send_Response, debug_log: JSON_RPC_Debug_Log = dummy_debug_log) {
+initialize_rpc :: (data: *void, read_request: JSON_RPC_Read_Request, send_response: JSON_RPC_Send_Response, debug_log: JSON_RPC_Debug_Log = dummy_debug_log) {
+  assert(!_state.is_initialized, "Attempted to initialize, but JSON-RPC is already initialized");
   init(*_state.mutex);
+  
   _state.data = data;
-  _state.methods = methods;
   _state.read_request = read_request;
   _state.send_response = send_response;
   _state.debug_log = debug_log;
-  context.json_rpc.assertion_code = .INTERNAL_ERROR;
+  
+  set_error(.INTERNAL_ERROR);
   context.json_rpc.state = *_state;
+  _state.is_initialized = true;
   
   rpc_debug_log("JSON-RPC Initialized");
 }
 
+add_rpc_method :: (name: string, method: (data: *void, params: $P) -> $R) {
+  caster :: (proc: (data: *void, params: P) -> R, params: *JSON_Element) -> *JSON_Element {
+    actual_params := cast_json(params, P);
+    actual_result := proc(context.json_rpc.state.data, actual_params);
+    return cast_json(actual_result);
+    return make_null();
+  }
+  
+  state := context.json_rpc.state;
+  lock(*state.mutex);
+  table_set(*state.methods, name, .{xx caster, xx method});
+  unlock(*state.mutex);
+  rpc_debug_log("Added %", name);
+}
+
 deinitialize_rpc :: () {
-  destroy(*_state.mutex);
-  array_free(_state.threads);
-  array_free(_state.requests);
-  array_free(_state.responses);
+  state := context.json_rpc.state;
+  
+  assert(state.is_initialized, "Attempted to deinitialize, but JSON-RPC is already uninitialized");
+  lock(*state.mutex);
+  set_error(.INTERNAL_ERROR);
+  assert(state.threads.count == 0, "Attempted to deinitialize while JSON-RPC threads are still running");
+  destroy(*state.mutex);
+  
+  array_free(state.threads);
+  array_free(state.requests);
+  array_free(state.responses);
+  
+  state.is_initialized = false;
+}
+
+set_error :: (code: JSON_RPC_Error_Code) {
+  context.json_rpc.assertion_code = code;
 }
 
 rpc_read_and_respond :: () {
-  // We're using threads here so that they can exit without terminating the program
+  // We're using threads so that they can assert and return to here
   
   new_context := context;
   new_context.assertion_failed = assert_rpc;
@@ -47,12 +77,13 @@ rpc_read_and_respond :: () {
     state.is_batch = false;
     
     rpc_debug_log("Launching parse thread");
-    thread: Thread;
+    thread := array_add(*state.threads);
     thread.starting_context = context;
-    thread_init(*thread, parse_threaded_rpc_request);
-    thread_start(*thread);
-    thread_is_done(*thread, -1);
-    thread_deinit(*thread);
+    thread_init(thread, parse_threaded_rpc_request);
+    thread_start(thread);
+    thread_is_done(thread, -1);
+    thread_deinit(thread);
+    state.threads.count = 0;
     
     count := state.requests.count;
     for 1..count
@@ -77,6 +108,12 @@ rpc_debug_log :: (message: string, args: ..Any) {
 
 #scope_file
 
+JSON_RPC_Caster :: #type (proc: *void, params: *JSON_Element) -> *JSON_Element;
+JSON_RPC_Caster_Data :: struct {
+  caster: JSON_RPC_Caster;
+  proc: *void;
+}
+
 JSON_RPC_Error :: struct {
   code: JSON_RPC_Error_Code;
   message: string;
@@ -85,14 +122,15 @@ JSON_RPC_Error :: struct {
 
 JSON_RPC :: struct {
   mutex: Mutex;
+  
   requests: [..] *JSON_Element;
   responses: [..] *JSON_Element;
   is_batch: bool;
+  is_initialized: bool;
   
-  // Not mutexed
   data: *void;
   threads: [..] Thread;
-  methods: Table(string, JSON_RPC_Method);
+  methods: Table(string, JSON_RPC_Caster_Data);
   read_request: JSON_RPC_Read_Request;
   send_response: JSON_RPC_Send_Response;
   debug_log: JSON_RPC_Debug_Log;
@@ -123,7 +161,7 @@ send_response :: () {
     } else if state.responses.count > 1 {
       // It'll loop around and report a single error
       state.responses.count = 0;
-      context.json_rpc.assertion_code = .INTERNAL_ERROR;
+      set_error(.INTERNAL_ERROR);
       assert(false, "Attempted to send multiple responses, but the request was not a batch");
     } else {
       response = state.responses[0];
@@ -233,13 +271,13 @@ parse_threaded_rpc_request : Thread_Proc : (thread: *Thread) -> s64 {
   thread_state := *context.json_rpc;
   state := thread_state.state;
   
-  thread_state.assertion_code = .PARSE_ERROR;
+  set_error(.PARSE_ERROR);
   content := state.read_request(state.data);
   request := parse_json(content);
   free(content);
   rpc_debug_log("Request content:\n%", print_json(request,, temp));
   
-  thread_state.assertion_code = .INVALID_REQUEST;
+  set_error(.INVALID_REQUEST);
   if request.kind == .ARRAY {
     for as_array(request).value {
       assert(it.kind == .OBJECT, "A json-rpc request must be an object, but got %", print_json(it,, temp));
@@ -267,8 +305,9 @@ handle_threaded_rpc_request : Thread_Proc : (thread: *Thread) -> s64 {
   
   thread_state := *context.json_rpc;
   state := thread_state.state;
-  thread_state.assertion_code = .INTERNAL_ERROR;
+  set_error(.INTERNAL_ERROR);
   
+  // Retrieve
   lock(*state.mutex);
   request := as_object(state.requests[state.requests.count - 1]);
   state.requests.count -= 1;
@@ -276,13 +315,13 @@ handle_threaded_rpc_request : Thread_Proc : (thread: *Thread) -> s64 {
   unlock(*state.mutex);
   rpc_debug_log("Obtained request:\n%", print_json(request,, temp));
   
-  thread_state.assertion_code = .INVALID_REQUEST;
-  
+  set_error(.INVALID_REQUEST);
   jsonrpc := as_string(get_element(request, "jsonrpc"));
   method := as_string(get_element(request, "method"));
   params := get_element(request, "params");
   id := get_element(request, "id");
   
+  // Validate
   assert(!jsonrpc || jsonrpc.kind == .STRING && jsonrpc.value == "2.0", "jsonrpc must not exist for version 1, or equal \"2.0\" for version 2, but it was %", print_json(jsonrpc,, temp));
   assert(method && method.kind == .STRING, "method must be a String, but was %", print_json(method,, temp));
   if !jsonrpc {
@@ -294,21 +333,24 @@ handle_threaded_rpc_request : Thread_Proc : (thread: *Thread) -> s64 {
   }
   rpc_debug_log("Request validated");
   
-  thread_state.assertion_code = .METHOD_NOT_FOUND;
-  func, success := table_find(*state.methods, method.value);
+  // Get the method
+  set_error(.METHOD_NOT_FOUND);
+  method_data, success := table_find(*state.methods, method.value);
   assert(success);
   rpc_debug_log("Found %", method.value);
-  
-  if params 
+  if params
     rpc_debug_log("Calling '%' with params:\n%", method.value, print_json(params,, temp));
   else
     rpc_debug_log("Calling '%' with no params", method.value);
-  thread_state.assertion_code = .INTERNAL_ERROR;
-  result := func(state.data, params);
-  thread_state.assertion_code = .REQUEST_FAILED;
+  
+  // Call the method
+  set_error(.INTERNAL_ERROR);
+  result := method_data.caster(method_data.proc, params);
+  set_error(.REQUEST_FAILED);
   assert(xx result, "JSON-RPC methods must return a result, but % returned null", method.value);
   rpc_debug_log("Completed '%' with result:\n%", method.value, print_json(result,, temp));
   
+  // Respond
   set_response(jsonrpc, id, result, .{}, false);
   free_json(request);
   
