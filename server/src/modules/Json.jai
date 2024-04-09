@@ -1,3 +1,5 @@
+#module_parameters (CAST_SCOPE: Code) ();
+
 JSON_Element :: struct {
   kind: enum {
     NULL;
@@ -256,6 +258,188 @@ print_json :: (element: *JSON_Element) -> string {
   return builder_to_string(*builder);
 }
 
+NOTES :: string.[];
+BLACKLIST :: string.["?"];
+cast_json_log_none :: (f: string, a: .. Any, t := false) -> s64 { return 0; }
+cast_json :: (json: *JSON_Element, $T: Type, out: *T = null, $notes: [] string = NOTES, $blacklist: [] string = BLACKLIST, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> T {
+  value: T;
+  if !json return value;
+  log("Hello from the outer: %, %, %, %, %, %", print_json(json,, temp), T, out, notes, blacklist, should_assert);
+  success := cast_json(json, *value, notes, blacklist, should_assert, log = log);
+  if !success return value;
+  if out out.* = value;
+  return value;
+}
+
+cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = NOTES, $blacklist: [] string = BLACKLIST, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> success: bool {
+  assert_cast_json :: (arg: bool, message := "", args: .. Any, loc := #caller_location) #no_debug #expand {
+    #if `should_assert assert(arg, message, ..args, loc = loc);
+    if !arg `return false;
+  }
+  
+  construct_json_cast :: (type: *Type_Info, notes: [] string, blacklist: [] string) -> string {
+    builder: String_Builder;
+    init_string_builder(*builder,, temp);
+    
+    type_name := get_type_name(type);
+    print_to_builder(*builder, "// For '%' with notes: %\n", type_name, notes);
+    print_to_builder(*builder, "_cast_json :: (json: *JSON_Element, out: *$T, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> success: bool {\n");
+    print_to_builder(*builder, "  assert_cast_json(xx out, \"Attempted to cast %%, but out was null\", print_json(json,, temp));\n");
+    print_to_builder(*builder, "  assert_cast_json(json || array_find(notes, \"?\"), \"json was null, but it was not marked as optional (@?)\");\n");
+    print_to_builder(*builder, "  if !json return true;\n");
+    print_to_builder(*builder, "  value: T;\n");
+    
+    if type.type == {
+      case .VOID;
+      
+      case .BOOL;
+        print_to_builder(*builder, "  assert_cast_json(json.kind == .BOOLEAN, \"Expected a boolean, but got %%\", print_json(json,, temp));\n");
+        print_to_builder(*builder, "  value = xx as_boolean(json).value;\n");
+      
+      case .INTEGER; #through;
+      case .FLOAT;
+        print_to_builder(*builder, "  assert_cast_json(json.kind == .NUMBER, \"Expected a number, but got %%\", print_json(json,, temp));\n");
+        print_to_builder(*builder, "  value = xx as_number(json).value;\n");
+      
+      case .STRING;
+        print_to_builder(*builder, "  assert_cast_json(json.kind == .STRING, \"Expected a string, but got %%\", print_json(json,, temp));\n");
+        print_to_builder(*builder, "  value = xx as_string(json).value;\n");
+      
+      case .VARIANT;
+        t: *Type_Info_Variant = xx type;
+        variant_name := get_type_name(t.variant_of);
+        print_to_builder(*builder, "  V :: #insert,scope(CAST_SCOPE) \"#type %;\";\n", variant_name);
+        print_to_builder(*builder, "  success := cast_json(json, cast(*V) *value, .%, .%, should_assert, log);\n", notes, blacklist);
+        print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast %% to the variant %% of '%'\", print_json(json,, temp), T);\n", variant_name);
+      
+      case .ANY;
+        found_non_blacklisted := false;
+        for notes {
+          if !array_find(blacklist, it) {
+            found_non_blacklisted = true;
+            break;
+          }
+        }
+        if found_non_blacklisted {
+          print_to_builder(*builder, "  success := false;\n");
+          for notes {
+            if array_find(blacklist, it) continue;
+            print_to_builder(*builder, "  if !success {\n");
+            print_to_builder(*builder, "    V :: #insert,scope(CAST_SCOPE) \"#type %;\";\n", it);
+            print_to_builder(*builder, "    test: V;\n");
+            print_to_builder(*builder, "    success = cast_json(json, *test, .[], .%, false, log);\n", blacklist);
+            print_to_builder(*builder, "    if success {\n");
+            print_to_builder(*builder, "      value.type = type_info(V);\n");
+            print_to_builder(*builder, "      value.value_pointer = alloc(size_of(V));\n");
+            print_to_builder(*builder, "      memcpy(value.value_pointer, *test, size_of(V));\n");
+            print_to_builder(*builder, "    }\n");
+            print_to_builder(*builder, "  }\n");
+          }
+          print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast %% to any of the following: [");
+          for notes {
+            if !array_find(blacklist, it)
+            if it_index append(*builder, ", ");
+            append(*builder, it);
+          }
+          print_to_builder(*builder, "  ]\", print_json(json,, temp));\n");
+        } else {
+          print_to_builder(*builder, "  if #complete json.kind == {\n");
+          print_to_builder(*builder, "    case .NULL; value = null;\n");
+          print_to_builder(*builder, "    case .BOOLEAN; value = as_boolean(json).value;\n");
+          print_to_builder(*builder, "    case .NUMBER; value = as_number(json).value;\n");
+          print_to_builder(*builder, "    case .STRING; value = as_string(json).value;\n");
+          print_to_builder(*builder, "    case .ARRAY; value = as_array(json).value;\n");
+          print_to_builder(*builder, "    case .OBJECT; value = as_object(json).value;\n");
+          print_to_builder(*builder, "  }\n");
+        }
+      
+      case .ARRAY;
+        t: *Type_Info_Array = xx type;
+        print_to_builder(*builder, "  assert_cast_json(json.kind == .ARRAY, \"Expected an array (%%), but got %%\", T, print_json(json,, temp));\n");
+        print_to_builder(*builder, "  array := as_array(json).value;\n");
+        element_name := get_type_name(t.element_type);
+        if t.array_type == .VIEW
+          print_to_builder(*builder, "  value = .{array.count, alloc(array.count * size_of(%))};\n", element_name);
+        print_to_builder(*builder, "  for array\n");
+        if t.array_type == {
+          case .FIXED; #through;
+          case .VIEW;
+            print_to_builder(*builder, "    cast_json(it, *value[it_index], .[], .%, should_assert, log);\n", blacklist);
+          case .RESIZABLE;
+            print_to_builder(*builder, "    cast_json(it, array_add(*value), .[], .%, should_assert, log);\n", blacklist);
+        }
+      
+      case .STRUCT;
+        t: *Type_Info_Struct = xx type;
+        // There's no viable way to cast unions (where would we write the differentiator?),
+        // so we'll just ignore them.
+        if !(t.textual_flags & .UNION) {
+          print_to_builder(*builder, "  assert_cast_json(json.kind == .OBJECT, \"Expected an object (%%), but got %%\", T, print_json(json,, temp));\n");
+          print_to_builder(*builder, "  object := as_object(json);\n");
+          print_to_builder(*builder, "  success: bool;\n");
+          for t.members {
+            print_to_builder(*builder, "  success = cast_json(get_element(object, \"%\"), *value.%, .%, .%, should_assert);\n", it.name, it.name, it.notes, blacklist);
+            print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast %% to a struct (%%) because casting the member % (%) failed\", print_json(json,, temp), T);\n", it.name, get_type_name(it.type));
+          }
+        }
+      
+      case .ENUM;
+        build_switch_case :: (builder: *String_Builder, t: *Type_Info_Enum, type_name: string, value: string, wrapper: string, operation: string, indentation: string) {
+          print_to_builder(builder, "%check := %;\n", indentation, value);
+          print_to_builder(builder, "%if check == {\n", indentation);
+          for t.names print_to_builder(builder, "%  case %; value % .%;\n", indentation, tprint(wrapper, it), operation, it);
+          print_to_builder(builder, "%  case; assert_cast_json(false, \"The provided value '%%' didn't match any of the options in %% (%)\", check, T);\n", indentation, type_name);
+          print_to_builder(builder, "%}\n", indentation);
+        }
+        t: *Type_Info_Enum = xx type;
+        if t.enum_type_flags & .FLAGS {
+          print_to_builder(*builder, "  if json.kind == .NUMBER {\n");
+          // This isn't a perfect check, since it allows single bits when they're part of a multi-bit flag.
+          // However, if would be way to expensive to fully check it, so we'll just trust that the enums
+          // are somewhat reasonable.
+          print_to_builder(*builder, "    value = cast(T) as_number(json).value;\n");
+          print_to_builder(*builder, "    check := value;\n");
+          for t.names print_to_builder(*builder, "    check &= ~.%;\n", it);
+          print_to_builder(*builder, "    assert_cast_json(!check, \"The provided enum_flags value '%%' didn't match any of the options in %% (%)\", value, T);\n",  type_name);
+          print_to_builder(*builder, "  } else if json.kind == .ARRAY {\n");
+          print_to_builder(*builder, "    array := as_array(json).value;\n");
+          print_to_builder(*builder, "    for array {\n");
+          print_to_builder(*builder, "      if json.kind == .STRING {\n");
+          build_switch_case(*builder, t, type_name, "as_string(json).value", "\"%\"", "|=", "        ");
+          print_to_builder(*builder, "      } else if json.kind == .NUMBER {\n");
+          build_switch_case(*builder, t, type_name, tprint("cast(T) as_number(json).value"), ".%", "|=", "        ");
+          print_to_builder(*builder, "      } else assert_cast_json(false, \"Expected only strings and numbers within the array because %% is an enum (%), but got %%\", T, print_json(json,, temp));\n", type_name);
+          print_to_builder(*builder, "    }\n");
+          print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected an array or number because %% is an enum_flags (%), but got %%\", T, print_json(json,, temp));\n", type_name);
+        } else {
+          print_to_builder(*builder, "  if json.kind == .STRING {\n");
+          build_switch_case(*builder, t, type_name, "as_string(json).value", "\"%\"", "=", "    ");
+          print_to_builder(*builder, "  } else if json.kind == .NUMBER {\n");
+          build_switch_case(*builder, t, type_name, tprint("cast(T) as_number(json).value"), ".%", "=", "    ");
+          print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected a string or number because %% is an enum (%), but got %%\", T, print_json(json,, temp));\n", type_name);
+        }
+      
+      // No good way to parse these, so we'll just ignore them
+      case .POINTER;
+      case .PROCEDURE;
+      case .OVERLOAD_SET;
+      case .POLYMORPHIC_VARIABLE;
+      case .TYPE;
+      case .CODE;
+      case;
+    }
+    
+    print_to_builder(*builder, "  out.* = value;\n");
+    print_to_builder(*builder, "  return true;\n");
+    print_to_builder(*builder, "}\n");
+    
+    return builder_to_string(*builder);
+  }
+  
+  #insert #run construct_json_cast(type_info(T), notes, blacklist);
+  return _cast_json(json, out, should_assert, log);
+}
+
 #scope_file
 
 JSON :: struct {
@@ -272,6 +456,137 @@ Text_Encoding :: enum {
   UTF_16_BE;
   UTF_32_LE;
   UTF_32_BE;
+}
+
+get_type_name :: (type: *Type_Info) -> string {
+  if #complete type.type == {
+    case .BOOL; return "bool";
+    case .STRING; return "string";
+    case .VOID; return "void";
+    case .ANY; return "Any";
+    case .TYPE; return "Type";
+    case .CODE; return "Code";
+    
+    case .INTEGER;
+      if type == type_info(int) return "int";
+      t: *Type_Info_Integer = xx type;
+      return tprint("%0%", ifx t.signed then "s" else "u", t.runtime_size * 8);
+    
+    case .FLOAT;
+      if type == type_info(float) return "float";
+      return tprint("float%", type.runtime_size * 8);
+    
+    case .POINTER;
+      t: *Type_Info_Pointer = xx type;
+      return tprint("*%", get_type_name(t.pointer_to));
+    
+    case .PROCEDURE;
+      t: *Type_Info_Procedure = xx type;
+      builder: String_Builder;
+      init_string_builder(*builder,, temp);
+      append(*builder, "(");
+      for t.argument_types
+        print_to_builder(*builder, "%0%", ifx it_index then ", " else "", get_type_name(it));
+      append(*builder, ") -> (");
+      for t.return_types
+        print_to_builder(*builder, "%0%", ifx it_index then ", " else "", get_type_name(it));
+      append(*builder, ")");
+      if t.procedure_flags & .IS_ELSEWHERE append(*builder, " #elsewhere");
+      if t.procedure_flags & .IS_COMPILE_TIME_ONLY append(*builder, " #compiler");
+      if t.procedure_flags & .HAS_NO_CONTEXT append(*builder, " #no_context");
+      if t.procedure_flags & .IS_C_CALL append(*builder, " #c_call");
+      if t.procedure_flags & .IS_INTRINSIC append(*builder, " #intrinsic");
+      if t.procedure_flags & .IS_SYMMETRIC append(*builder, " #symmetric");
+      if t.procedure_flags & .IS_CPP_METHOD append(*builder, " #cpp_method");
+      if t.procedure_flags & .HAS_CPP_NON_POD_RETURN_TYPE append(*builder, " #cpp_return_type_is_non_pod");
+      return builder_to_string(*builder);
+    
+    case .STRUCT;
+      append_struct_member :: (builder: *String_Builder, parent: *Type_Info_Struct, member: Type_Info_Struct_Member, delimiter: string, print_delimiter: bool) {
+        if member.flags & .CONSTANT {
+          value: Any;
+          value.type = member.type;
+          value.value_pointer = parent.constant_storage.data + member.offset_into_constant_storage;
+          print_to_builder(builder, "% : % : %", member.name, get_type_name(member.type), value);
+        } else {
+          if member.flags & .AS append(builder, "#as ");
+          if member.flags & .USING append(builder, "using ");
+          assert(!(member.flags & .IMPORTED), "Not yet implemented");
+          print_to_builder(builder, "%: %", member.name, get_type_name(member.type));
+        }
+        if print_delimiter append(builder, delimiter);
+        for member.notes
+          print_to_builder(builder, " @%", it);
+        if print_delimiter append(builder, " ");
+      }
+      
+      t: *Type_Info_Struct = xx type;
+      if t.name return t.name;
+      builder: String_Builder;
+      init_string_builder(*builder,, temp);
+      append(*builder, ifx t.textual_flags & .UNION then "union" else "struct");
+      if t.textual_flags & .TYPE_INFO_NONE append(*builder, " #type_info_none");
+      if t.textual_flags & .TYPE_INFO_NO_SIZE_COMPLAINT append(*builder, " #type_info_no_size_complaint");
+      if t.textual_flags & .TYPE_INFO_PROCEDURES_ARE_VOID_POINTERS append(*builder, " #type_info_procedures_are_void_pointers");
+      assert(!t.specified_parameters.count, "Not yet implemented");
+      if t.polymorph_source_struct {
+        append(*builder, "(");
+        for t.specified_parameters
+          append_struct_member(*builder, t, it, ",", xx it_index);
+        append(*builder, ")");
+      }
+      for t.notes
+        print_to_builder(*builder, " @%", it);
+      append(*builder, " { ");
+      for t.members
+        append_struct_member(*builder, t, it, ";", true);
+      append(*builder, "}");
+      if t.textual_flags & .FOREIGN append(*builder, " #foreign");
+      if t.textual_flags & .NO_PADDING append(*builder, " #no_padding");
+      return builder_to_string(*builder);
+    
+    case .ARRAY;
+      t: *Type_Info_Array = xx type;
+      element_name := get_type_name(t.element_type);
+      if #complete t.array_type == {
+        case .FIXED; return tprint("[%] %", t.array_count, element_name);
+        case .VIEW; return tprint("[] %", element_name);
+        case .RESIZABLE; return tprint("[..] %", element_name);
+      }
+    
+    case .OVERLOAD_SET;
+      assert(false, "Could not determine the type name for %", type.*);
+      return "";
+    
+    case .ENUM;
+      t: *Type_Info_Enum = xx type;
+      if t.name return t.name;
+      builder: String_Builder;
+      init_string_builder(*builder,, temp);
+      append(*builder, "enum");
+      if t.enum_type_flags & .FLAGS     append(*builder, "_flags");
+      print_to_builder(*builder, " %", get_type_name(t.internal_type));
+      if t.enum_type_flags & .COMPLETE  append(*builder, " #complete");
+      if t.enum_type_flags & .SPECIFIED append(*builder, " #specified");
+      append(*builder, " { ");
+      assert(t.names.count == t.values.count, "The enum % has % names but % values", t.*, t.names.count, t.values.count);
+      for t.names
+        print_to_builder(*builder, "% :: %; ", it, t.values[it_index]);
+      append(*builder, "}");
+      return builder_to_string(*builder);
+    
+    case .POLYMORPHIC_VARIABLE;
+      assert(false, "Could not determine the type name for %", type.*);
+      return "";
+    
+    case .VARIANT;
+      t: *Type_Info_Variant = xx type;
+      if t.name return t.name;
+      return tprint("#type%0% %",
+        ifx t.variant_flags & .DISTINCT then ",distinct" else "",
+        ifx t.variant_flags & .ISA then ",isa" else "",
+        get_type_name(t.variant_of)); 
+  }
 }
 
 validate_utf_8 :: (json: *JSON) {

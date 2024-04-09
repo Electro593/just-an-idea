@@ -136,10 +136,6 @@ debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string) {
   }
 }
 
-lsp_initialize : JSON_RPC_Method : (data: *void, params: *JSON_Element) -> *JSON_Element {
-  return make_null();
-}
-
 Data :: struct {
   buffer: [..] u8;
   filename: string;
@@ -156,6 +152,7 @@ main :: () {
   data.filename = sprint("%/%.log", LOG_FOLDER, current_time_monotonic().low);
   
   methods: Table(string, JSON_RPC_Method);
+  table_set(*methods, "$/cancelRequest", lsp__cancel_request);
   table_set(*methods, "initialize", lsp_initialize);
   
   initialize_rpc(*data, methods, read_request, send_response, debug_log);
@@ -180,6 +177,7 @@ main :: () {
   #import "POSIX";
 }
 
-#import "Json";
+#import "Json" (CAST_SCOPE = #code main);
 
 #load "json_rpc.jai";
+#load "lsp.jai";
