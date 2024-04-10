@@ -1,3 +1,4 @@
+//TODO: Some of these are defined externally, maybe add a way to custom-define them
 JSON_RPC_Error_Code :: enum {
   UNKNOWN            :: -32001;
   NOT_INITIALIZED    :: -32002;
@@ -32,19 +33,46 @@ initialize_rpc :: (data: *void, read_request: JSON_RPC_Read_Request, send_respon
   rpc_debug_log("JSON-RPC Initialized");
 }
 
-add_rpc_method :: (name: string, method: (data: *void, params: $P) -> $R) {
-  caster :: (proc: (data: *void, params: P) -> R, params: *JSON_Element) -> *JSON_Element {
+add_rpc_method :: (name: string, method: (data: *$D, params: $P) -> $R) {
+  caster :: (proc: (data: *D, params: P) -> R, params: *JSON_Element) -> *JSON_Element {
     actual_params := cast_json(params, P);
-    actual_result := proc(context.json_rpc.state.data, actual_params);
-    // return cast_json(actual_result);
+    rpc_debug_log("Casted the params:\n%\nInto %:\n%\n", print_json(params,, temp), P, actual_params);
+    actual_result := proc(xx context.json_rpc.state.data, actual_params);
+    // result := cast_json(actual_result);
+    result := make_null();
+    rpc_debug_log("Casted %:\n%\nInto the result:\n%\n", R, actual_result, print_json(result,, temp));
+    return result;
+  }
+  add_rpc_method(name, xx caster, xx method);
+}
+
+add_rpc_method :: (name: string, method: (data: *$D, params: $P)) {
+  caster :: (proc: (data: *D, params: P), params: *JSON_Element) -> *JSON_Element {
+    actual_params := cast_json(params, P);
+    rpc_debug_log("Casted the params:\n%\nInto %:\n%\n", print_json(params,, temp), P, actual_params);
+    actual_result := proc(xx context.json_rpc.state.data, actual_params);
     return make_null();
   }
-  
-  state := context.json_rpc.state;
-  lock(*state.mutex);
-  table_set(*state.methods, name, .{xx caster, xx method});
-  unlock(*state.mutex);
-  rpc_debug_log("Added %", name);
+  add_rpc_method(name, xx caster, xx method);
+}
+
+add_rpc_method :: (name: string, method: (data: *$D) -> $R) {
+  caster :: (proc: (data: *D) -> R, params: *JSON_Element) -> *JSON_Element {
+    actual_result := proc(xx context.json_rpc.state.data);
+    // result := cast_json(actual_result);
+    result := make_null();
+    rpc_debug_log("Casted %:\n%\nInto the result:\n%\n", R, actual_result, print_json(result,, temp));
+    return result;
+  }
+  add_rpc_method(name, xx caster, xx method);
+}
+
+add_rpc_method :: (name: string, method: (data: *$D)) {
+  caster :: (proc: (data: *D), params: *JSON_Element) -> *JSON_Element {
+    actual_result := proc(xx context.json_rpc.state.data);
+    return make_null();
+  }
+  add_rpc_method(name, xx caster, xx method);
 }
 
 deinitialize_rpc :: () {
@@ -65,6 +93,12 @@ deinitialize_rpc :: () {
 
 set_error :: (code: JSON_RPC_Error_Code) {
   context.json_rpc.assertion_code = code;
+}
+
+push_error :: (code: JSON_RPC_Error_Code) #expand {
+  old_code := context.json_rpc.assertion_code;
+  context.json_rpc.assertion_code = code;
+  `defer context.json_rpc.assertion_code = old_code;
 }
 
 rpc_read_and_respond :: () {
@@ -148,6 +182,14 @@ _state: JSON_RPC;
 #add_context json_rpc: JSON_RPC_Thread;
 
 dummy_debug_log : JSON_RPC_Debug_Log : (data: *void, message: string) { }
+
+add_rpc_method :: (name: string, caster: JSON_RPC_Caster, method: *void) {
+  state := context.json_rpc.state;
+  lock(*state.mutex);
+  table_set(*state.methods, name, .{xx caster, xx method});
+  unlock(*state.mutex);
+  rpc_debug_log("Added '%'", name);
+}
 
 send_response :: () {
   state := context.json_rpc.state;

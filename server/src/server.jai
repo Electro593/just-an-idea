@@ -139,6 +139,9 @@ debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string) {
 Data :: struct {
   buffer: [..] u8;
   filename: string;
+  
+  is_initialized: bool;
+  is_shutdown: bool;
 }
 
 main :: () {
@@ -153,13 +156,8 @@ main :: () {
   
   initialize_rpc(*data, read_request, send_response, debug_log);
   
-  test :: (data: *void, params: Data) -> Data {
-    return .{};
-  }
-  
-  // add_rpc_method("$/cancelRequest", lsp__cancel_request);
-  // add_rpc_method("$/progress", lsp__progress);
   add_rpc_method("initialize", lsp_initialize);
+  add_rpc_method("shutdown", lsp_shutdown);
   
   while true {
     reset_temporary_storage();

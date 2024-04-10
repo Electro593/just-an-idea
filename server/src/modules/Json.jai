@@ -270,7 +270,6 @@ cast_json_log_none :: (f: string, a: .. Any, t := false) -> s64 { return 0; }
 cast_json :: (json: *JSON_Element, $T: Type, out: *T = null, $notes: [] string = NOTES, $blacklist: [] string = BLACKLIST, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> T {
   value: T;
   if !json return value;
-  log("Hello from the outer: %, %, %, %, %, %", print_json(json,, temp), T, out, notes, blacklist, should_assert);
   success := cast_json(json, *value, notes, blacklist, should_assert, log = log);
   if !success return value;
   if out out.* = value;
@@ -292,12 +291,13 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = NOTES, $blackli
     print_to_builder(*builder, "// For '%' with notes: %\n", type_name, notes);
     print_to_builder(*builder, "_cast_json :: (json: *JSON_Element, out: *$T, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> success: bool {\n");
     print_to_builder(*builder, "  assert_cast_json(xx out, \"Attempted to cast %%, but out was null\", print_json(json,, temp));\n");
-    print_to_builder(*builder, "  assert_cast_json(json || array_find(notes, \"?\"), \"json was null, but it was not marked as optional (@?)\");\n");
+    print_to_builder(*builder, "  assert_cast_json(json || array_find(notes, \"?\"), \"json was null, but it was not marked as optional ('@?')\");\n");
     print_to_builder(*builder, "  value: T;\n");
     print_to_builder(*builder, "  if !json {\n");
     print_to_builder(*builder, "    out.* = value;\n");
     print_to_builder(*builder, "    return true;\n");
     print_to_builder(*builder, "  }\n");
+    print_to_builder(*builder, "  log(\"Casting %% to %\", print_json(json,, temp));\n", type_name);
     
     if type.type == {
       case .VOID;
@@ -350,18 +350,22 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = NOTES, $blackli
         }
         if has_unblacklisted_notes {
           print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast %% to any of the following: [");
+          for notes {
+            if !array_find(blacklist, it)
+            if it_index append(*builder, ", ");
+            append(*builder, it);
+          }
+          print_to_builder(*builder, "  ]\", print_json(json,, temp));\n");
         } else {
-          print_to_builder(*builder, "  if #complete json.kind == {\n");
+          print_to_builder(*builder, "  if json.kind == {\n");
           print_to_builder(*builder, "    case .NULL;    value = null;\n");
+          print_to_builder(*builder, "    case .BOOLEAN; value = as_boolean(json).value;\n");
+          print_to_builder(*builder, "    case .NUMBER;  value = as_number(json).value;\n");
+          print_to_builder(*builder, "    case .STRING;  value = as_string(json).value;\n");
+          print_to_builder(*builder, "    case .ARRAY;   value = as_array(json).value;\n");
           print_to_builder(*builder, "    case .OBJECT;  value = as_object(json).value;\n");
           print_to_builder(*builder, "  }\n");
         }
-        for notes {
-          if !array_find(blacklist, it)
-          if it_index append(*builder, ", ");
-          append(*builder, it);
-        }
-        print_to_builder(*builder, "  ]\", print_json(json,, temp));\n");
       
       case .ARRAY;
         t: *Type_Info_Array = xx type;
