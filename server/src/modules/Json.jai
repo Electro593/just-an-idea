@@ -384,9 +384,14 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = NOTES, $blackli
       
       case .STRUCT;
         t: *Type_Info_Struct = xx type;
-        // There's no viable way to cast unions (where would we write the differentiator?),
-        // so we'll just ignore them.
-        if !(t.textual_flags & .UNION) {
+        if t.textual_flags & .UNION {
+          print_to_builder(*builder, "  success := false;\n");
+          for t.members {
+            print_to_builder(*builder, "  if !success;\n");
+            print_to_builder(*builder, "    success = cast_json(json, *value.%, .%, .%, false, log);\n", it.name, it.notes, blacklist);
+          }
+          print_to_builder(*builder, "    assert_cast_json(success, \"Could not cast %% to the union '%' because all of its members failed\", print_json(json,, temp));\n", type_name);
+        } else {
           print_to_builder(*builder, "  success: bool;\n");
           print_to_builder(*builder, "  if json.kind == .OBJECT {\n");
           print_to_builder(*builder, "    object := as_object(json);\n");
