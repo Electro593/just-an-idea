@@ -251,11 +251,12 @@ LSP_DeleteFile :: struct {
 }
 
 LSP_WorkspaceEdit :: struct {
-  //TODO: Halp.. maybe some frobs?
-  //TODO: Also, fix unions or something
   changes: Table(LSP_DocumentUri, [] LSP_TextEdit); @?
-  documentChanges: [] Any; @? @LSP_TextDocumentEdit @LSP_CreateFile @LSP_RenameFile @LSP_DeleteFile
-  changeAnnotations: Table(string, LSP_ChangeAnnotation); @?
+  documentChanges: union {
+    documentChanges: [] Any; @LSP_TextDocumentEdit
+    resourceOperations: [] Any; @LSP_TextDocumentEdit @LSP_CreateFile @LSP_RenameFile @LSP_DeleteFile
+  } @?
+  changeAnnotations: Table(LSP_ChangeAnnotationIdentifier, LSP_ChangeAnnotation); @?
 }
 
 

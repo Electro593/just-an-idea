@@ -259,8 +259,9 @@ print_json :: (element: *JSON_Element) -> string {
   return builder_to_string(*builder);
 }
 
-//NOTE: The notes "$Null", "$Boolean", "$Number", "$String", "$Array", and "$Object" will place their
+//NOTE: The note "$Null", "$Boolean", "$Number", "$String", "$Array", and "$Object" will place their
 // respective JSON_*.value values into the Any.
+//NOTE: Tables are hardcoded, so if you want a map of any kind, import Hash_Table or call your own version 'Table'.
 //NOTE: Optional values ("@?") will be defaulted if json is null, so take care to use an Any type if
 // the default is valid.
 NOTES :: string.[];
@@ -352,10 +353,6 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = NOTES, $blackli
         } else {
           print_to_builder(*builder, "  if #complete json.kind == {\n");
           print_to_builder(*builder, "    case .NULL;    value = null;\n");
-          print_to_builder(*builder, "    case .BOOLEAN; value = as_boolean(json).value;\n");
-          print_to_builder(*builder, "    case .NUMBER;  value = as_number(json).value;\n");
-          print_to_builder(*builder, "    case .STRING;  value = as_string(json).value;\n");
-          print_to_builder(*builder, "    case .ARRAY;   value = as_array(json).value;\n");
           print_to_builder(*builder, "    case .OBJECT;  value = as_object(json).value;\n");
           print_to_builder(*builder, "  }\n");
         }
@@ -391,6 +388,15 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = NOTES, $blackli
             print_to_builder(*builder, "    success = cast_json(json, *value.%, .%, .%, false, log);\n", it.name, it.notes, blacklist);
           }
           print_to_builder(*builder, "    assert_cast_json(success, \"Could not cast %% to the union '%' because all of its members failed\", print_json(json,, temp));\n", type_name);
+        } else if t.name == "Table" {
+          print_to_builder(*builder, "  assert_cast_json(json.kind == .OBJECT, \"Expected an object for 'Table', but got %%\", print_json(json,, temp));\n");
+          print_to_builder(*builder, "  for as_object(json).value {\n");
+          print_to_builder(*builder, "    key_string := JSON_String.{value = it_index};\n");
+          print_to_builder(*builder, "    member_key: out.Key_Type;\n");
+          print_to_builder(*builder, "    cast_json(*key_string, *member_key, .%, .%, should_assert);\n", notes, blacklist);
+          print_to_builder(*builder, "    member_value := find_or_add(*value, member_key);\n");
+          print_to_builder(*builder, "    cast_json(it, member_value, .%, .%, should_assert);\n", notes, blacklist);
+          print_to_builder(*builder, "  }\n");
         } else {
           print_to_builder(*builder, "  success: bool;\n");
           print_to_builder(*builder, "  if json.kind == .OBJECT {\n");
@@ -465,7 +471,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = NOTES, $blackli
             //TODO: Store the string in a map and return it on round trip
             build_switch_case(*builder, t, type_name, "as_string(json).value", "\"%\"", "=", "    ");
             print_to_builder(*builder, "  } else if json.kind == .NUMBER {\n");
-            print_to_builder(*builder, "    value = xx as_number(json).value;\n", type_name);
+            print_to_builder(*builder, "    value = xx as_number(json).value;\n");
             print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected a string or number because '%' is an enum, but got %%\", print_json(json,, temp));\n", type_name);
           }
         }
