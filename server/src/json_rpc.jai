@@ -36,7 +36,7 @@ add_rpc_method :: (name: string, method: (data: *void, params: $P) -> $R) {
   caster :: (proc: (data: *void, params: P) -> R, params: *JSON_Element) -> *JSON_Element {
     actual_params := cast_json(params, P);
     actual_result := proc(context.json_rpc.state.data, actual_params);
-    return cast_json(actual_result);
+    // return cast_json(actual_result);
     return make_null();
   }
   
