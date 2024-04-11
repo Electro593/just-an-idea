@@ -259,15 +259,14 @@ print_json :: (element: *JSON_Element) -> string {
   return builder_to_string(*builder);
 }
 
-//NOTE: The note "$Null", "$Boolean", "$Number", "$String", "$Array", and "$Object" will place their
-// respective JSON_*.value values into the Any.
-//NOTE: Tables are hardcoded, so if you want a map of any kind, import Hash_Table or call your own version 'Table'.
-//NOTE: Optional values ("@?") will be defaulted if json is null, so take care to use an Any type if
-// the default is valid.
-NOTES :: string.[];
+//NOTE: The note "$Null" on an Any will place 'null' into it if the json is JSON_Null.
+//NOTE: The note "$Table" on a Table will interpret a JSON_Object as a Hash_Table.Table.
+//NOTE: The note "$Ignore" on any value will leave it unchanged.
+//NOTE: The note "?" on any value will be defaulted if json is null, so take care with valid default values.
+//NOTE: For Any values, you can note the names of types (visible to CAST_SCOPE) to attempt to cast to.
 BLACKLIST :: string.["?"];
 cast_json_log_none :: (f: string, a: .. Any, t := false) -> s64 { return 0; }
-cast_json :: (json: *JSON_Element, $T: Type, out: *T = null, $notes: [] string = NOTES, $blacklist: [] string = BLACKLIST, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> T {
+cast_json :: (json: *JSON_Element, $T: Type, out: *T = null, $notes: [] string = .[], $blacklist: [] string = BLACKLIST, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> T {
   value: T;
   if !json return value;
   success := cast_json(json, *value, notes, blacklist, should_assert, log = log);
@@ -276,7 +275,7 @@ cast_json :: (json: *JSON_Element, $T: Type, out: *T = null, $notes: [] string =
   return value;
 }
 
-cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = NOTES, $blacklist: [] string = BLACKLIST, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> success: bool {
+cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist: [] string = BLACKLIST, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> success: bool {
   assert_cast_json :: (arg: bool, message := "", args: .. Any, loc := #caller_location) #no_debug #expand {
     #if `should_assert assert(arg, message, ..args, loc = loc);
     if !arg `return false;
@@ -291,6 +290,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = NOTES, $blackli
     print_to_builder(*builder, "// For '%' with notes: %\n", type_name, notes);
     print_to_builder(*builder, "_cast_json :: (json: *JSON_Element, out: *$T, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> success: bool {\n");
     print_to_builder(*builder, "  assert_cast_json(xx out, \"Attempted to cast %%, but out was null\", print_json(json,, temp));\n");
+    print_to_builder(*builder, "  if array_find(notes, \"$Ignore\") return true;\n");
     print_to_builder(*builder, "  assert_cast_json(json || array_find(notes, \"?\"), \"json was null, but it was not marked as optional ('@?')\");\n");
     print_to_builder(*builder, "  value: T;\n");
     print_to_builder(*builder, "  if !json {\n");
@@ -329,16 +329,16 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = NOTES, $blackli
             print_to_builder(*builder, "    success = cast_json(json, *value.%, .%, .%, false, log);\n", it.name, it.notes, blacklist);
           }
           print_to_builder(*builder, "    assert_cast_json(success, \"Could not cast %% to the union '%' because all of its members failed\", print_json(json,, temp));\n", type_name);
-        } else if t.name == "Table" {
+        } else if array_find(notes, "$Table") {
           //TODO: Round-trip the key parsing
-          print_to_builder(*builder, "  assert_cast_json(json.kind == .OBJECT, \"Expected an object for 'Table', but got %%\", print_json(json,, temp));\n");
+          print_to_builder(*builder, "  assert_cast_json(json.kind == .OBJECT, \"Expected an object for $Table, but got %%\", print_json(json,, temp));\n");
           print_to_builder(*builder, "  for as_object(json).value {\n");
           print_to_builder(*builder, "    key_string := JSON_String.{value = it_index};\n");
           print_to_builder(*builder, "    member_key: out.Key_Type;\n");
-          print_to_builder(*builder, "    success = cast_json(*key_string, *member_key, .%, .%, should_assert);\n", notes, blacklist);
-          print_to_builder(*builder, "    assert_cast_json(success, \"Could not cast %% to the key '%%'\", print_json(key_string,, temp), out.Key_Type);\n");
+          print_to_builder(*builder, "    success = cast_json(*key_string, *member_key, .[], .%, should_assert);\n", blacklist);
+          print_to_builder(*builder, "    assert_cast_json(success, \"Could not cast %% to the key '%%'\", print_json(*key_string,, temp), out.Key_Type);\n");
           print_to_builder(*builder, "    member_value := find_or_add(*value, member_key);\n");
-          print_to_builder(*builder, "    success = cast_json(it, member_value, .%, .%, should_assert);\n", notes, blacklist);
+          print_to_builder(*builder, "    success = cast_json(it, member_value, .[], .%, should_assert);\n", blacklist);
           print_to_builder(*builder, "    assert_cast_json(success, \"Could not cast %% to the value '%%'\", print_json(it,, temp), out.Value_Type);\n");
           print_to_builder(*builder, "  }\n");
         } else {
@@ -380,12 +380,13 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = NOTES, $blackli
           if array_find(blacklist, it) continue;
           has_unblacklisted_notes = true;
           if it == {
-            case "$Null";    print_to_builder(*builder, "  if !success && json.kind == .NULL    then success, value = true, null;\n");
-            case "$Boolean"; print_to_builder(*builder, "  if !success && json.kind == .BOOLEAN then success, value = true, as_boolean(json).value;\n");
-            case "$Number";  print_to_builder(*builder, "  if !success && json.kind == .NUMBER  then success, value = true, as_number(json).value;\n");
-            case "$String";  print_to_builder(*builder, "  if !success && json.kind == .STRING  then success, value = true, as_string(json).value;\n");
-            case "$Array";   print_to_builder(*builder, "  if !success && json.kind == .ARRAY   then success, value = true, as_array(json).value;\n");
-            case "$Object";  print_to_builder(*builder, "  if !success && json.kind == .OBJECT  then success, value = true, as_object(json).value;\n");
+            case "$Null";
+              print_to_builder(*builder, "  if !success && json.kind == .NULL {\n");
+              print_to_builder(*builder, "    success = true;\n");
+              print_to_builder(*builder, "    value.type = type_info(*void);\n");
+              print_to_builder(*builder, "    value.value_pointer = alloc(size_of(*void));\n");
+              print_to_builder(*builder, "    memset(value.value_pointer, 0, size_of(*void));\n");
+              print_to_builder(*builder, "  }\n");
             case;
               print_to_builder(*builder, "  if !success {\n");
               print_to_builder(*builder, "    V :: #insert,scope(CAST_SCOPE) \"#type %;\";\n", it);
@@ -507,85 +508,196 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = NOTES, $blackli
   return _cast_json(json, out, should_assert, log);
 }
 
-cast_json :: (value: $T, notes: [] string = .[], log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> json: *JSON_Element {
-  t := type_info(T);
+cast_json :: (value: *$T, notes: [] string = .[], log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> json: *JSON_Element #expand {
+  return cast_json(value, type_info(T), notes, log);
+}
+
+cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> json: *JSON_Element {
+  assert(xx value, "Cannot cast a null value (of type % with notes %)", type, notes);
   
   if array_find(notes, "$Ignore") return null;
-  if array_find(notes, "?") {
-    if memcmp(*value, *(T.{}), size_of(T)) == 0 return null;
-  }
+  optional := array_find(notes, "?");
+  if !value return null;
   
-  // if #complete t.type == {
-  if t.type == {
-    //TODO Serialize as integer instead of float
-    case .INTEGER; #through;
+  if #complete type.type == {
+    case .INTEGER;
+      //TODO Serialize as integer instead of float
+      t: *Type_Info_Integer = xx type;
+      if t.signed {
+        if t.runtime_size == {
+          case size_of(s8);
+            _value: s8;
+            memcpy(*_value, value, size_of(type_of(_value)));
+            if optional && _value == 0 return null;
+            return make_number(xx _value);
+          case size_of(s16);
+            _value: s16;
+            memcpy(*_value, value, size_of(type_of(_value)));
+            if optional && _value == 0 return null;
+            return make_number(xx _value);
+          case size_of(s32);
+            _value: s32;
+            memcpy(*_value, value, size_of(type_of(_value)));
+            if optional && _value == 0 return null;
+            return make_number(xx _value);
+          case size_of(s64);
+            _value: s64;
+            memcpy(*_value, value, size_of(type_of(_value)));
+            if optional && _value == 0 return null;
+            return make_number(xx _value);
+        }
+      } else {
+        if t.runtime_size == {
+          case size_of(u8);
+            _value: u8;
+            memcpy(*_value, value, size_of(type_of(_value)));
+            if optional && _value == 0 return null;
+            return make_number(xx _value);
+          case size_of(u16);
+            _value: u16;
+            memcpy(*_value, value, size_of(type_of(_value)));
+            if optional && _value == 0 return null;
+            return make_number(xx _value);
+          case size_of(u32);
+            _value: u32;
+            memcpy(*_value, value, size_of(type_of(_value)));
+            if optional && _value == 0 return null;
+            return make_number(xx _value);
+          case size_of(u64);
+            _value: u64;
+            memcpy(*_value, value, size_of(type_of(_value)));
+            if optional && _value == 0 return null;
+            return make_number(xx _value);
+        }
+      }
+      return null;
+      
     case .FLOAT;
-      return make_number(xx value);
+      if type.runtime_size == {
+        case size_of(float32);
+          _value: float32;
+          memcpy(*_value, value, size_of(type_of(_value)));
+          if optional && _value == 0 return null;
+          return make_number(_value);
+        case size_of(float64);
+          _value: float64;
+          memcpy(*_value, value, size_of(type_of(_value)));
+          if optional && _value == 0 return null;
+          return make_number(_value);
+      }
+      return null;
     
     case .BOOL;
-      return make_boolean(value);
+      _value: bool;
+      memcpy(*_value, value, size_of(type_of(_value)));
+      if optional && _value == false return null;
+      return make_boolean(_value);
     
     case .STRING;
-      return make_string(value);
+      _value: string;
+      memcpy(*_value, value, size_of(type_of(_value)));
+      if optional && _value == "" return null;
+      return make_string(_value);
     
-    // case .POINTER;
-    //   if !value return make_null();
-    //   if t.pointer_to.type == .VOID
-    //     return null;
-    //   else
-    //     return cast_json(value.*, .%, log);\n", notes);
-    // 
-    // case .VOID;
-    //   return null;
-    // 
-    // case .STRUCT;
-    //   if t.textual_flags & .UNION {
-    //     //TODO: Implement
-    //     return null;
-    //   } else if (t.name == "Table") {
-    //     object := make_object();
-    //     for value {
-    //       json_key := cast_json(it_index, .[], log,, temp);
-    //       key := ifx json_key.kind == .STRING then as_string(json_key).value else print_json(json_key);
-    //       set_element(object, key, cast_json(it, .[], log));
-    //     }
-    //     return object;
-    //   } else {
-    //     object := make_object();
-    //     for t.members
-    //       set_element(object, \"%\", cast_json(value.%, .%, log));\n", it.name, it.name, it.notes);
-    //     return object;
-    //   }
-    // 
-    // case .ARRAY;
-    //   array := make_array();
-    //   for value
-    //     array_add(*array.value, cast_json(it, .[], log));
-    //   return array;
-    // 
-    // case .ANY;
-    //   if value.type.type == .VOID return null;
-    //   V :: #insert,scope(CAST_SCOPE) \"#type %;\";\n", get_type_name(t.));
-    //   value_pointer := cast(*get_type(value.type)) value.value_pointer;
-    //   return cast_json(value_pointer.*, .[], log);
-    // 
-    // case .ENUM;
-    //   return make_number(xx value);
-    // 
-    // case .VARIANT;
-    //   variant_name := get_type_name(t.variant_of);
-    //   V :: #insert,scope(CAST_SCOPE) \"#type %;\";\n", variant_name);
-    //   return cast_json(cast(V) value, .%, log);\n", notes);
+    case .POINTER;
+      t: *Type_Info_Pointer = xx type;
+      _value: *void;
+      memcpy(*_value, value, size_of(type_of(_value)));
+      if optional && _value == null return null;
+      if !_value return make_null();
+      return cast_json(_value, t.pointer_to, .[], log);
     
-    case .PROCEDURE;
-    case .OVERLOAD_SET;
-    case .POLYMORPHIC_VARIABLE;
-    case .TYPE;
-    case .CODE;
+    case .VOID;
+      return null;
+    
+    case .STRUCT;
+      is_string :: (type: *Type_Info) -> bool {
+        return type.type == .STRING
+        || type.type == .VARIANT && is_string((cast(*Type_Info_Variant) type).variant_of);
+      }
+      t: *Type_Info_Struct = xx type;
+      assert(!(t.textual_flags & .UNION), "Encountered '%', but cannot serialize unions to JSON", get_type_name(type,, temp));
+      if (array_find(notes, "$Table")) {
+        _value: Table(void, void);
+        memcpy(*_value, value, size_of(type_of(_value)));
+        assert(t.specified_parameters.count >= 2 && t.specified_parameters[0].name == "Key_Type" && t.specified_parameters[1].name == "Value_Type", "Expected a Hash_Table.Table because of '$Table', but got '%'", get_type_name(t,, temp));
+        if optional && _value.allocated == 0 return null;
+        key_type := t.specified_parameters[0].type;
+        value_type := t.specified_parameters[1].type;
+        key_is_string := is_string(key_type);
+        hash_size := size_of(_value.Entry);
+        entry_size := hash_size + key_type.runtime_size + value_type.runtime_size;
+        object := make_object();
+        for 0 .. _value.entries.count - 1 {
+          entry_data := _value.entries.data + it * entry_size;
+          hash := (cast(*_value.Entry) entry_data).hash;
+          if hash < FIRST_VALID_HASH continue;
+          key_data := entry_data + hash_size;
+          value_data := key_data + key_type.runtime_size;
+          key := ifx key_is_string
+            then (cast(*string) key_data).*
+            else print_json(cast_json(key_data, key_type, .[], log,, temp));
+          value := cast_json(value_data, value_type, .[], log);
+          set_element(object, key, value);
+        }
+        return object;
+      } else {
+        object := make_object();
+        data: *void = xx value;
+        for t.members {
+          member_data := data + it.offset_in_bytes;
+          notes := it.notes;
+          if optional && !array_find(notes, "?") {
+            notes = .{it.notes.count + 1, alloc((it.notes.count + 1) * size_of(string))};
+            memcpy(notes.data, it.notes.data, notes.count * size_of(string));
+            notes[notes.count] = "?";
+          }
+          member := cast_json(member_data, it.type, notes, log);
+          if notes.count != it.notes.count
+            array_free(notes);
+          set_element(object, it.name, member);
+        }
+        if optional && object.value.count == 0 {
+          free_json(object);
+          return null;
+        }
+        return object;
+      }
+    
+    case .ARRAY;
+      t: *Type_Info_Array = xx type;
+      _value: [] void;
+      memcpy(*_value, value, size_of(type_of(_value)));
+      if optional && _value.count == 0 && _value.data == null return null;
+      array := make_array();
+      for < _value.count - 1 .. 0 {
+        member := _value.data + it * t.element_type.runtime_size;
+        set_element(array, it, cast_json(member, t.element_type, .[], log));
+      }
+      return array;
+    
+    case .ANY;
+      _value: Any;
+      memcpy(*_value, value, size_of(type_of(_value)));
+      if optional && _value.type == null && _value.value_pointer == null return null;
+      return cast_json(_value.value_pointer, _value.type, .[], log);
+    
+    case .ENUM;
+      t: *Type_Info_Enum = xx type;
+      return cast_json(value, t.internal_type, notes, log);
+    
+    case .VARIANT;
+      t: *Type_Info_Variant = xx type;
+      return cast_json(value, t.variant_of, notes, log);
+    
+    case .PROCEDURE; #through;
+    case .OVERLOAD_SET; #through;
+    case .POLYMORPHIC_VARIABLE; #through;
+    case .TYPE; #through;
+    case .CODE; #through;
     case;
+      return null;
   }
-  
-  return null;
 }
 
 #scope_file
@@ -650,47 +762,73 @@ get_type_name :: (type: *Type_Info) -> string {
       return builder_to_string(*builder);
     
     case .STRUCT;
-      append_struct_member :: (builder: *String_Builder, parent: *Type_Info_Struct, member: Type_Info_Struct_Member, delimiter: string, print_delimiter: bool) {
-        if member.flags & .CONSTANT {
+      append_struct_member_value :: (builder: *String_Builder, parent: *Type_Info_Struct, member: Type_Info_Struct_Member) {
+        data: *u8 = parent.constant_storage.data + member.offset_into_constant_storage;
+        if member.type.type == .TYPE {
+          append(builder, get_type_name((cast(**Type_Info) data).*));
+          } else if member.type.type == .PROCEDURE {
+          print_to_builder(builder, "0x%", (cast(**void) data).*);
+        } else {
           value: Any;
           value.type = member.type;
-          value.value_pointer = parent.constant_storage.data + member.offset_into_constant_storage;
-          print_to_builder(builder, "% : % : %", member.name, get_type_name(member.type), value);
-        } else {
-          if member.flags & .AS append(builder, "#as ");
-          if member.flags & .USING append(builder, "using ");
-          assert(!(member.flags & .IMPORTED), "Not yet implemented");
-          print_to_builder(builder, "%: %", member.name, get_type_name(member.type));
+          value.value_pointer = data;
+          print_to_builder(builder, "%", value);
         }
-        if print_delimiter append(builder, delimiter);
+      }
+      append_struct_member :: (builder: *String_Builder, parent: *Type_Info_Struct, member: Type_Info_Struct_Member, is_polymorph_variable: bool, print_delimiter: bool) {
+        assert(!(member.flags & .IMPORTED), "Not yet implemented");
+        if member.flags & .AS append(builder, "#as ");
+        if member.flags & .USING append(builder, "using ");
+        print_to_builder(builder, "% : %", member.name, get_type_name(member.type));
+        if member.offset_into_constant_storage > -1 {
+          append(builder, ifx is_polymorph_variable || !(member.flags & .CONSTANT) then " = " else " : ");
+          append_struct_member_value(builder, parent, member);
+        }
+        if print_delimiter
+          append(builder, ifx is_polymorph_variable then "," else ";");
         for member.notes
           print_to_builder(builder, " @%", it);
         if print_delimiter append(builder, " ");
       }
       
       t: *Type_Info_Struct = xx type;
-      if t.name return t.name;
       builder: String_Builder;
       init_string_builder(*builder,, temp);
-      append(*builder, ifx t.textual_flags & .UNION then "union" else "struct");
-      if t.textual_flags & .TYPE_INFO_NONE append(*builder, " #type_info_none");
-      if t.textual_flags & .TYPE_INFO_NO_SIZE_COMPLAINT append(*builder, " #type_info_no_size_complaint");
-      if t.textual_flags & .TYPE_INFO_PROCEDURES_ARE_VOID_POINTERS append(*builder, " #type_info_procedures_are_void_pointers");
-      assert(!t.specified_parameters.count, "Not yet implemented");
-      if t.polymorph_source_struct {
-        append(*builder, "(");
-        for t.specified_parameters
-          append_struct_member(*builder, t, it, ",", xx it_index);
-        append(*builder, ")");
+      if t.name {
+        append(*builder, t.name);
+        if t.polymorph_source_struct {
+          append(*builder, "(");
+          for t.specified_parameters {
+            assert(!(it.flags & .IMPORTED), "Not yet implemented");
+            if it_index append(*builder, ", ");
+            if it.offset_into_constant_storage > -1 {
+              append(*builder, it.name);
+              append(*builder, " = ");
+              append_struct_member_value(*builder, t, it);
+            }
+          }
+          append(*builder, ")");
+        }
+      } else {
+        append(*builder, ifx t.textual_flags & .UNION then "union" else "struct");
+        if t.textual_flags & .TYPE_INFO_NONE append(*builder, " #type_info_none");
+        if t.textual_flags & .TYPE_INFO_NO_SIZE_COMPLAINT append(*builder, " #type_info_no_size_complaint");
+        if t.textual_flags & .TYPE_INFO_PROCEDURES_ARE_VOID_POINTERS append(*builder, " #type_info_procedures_are_void_pointers");
+        if t.polymorph_source_struct {
+          append(*builder, " (");
+          for t.specified_parameters
+            append_struct_member(*builder, t, it, true, it_index < t.specified_parameters.count - 1);
+          append(*builder, ")");
+        }
+        for t.notes
+          print_to_builder(*builder, " @%", it);
+        append(*builder, " { ");
+        for t.members
+          append_struct_member(*builder, t, it, false, true);
+        append(*builder, "}");
+        if t.textual_flags & .FOREIGN append(*builder, " #foreign");
+        if t.textual_flags & .NO_PADDING append(*builder, " #no_padding");
       }
-      for t.notes
-        print_to_builder(*builder, " @%", it);
-      append(*builder, " { ");
-      for t.members
-        append_struct_member(*builder, t, it, ";", true);
-      append(*builder, "}");
-      if t.textual_flags & .FOREIGN append(*builder, " #foreign");
-      if t.textual_flags & .NO_PADDING append(*builder, " #no_padding");
       return builder_to_string(*builder);
     
     case .ARRAY;
@@ -724,8 +862,7 @@ get_type_name :: (type: *Type_Info) -> string {
       return builder_to_string(*builder);
     
     case .POLYMORPHIC_VARIABLE;
-      assert(false, "Could not determine the type name for %", type.*);
-      return "";
+      return tprint("$T_%", cast(*void) type);
     
     case .VARIANT;
       t: *Type_Info_Variant = xx type;

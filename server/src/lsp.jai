@@ -255,12 +255,12 @@ LSP_DeleteFile :: struct {
 }
 
 LSP_WorkspaceEdit :: struct {
-  changes: Table(LSP_DocumentUri, [] LSP_TextEdit); @?
+  changes: Table(LSP_DocumentUri, [] LSP_TextEdit); @? @$Table
   documentChanges: union {
     documentChanges: [] Any; @LSP_TextDocumentEdit
     resourceOperations: [] Any; @LSP_TextDocumentEdit @LSP_CreateFile @LSP_RenameFile @LSP_DeleteFile
   } @?
-  changeAnnotations: Table(LSP_ChangeAnnotationIdentifier, LSP_ChangeAnnotation); @?
+  changeAnnotations: Table(LSP_ChangeAnnotationIdentifier, LSP_ChangeAnnotation); @? @$Table
 }
 
 LSP_ProgressToken :: struct {

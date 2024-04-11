@@ -38,7 +38,7 @@ add_rpc_method :: (name: string, method: (data: *$D, params: $P) -> $R) {
     actual_params := cast_json(params, P,, temp);
     rpc_debug_log("Casted the params:\n%\nInto %:\n%\n", print_json(params,, temp), P, actual_params);
     actual_result := proc(xx context.json_rpc.state.data, actual_params);
-    result := cast_json(actual_result);
+    result := cast_json(*actual_result);
     rpc_debug_log("Casted %:\n%\nInto the result:\n%\n", R, actual_result, print_json(result,, temp));
     return result;
   }
@@ -58,7 +58,7 @@ add_rpc_method :: (name: string, method: (data: *$D, params: $P)) {
 add_rpc_method :: (name: string, method: (data: *$D) -> $R) {
   caster :: (proc: (data: *D) -> R, params: *JSON_Element) -> *JSON_Element {
     actual_result := proc(xx context.json_rpc.state.data);
-    result := cast_json(actual_result);
+    result := cast_json(*actual_result);
     rpc_debug_log("Casted %:\n%\nInto the result:\n%\n", R, actual_result, print_json(result,, temp));
     return result;
   }
