@@ -291,7 +291,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
     print_to_builder(*builder, "_cast_json :: (json: *JSON_Element, out: *$T, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> success: bool {\n");
     print_to_builder(*builder, "  assert_cast_json(xx out, \"Attempted to cast %%, but out was null\", print_json(json,, temp));\n");
     print_to_builder(*builder, "  if array_find(notes, \"$Ignore\") return true;\n");
-    print_to_builder(*builder, "  assert_cast_json(json || array_find(notes, \"?\"), \"json was null, but it was not marked as optional ('@?')\");\n");
+    print_to_builder(*builder, "  assert_cast_json(json || array_find(notes, \"?\"), \"json was null, but '%' was not marked as optional ('@?')\");\n", get_type_name(type,, temp));
     print_to_builder(*builder, "  value: T;\n");
     print_to_builder(*builder, "  if !json {\n");
     print_to_builder(*builder, "    out.* = value;\n");
@@ -325,6 +325,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
         print_to_builder(*builder, "  success := false;\n");
         if t.textual_flags & .UNION {
           for t.members {
+            if it.flags & .CONSTANT continue;
             print_to_builder(*builder, "  if !success;\n");
             print_to_builder(*builder, "    success = cast_json(json, *value.%, .%, .%, false, log);\n", it.name, it.notes, blacklist);
           }
@@ -342,19 +343,20 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
           print_to_builder(*builder, "    assert_cast_json(success, \"Could not cast %% to the value '%%'\", print_json(it,, temp), out.Value_Type);\n");
           print_to_builder(*builder, "  }\n");
         } else {
-          print_to_builder(*builder, "  if json.kind == .OBJECT {\n");
-          print_to_builder(*builder, "    object := as_object(json);\n");
+          print_to_builder(*builder, "  assert_cast_json(json.kind == .OBJECT || json.kind == .ARRAY, \"Expected an array or object because '%' is a struct, but got %%\", print_json(json,, temp));\n", type_name);
           for t.members {
-            print_to_builder(*builder, "    success = cast_json(get_element(object, \"%\"), *value.%, .%, .%, should_assert);\n", it.name, it.name, it.notes, blacklist);
-            print_to_builder(*builder, "    assert_cast_json(success, \"Could not cast %% to the struct '%' because casting the member '%' (%) failed\", print_json(json,, temp));\n", type_name, it.name, get_type_name(it.type));
+            if it.flags & .CONSTANT continue;
+            if it.flags & .USING {
+              print_to_builder(*builder, "  success = cast_json(json, *value.%, .%, .%, should_assert);\n", it.name, it.notes, blacklist);
+            } else {
+              print_to_builder(*builder, "  if json.kind == .OBJECT {\n");
+              print_to_builder(*builder, "    success = cast_json(get_element(xx json, \"%\"), *value.%, .%, .%, should_assert);\n", it.name, it.name, it.notes, blacklist);
+              print_to_builder(*builder, "  } else {\n");
+              print_to_builder(*builder, "    success = cast_json(get_element(xx json, %), *value.%, .%, .%, should_assert);\n", it_index, it.name, it.notes, blacklist);
+              print_to_builder(*builder, "  }\n");
+            }
+            print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast %% to the struct '%' because casting the member '%' (%) failed\", print_json(json,, temp));\n", type_name, it.name, get_type_name(it.type));
           }
-          print_to_builder(*builder, "  } else if json.kind == .ARRAY {\n");
-          print_to_builder(*builder, "    array := as_array(json);\n");
-          for t.members {
-            print_to_builder(*builder, "    success = cast_json(get_element(array, %), *value.%, .%, .%, should_assert);\n", it_index, it.name, it.notes, blacklist);
-            print_to_builder(*builder, "    assert_cast_json(success, \"Could not cast %% to the struct '%' because casting the member '%' (%) failed\", print_json(json,, temp));\n", type_name, it.name, get_type_name(it.type));
-          }
-          print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected an array or object because '%' is a struct, but got %%\", print_json(json,, temp));\n", type_name);
         }
       
       case .ARRAY;
@@ -368,9 +370,9 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
         if t.array_type == {
           case .FIXED; #through;
           case .VIEW;
-            print_to_builder(*builder, "    cast_json(it, *value[it_index], .[], .%, should_assert, log);\n", blacklist);
+            print_to_builder(*builder, "    cast_json(it, *value[it_index], .%, .%, should_assert, log);\n", notes, blacklist);
           case .RESIZABLE;
-            print_to_builder(*builder, "    cast_json(it, array_add(*value), .[], .%, should_assert, log);\n", blacklist);
+            print_to_builder(*builder, "    cast_json(it, array_add(*value), .%, .%, should_assert, log);\n", notes, blacklist);
         }
       
       case .ANY;
@@ -508,8 +510,8 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
   return _cast_json(json, out, should_assert, log);
 }
 
-cast_json :: (value: *$T, notes: [] string = .[], log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> json: *JSON_Element #expand {
-  return cast_json(value, type_info(T), notes, log);
+cast_json :: (value: $T, notes: [] string = .[], log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> json: *JSON_Element #expand {
+  return cast_json(*value, type_info(T), notes, log);
 }
 
 cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> json: *JSON_Element {
@@ -616,6 +618,7 @@ cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: s
         || type.type == .VARIANT && is_string((cast(*Type_Info_Variant) type).variant_of);
       }
       t: *Type_Info_Struct = xx type;
+      log("Casting % to JSON with notes %", t.*, notes);
       assert(!(t.textual_flags & .UNION), "Encountered '%', but cannot serialize unions to JSON", get_type_name(type,, temp));
       if (array_find(notes, "$Table")) {
         _value: Table(void, void);
@@ -649,13 +652,18 @@ cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: s
           notes := it.notes;
           if optional && !array_find(notes, "?") {
             notes = .{it.notes.count + 1, alloc((it.notes.count + 1) * size_of(string))};
-            memcpy(notes.data, it.notes.data, notes.count * size_of(string));
-            notes[notes.count] = "?";
+            memcpy(notes.data, it.notes.data, it.notes.count * size_of(string));
+            notes[it.notes.count] = "?";
           }
           member := cast_json(member_data, it.type, notes, log);
           if notes.count != it.notes.count
             array_free(notes);
-          set_element(object, it.name, member);
+          if (it.flags & .USING) && member.kind == .OBJECT {
+            for as_object(member).value
+              set_element(object, it_index, it);
+          } else {
+            set_element(object, it.name, member);
+          }
         }
         if optional && object.value.count == 0 {
           free_json(object);

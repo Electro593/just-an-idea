@@ -254,12 +254,11 @@ LSP_DeleteFile :: struct {
   annotationId: LSP_ChangeAnnotationIdentifier; @?
 }
 
+_LSP_WorkspaceEdit_DocumentChanges :: [] LSP_TextDocumentEdit;
+_LSP_WorkspaceEdit_DocumentChangesWithResourceOperations :: [] Any; @LSP_TextDocumentEdit @LSP_CreateFile @LSP_RenameFile @LSP_DeleteFile
 LSP_WorkspaceEdit :: struct {
   changes: Table(LSP_DocumentUri, [] LSP_TextEdit); @? @$Table
-  documentChanges: union {
-    documentChanges: [] Any; @LSP_TextDocumentEdit
-    resourceOperations: [] Any; @LSP_TextDocumentEdit @LSP_CreateFile @LSP_RenameFile @LSP_DeleteFile
-  } @?
+  documentChanges: Any; @? @_LSP_WorkspaceEdit_DocumentChanges @_LSP_WorkspaceEdit_DocumentChangesWithResourceOperations
   changeAnnotations: Table(LSP_ChangeAnnotationIdentifier, LSP_ChangeAnnotation); @? @$Table
 }
 
@@ -471,7 +470,7 @@ LSP_TextDocumentRegistrationOptions :: struct {
 
 // initialize
 
-// _LSP_WorkspaceFolders :: [] LSP_WorkspaceFolder;
+// _LSP_InitializeParams_WorkspaceFolders :: [] LSP_WorkspaceFolder;
 LSP_InitializeParams :: struct {
   #as using _: LSP_WorkDoneProgressParams;
   processId: Any; @s32 @$Null
@@ -485,7 +484,7 @@ LSP_InitializeParams :: struct {
   initializationOptions: Any; @?
   capabilities: LSP_ClientCapabilities;
   trace := LSP_TraceValue_Off; @?
-  // workspaceFolders: Any; @? @_LSP_WorkspaceFolders @$Null;
+  // workspaceFolders: Any; @? @_LSP_InitializeParams_WorkspaceFolders @$Null;
 }
 
 LSP_InitializeResult :: struct {

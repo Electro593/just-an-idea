@@ -15,7 +15,7 @@ JSON_RPC_Error_Code :: enum {
 
 JSON_RPC_Send_Response :: #type (data: *void, response: string);
 JSON_RPC_Read_Request :: #type (data: *void) -> request: string;
-JSON_RPC_Debug_Log :: #type (data: *void, message: string);
+JSON_RPC_Debug_Log :: #type (data: *void, message: string, to_standard_error := false) -> bytes_printed: s64;
 
 initialize_rpc :: (data: *void, read_request: JSON_RPC_Read_Request, send_response: JSON_RPC_Send_Response, debug_log: JSON_RPC_Debug_Log = dummy_debug_log) {
   assert(!_state.is_initialized, "Attempted to initialize, but JSON-RPC is already initialized");
@@ -36,10 +36,10 @@ initialize_rpc :: (data: *void, read_request: JSON_RPC_Read_Request, send_respon
 add_rpc_method :: (name: string, method: (data: *$D, params: $P) -> $R) {
   caster :: (proc: (data: *D, params: P) -> R, params: *JSON_Element) -> *JSON_Element {
     actual_params := cast_json(params, P,, temp);
-    rpc_debug_log("Casted the params:\n%\nInto %:\n%\n", print_json(params,, temp), P, actual_params);
+    rpc_debug_log("Casted the params into %:\n%", P, actual_params);
     actual_result := proc(xx context.json_rpc.state.data, actual_params);
-    result := cast_json(*actual_result);
-    rpc_debug_log("Casted %:\n%\nInto the result:\n%\n", R, actual_result, print_json(result,, temp));
+    result := cast_json(actual_result);
+    rpc_debug_log("Casted %:\n%\nInto the result:\n%", R, actual_result, print_json(result,, temp));
     return result;
   }
   add_rpc_method(name, xx caster, xx method);
@@ -48,7 +48,7 @@ add_rpc_method :: (name: string, method: (data: *$D, params: $P) -> $R) {
 add_rpc_method :: (name: string, method: (data: *$D, params: $P)) {
   caster :: (proc: (data: *D, params: P), params: *JSON_Element) -> *JSON_Element {
     actual_params := cast_json(params, P,, temp);
-    rpc_debug_log("Casted the params:\n%\nInto %:\n%\n", print_json(params,, temp), P, actual_params);
+    rpc_debug_log("Casted the params into %:\n%", P, actual_params);
     actual_result := proc(xx context.json_rpc.state.data, actual_params);
     return make_null();
   }
@@ -58,8 +58,8 @@ add_rpc_method :: (name: string, method: (data: *$D, params: $P)) {
 add_rpc_method :: (name: string, method: (data: *$D) -> $R) {
   caster :: (proc: (data: *D) -> R, params: *JSON_Element) -> *JSON_Element {
     actual_result := proc(xx context.json_rpc.state.data);
-    result := cast_json(*actual_result);
-    rpc_debug_log("Casted %:\n%\nInto the result:\n%\n", R, actual_result, print_json(result,, temp));
+    result := cast_json(actual_result);
+    rpc_debug_log("Casted %:\n%\nInto the result:\n%", R, actual_result, print_json(result,, temp));
     return result;
   }
   add_rpc_method(name, xx caster, xx method);
@@ -131,11 +131,11 @@ rpc_read_and_respond :: () {
   }
 }
 
-rpc_debug_log :: (message: string, args: ..Any) {
+rpc_debug_log :: (format_string: string, args: ..Any, to_standard_error := false) -> bytes_printed: s64 {
   state := context.json_rpc.state;
   lock(*state.mutex);
-  state.debug_log(state.data, tprint("[Thread %] %\n", context.thread_index, tprint(message, ..args)));
-  unlock(*state.mutex);
+  defer unlock(*state.mutex);
+  return state.debug_log(state.data, tprint("[Thread %] %\n", context.thread_index, tprint(format_string, ..args)));
 }
 
 #scope_file
@@ -179,7 +179,9 @@ JSON_RPC_Thread :: struct {
 _state: JSON_RPC;
 #add_context json_rpc: JSON_RPC_Thread;
 
-dummy_debug_log : JSON_RPC_Debug_Log : (data: *void, message: string) { }
+dummy_debug_log : JSON_RPC_Debug_Log : (data: *void, message: string, to_standard_error := false) -> bytes_printed: s64 {
+  return 0;
+}
 
 add_rpc_method :: (name: string, caster: JSON_RPC_Caster, method: *void) {
   state := context.json_rpc.state;

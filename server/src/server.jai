@@ -121,7 +121,7 @@ send_response : JSON_RPC_Send_Response : (data: *void, response: string) {
   print(response);
 }
 
-debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string) {
+debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string, to_standard_error := false) -> bytes_printed: s64 {
   data: *Data = xx _data;
   
   #if OS == .WINDOWS {
@@ -134,6 +134,8 @@ debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string) {
     file_write(*file, message);
     file_close(*file);
   }
+  
+  return message.count;
 }
 
 Data :: struct {
@@ -154,7 +156,7 @@ main :: () {
   make_directory_if_it_does_not_exist(LOG_FOLDER);
   data.filename = sprint("%/%.log", LOG_FOLDER, current_time_monotonic().low);
   
-  initialize_rpc(*data, read_request, send_response, debug_log);
+  initialize_rpc(*data, read_request, send_response, xx debug_log);
   
   add_rpc_method("initialize", lsp_initialize);
   add_rpc_method("shutdown", lsp_shutdown);
