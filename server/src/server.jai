@@ -147,13 +147,13 @@ debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string, to_standard_err
 }
 
 get_type :: (any: Any) -> *Type_Info {
-  type := type.type;
+  type := any.type;
   while type.type == .VARIANT
     type = (cast(*Type_Info_Variant) type).variant_of;
   return type;
 }
 
-cast_any :: (any: Any, T: Type) -> *T #expand {
+cast_any :: (any: Any, $T: Type) -> *T #expand {
   return cast(*T) any.value_pointer;
 }
 
@@ -182,10 +182,7 @@ main :: () {
   add_rpc_request_handler("initialize", lsp_initialize);
   add_rpc_request_handler("shutdown", lsp_shutdown);
   
-  while true {
-    reset_temporary_storage();
-    rpc_read_and_respond();
-  }
+  start_rpc();
 }
 
 #scope_file

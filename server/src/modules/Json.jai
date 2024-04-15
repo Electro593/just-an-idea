@@ -98,7 +98,10 @@ free_json :: (element: *JSON_Element) {
       
     case .OBJECT;
       elem := as_object(element);
-      for elem.value free_json(it), free(it_index);
+      for elem.value {
+        free_json(it);
+        free(it_index);
+      }
       deinit(*elem.value);
   }
   free(element);
@@ -260,8 +263,12 @@ print_json :: (element: *JSON_Element) -> string {
   return builder_to_string(*builder);
 }
 
-is_null :: (any: Any) {
+is_null :: (any: Any) -> bool {
   return any.type == type_info(void) && any.value_pointer == null;
+}
+
+is_undef :: (any: Any) -> bool {
+  return any.type == null && any.value_pointer == null;
 }
 
 //NOTE: The note "$Null" on an Any will place 'null' into it if the json is JSON_Null.
@@ -330,7 +337,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
       
       case .STRUCT;
         t: *Type_Info_Struct = xx type;
-        print_to_builder(*builder, "  s
+        print_to_builder(*builder, "  success: bool;\n");
         assert(!(t.textual_flags & .UNION), "Cannot cast JSON into the union '%', or any union\n", type_name);
         if array_find(notes, "$Table") {
           //TODO: Round-trip the key parsing
@@ -390,7 +397,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
             case "$Null";
               print_to_builder(*builder, "  if !success && json.kind == .NULL {\n");
               print_to_builder(*builder, "    success = true;\n");
-              print_to_builder(*builder, "    value = .{type_info(void), null};\n");
+              print_to_builder(*builder, "    value = Any.{type_info(void), null};\n");
               print_to_builder(*builder, "  }\n");
             case;
               print_to_builder(*builder, "  if !success {\n");
@@ -398,7 +405,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
               print_to_builder(*builder, "    test: V;\n");
               print_to_builder(*builder, "    success = cast_json(json, *test, .[], .%, false, log);\n", blacklist);
               print_to_builder(*builder, "    if success {\n");
-              print_to_builder(*builder, "      value.type = .{type_info(V), alloc(size_of(V))};\n");
+              print_to_builder(*builder, "      value = Any.{type_info(V), alloc(size_of(V))};\n");
               print_to_builder(*builder, "      memcpy(value.value_pointer, *test, size_of(V));\n");
               print_to_builder(*builder, "    }\n");
               print_to_builder(*builder, "  }\n");
@@ -415,30 +422,30 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
         } else {
           print_to_builder(*builder, "  if json.kind == {\n");
           print_to_builder(*builder, "    case .NULL;\n");
-          print_to_builder(*builder, "      value = .{type_info(void), null};\n");
+          print_to_builder(*builder, "      value = Any.{type_info(void), null};\n");
           print_to_builder(*builder, "    case .BOOLEAN;\n");
-          print_to_builder(*builder, "      value = .{type_info(bool), alloc(size_of(bool))};\n");
-          print_to_builder(*builder, "      (cast(bool) value.value_pointer).* = as_boolean(json).value;\n");
+          print_to_builder(*builder, "      value = Any.{type_info(bool), alloc(size_of(bool))};\n");
+          print_to_builder(*builder, "      (cast(*bool) value.value_pointer).* = as_boolean(json).value;\n");
           print_to_builder(*builder, "    case .NUMBER;\n");
-          print_to_builder(*builder, "      value = .{type_info(float64), alloc(size_of(float64))};\n");
-          print_to_builder(*builder, "      (cast(float64) value.value_pointer).* = as_number(json).value;\n");
+          print_to_builder(*builder, "      value = Any.{type_info(float64), alloc(size_of(float64))};\n");
+          print_to_builder(*builder, "      (cast(*float64) value.value_pointer).* = as_number(json).value;\n");
           print_to_builder(*builder, "    case .STRING;\n");
-          print_to_builder(*builder, "      value = .{type_info(string), alloc(size_of(string))};\n");
-          print_to_builder(*builder, "      (cast(string) value.value_pointer).* = copy_string(as_string(json).value);\n");
+          print_to_builder(*builder, "      value = Any.{type_info(string), alloc(size_of(string))};\n");
+          print_to_builder(*builder, "      (cast(*string) value.value_pointer).* = copy_string(as_string(json).value);\n");
           print_to_builder(*builder, "    case .ARRAY;\n");
-          print_to_builder(*builder, "      array: *[] Any = alloc(size_of([] Any)));\n");
-          print_to_builder(*builder, "      value = .{type_info([] Any), array};\n");
+          print_to_builder(*builder, "      array: *[] Any = alloc(size_of([] Any));\n");
+          print_to_builder(*builder, "      value = Any.{type_info([] Any), array};\n");
           print_to_builder(*builder, "      json_array := as_array(json).value;\n");
           print_to_builder(*builder, "      array.count = json_array.count;\n");
           print_to_builder(*builder, "      array.data = alloc(size_of(Any) * array.count);\n");
           print_to_builder(*builder, "      for json_array\n");
-          print_to_builder(*builder, "        cast_json(it, *(array.*[it_index]), .[%, .%, should_assert, log);\n", notes, blacklist);
+          print_to_builder(*builder, "        cast_json(it, *(array.*[it_index]), .%, .%, should_assert, log);\n", notes, blacklist);
           print_to_builder(*builder, "    case .OBJECT;\n");
           print_to_builder(*builder, "      object: *Table(string, Any) = alloc(size_of(Table(string, Any)));\n");
-          print_to_builder(*builder, "      value = .{type_info(Table(string, Any)), object};\n");
+          print_to_builder(*builder, "      value = Any.{type_info(Table(string, Any)), object};\n");
           print_to_builder(*builder, "      json_object := as_object(json).value;\n");
           print_to_builder(*builder, "      for json_object\n");
-          print_to_builder(*builder, "        cast_json(object, find_or_add(object, copy_string(it_index)), .%, .%, should_assert, log);\n", notes, blacklist);
+          print_to_builder(*builder, "        cast_json(it, find_or_add(object, copy_string(it_index)), .%, .%, should_assert, log);\n", notes, blacklist);
           print_to_builder(*builder, "  }\n");
         }
       
@@ -538,7 +545,7 @@ cast_json :: (value: Any, notes: [] string = .[], log: (f: string, a: ..Any, t :
 cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> json: *JSON_Element {
   assert(xx value, "Cannot cast a null value (of type % with notes %)", type, notes);
   
-  cast_value :: (T: Type) -> T #expand {
+  cast_value :: ($T: Type) -> T #expand {
     return (cast(*T) `value).*;
   }
   
@@ -717,22 +724,22 @@ cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: s
   }
 }
 
-copy_casted_json :: (value: T) -> T #expand {
+copy_casted_json :: (value: $T) -> T #expand {
   out: T;
   copy_casted_json(*value, type_info(T), *out);
   return out;
 }
 
-copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes := string.[]) {
+copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] string = .[]) {
   if !value return;
   assert(xx type, "Cannot copy casted json with a null type");
   assert(xx out, "Cannot copy casted json to a null output");
   
-  get_value :: (T: Type) -> T #expand {
+  get_value :: ($T: Type) -> T #expand {
     return (cast(*T) `value).*;
   }
   
-  set_out :: (value: T) #expand {
+  set_out :: (value: $T) #expand {
     (cast(*T) `out).* = value;
   }
   
@@ -773,15 +780,13 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes := string
         for 0 .. _out.entries.count - 1 {
           value_entry := _value.entries.data + it * entry_size;
           out_entry := _out.entries.data + it * entry_size;
-          hash := (cast(*_value.Entry) entry_data).hash;
+          hash := (cast(*_value.Entry) value_entry).hash;
+          memcpy(out_entry, *hash, entry_size);
           if hash < FIRST_VALID_HASH continue;
-          key_data := entry_data + hash_size;
-          value_data := key_data + key_type.runtime_size;
-          key := ifx key_is_string
-            then copy_string((cast(*string) key_data).*)
-            else print_json(cast_json(key_data, key_type, .[], log));
-          value := cast_json(value_data, value_type, .[], log);
-          set_element(object, key, value);
+          key_offset := hash_size;
+          value_offset := key_offset + key_type.runtime_size;
+          copy_casted_json(value_entry + key_offset, key_type, out_entry + key_offset, .[]);
+          copy_casted_json(value_entry + value_offset, value_type, out_entry + value_offset, .[]);
         }
       } else {
         t.initializer(out);
@@ -795,13 +800,13 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes := string
       t: *Type_Info_Array = xx type;
       assert(t.array_type != .FIXED, "Cannot copy fixed arrays yet");
       if t.array_type == .RESIZABLE {
-        _value := cast_value([..] void);
+        _value := get_value([..] void);
         _out := _value;
         _out.data = alloc(_value.allocated * t.element_type.runtime_size);
         copy_casted_json(_value.data, t.element_type, _out.data);
         set_out(_out);
       } else {
-        _value := cast_value([] void);
+        _value := get_value([] void);
         _out := []void.{_value.count, alloc(_value.count * t.element_type.runtime_size)};
         copy_casted_json(_value.data, t.element_type, _out.data);
         set_out(_out);
@@ -833,14 +838,14 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes := string
   }
 }
 
-free_casted_json :: (value: *T) #expand {
+free_casted_json :: (value: *$T) #expand {
   free_casted_json(xx value, type_info(T));
 }
 
 free_casted_json :: (value: *void, type: *Type_Info) {
   if !value || !type return;
   
-  cast_value :: (T: Type) -> *T #expand {
+  cast_value :: ($T: Type) -> *T #expand {
     return cast(*T) `value;
   }
   
@@ -882,7 +887,7 @@ free_casted_json :: (value: *void, type: *Type_Info) {
           free_casted_json(key_data, key_type);
           free_casted_json(value_data, value_type);
         }
-        table_deinit(table);
+        deinit(table);
         table.count = 0;
         table.allocated = 0;
         table.slots_filled = 0;
@@ -908,7 +913,7 @@ free_casted_json :: (value: *void, type: *Type_Info) {
       any := cast_value(Any);
       free_casted_json(any.value_pointer, any.type);
       free(any.value_pointer);
-      any.* = .{};
+      any.* = Any.{};
     
     case .ENUM;
     
@@ -944,7 +949,7 @@ Text_Encoding :: enum {
 }
 
 get_type :: (any: Any) -> *Type_Info {
-  type := type.type;
+  type := any.type;
   while type.type == .VARIANT
     type = (cast(*Type_Info_Variant) type).variant_of;
   return type;

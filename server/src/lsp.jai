@@ -572,7 +572,7 @@ LSP_LogTraceParams :: struct {
 
 lsp_logTrace :: (data: *Data, params: LSP_LogTraceParams) {
   assert_running();
-  send_notification("$/logTrace", params);
+  // send_notification("$/logTrace", params);
 }
 
 // shutdown
