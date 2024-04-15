@@ -1,4 +1,6 @@
 LOG_FOLDER :: "log";
+SERVER_NAME :: "Jai Language Server";
+SERVER_VERSION :: "0.0.1";
 
 #run {
   make_directory_if_it_does_not_exist("../out");
@@ -98,7 +100,7 @@ parse_header :: (buffer: *[..]u8) -> content_length: int, content_type: string {
   return content_length, content_type;
 }
 
-read_request : JSON_RPC_Read_Request : (_data: *void) -> string {
+read_message : JSON_RPC_Read_Message : (_data: *void) -> string {
   data: *Data = xx _data;
   
   size, type := parse_header(*data.buffer);
@@ -117,12 +119,16 @@ read_request : JSON_RPC_Read_Request : (_data: *void) -> string {
   return content;
 }
 
-send_response : JSON_RPC_Send_Response : (data: *void, response: string) {
-  print(response);
+send_message : JSON_RPC_Send_Message : (data: *void, message: string) {
+  print("Content-Length: %\r\n", message.count);
+  print("\r\n");
+  print(message);
 }
 
 debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string, to_standard_error := false) -> bytes_printed: s64 {
   data: *Data = xx _data;
+  
+  if data.trace == "off" return 0;
   
   #if OS == .WINDOWS {
     stdin := File.{GetStdHandle(STD_INPUT_HANDLE)};
@@ -135,7 +141,20 @@ debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string, to_standard_err
     file_close(*file);
   }
   
+  // lsp_logTrace(data, .{message = message});
+  
   return message.count;
+}
+
+get_type :: (any: Any) -> *Type_Info {
+  type := type.type;
+  while type.type == .VARIANT
+    type = (cast(*Type_Info_Variant) type).variant_of;
+  return type;
+}
+
+cast_any :: (any: Any, T: Type) -> *T #expand {
+  return cast(*T) any.value_pointer;
 }
 
 Data :: struct {
@@ -144,6 +163,7 @@ Data :: struct {
   
   is_initialized: bool;
   is_shutdown: bool;
+  trace: LSP_TraceValue;
 }
 
 main :: () {
@@ -156,10 +176,11 @@ main :: () {
   make_directory_if_it_does_not_exist(LOG_FOLDER);
   data.filename = sprint("%/%.log", LOG_FOLDER, current_time_monotonic().low);
   
-  initialize_rpc(*data, read_request, send_response, xx debug_log);
+  initialize_rpc(*data, read_message, send_message, xx debug_log);
   
-  add_rpc_method("initialize", lsp_initialize);
-  add_rpc_method("shutdown", lsp_shutdown);
+  add_rpc_request_handler("$/setTrace", lsp_setTrace);
+  add_rpc_request_handler("initialize", lsp_initialize);
+  add_rpc_request_handler("shutdown", lsp_shutdown);
   
   while true {
     reset_temporary_storage();

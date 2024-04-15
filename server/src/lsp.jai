@@ -468,9 +468,14 @@ LSP_TextDocumentRegistrationOptions :: struct {
   documentSelector: Any; @? @LSP_DocumentSelector @$Null;
 }
 
+LSP_WorkspaceFolder :: struct {
+  uri: LSP_URI;
+  name: string;
+}
+
 // initialize
 
-// _LSP_InitializeParams_WorkspaceFolders :: [] LSP_WorkspaceFolder;
+_LSP_InitializeParams_WorkspaceFolders :: [] LSP_WorkspaceFolder;
 LSP_InitializeParams :: struct {
   #as using _: LSP_WorkDoneProgressParams;
   processId: Any; @s32 @$Null
@@ -484,7 +489,7 @@ LSP_InitializeParams :: struct {
   initializationOptions: Any; @?
   capabilities: LSP_ClientCapabilities;
   trace := LSP_TraceValue_Off; @?
-  // workspaceFolders: Any; @? @_LSP_InitializeParams_WorkspaceFolders @$Null;
+  workspaceFolders: Any; @? @_LSP_InitializeParams_WorkspaceFolders @$Null;
 }
 
 LSP_InitializeResult :: struct {
@@ -504,10 +509,18 @@ LSP_InitializeError :: struct {
 }
 
 lsp_initialize :: (data: *Data, params: LSP_InitializeParams) -> LSP_InitializeResult {
+  result := LSP_InitializeResult.{};
+  error := LSP_InitializeError.{false};
+  set_error_data(error);
+  
   assert(!data.is_shutdown, "Cannot initialize because the server was shut down");
   assert(!data.is_initialized, "The server is already initialized.");
+  
   data.is_initialized = true;
-  return .{};
+  
+  result.serverInfo.name = SERVER_VERSION;
+  result.serverInfo.version = SERVER_NAME;
+  return result;
 }
 
 // initialized
@@ -547,6 +560,7 @@ LSP_SetTraceParams :: struct {
 
 lsp_setTrace :: (data: *Data, params: LSP_SetTraceParams) {
   assert_running();
+  data.trace = params.value;
 }
 
 // $/logTrace
@@ -558,6 +572,7 @@ LSP_LogTraceParams :: struct {
 
 lsp_logTrace :: (data: *Data, params: LSP_LogTraceParams) {
   assert_running();
+  send_notification("$/logTrace", params);
 }
 
 // shutdown
