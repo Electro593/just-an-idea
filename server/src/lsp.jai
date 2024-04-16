@@ -263,7 +263,7 @@ LSP_WorkspaceEdit :: struct {
 }
 
 LSP_ProgressToken :: struct {
-  value: Any; @s32 @string
+  _: Any; @s32 @string
 }
 
 LSP_WorkDoneProgressBegin :: struct {
@@ -465,7 +465,7 @@ LSP_StaticRegistrationOptions :: struct {
 }
 
 LSP_TextDocumentRegistrationOptions :: struct {
-  documentSelector: Any; @? @LSP_DocumentSelector @$Null;
+  documentSelector: Any; @? @LSP_DocumentSelector @$Null
 }
 
 LSP_WorkspaceFolder :: struct {
