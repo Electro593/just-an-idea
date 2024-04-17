@@ -78,7 +78,7 @@ parse_header :: (buffer: *[..]u8) -> content_length: int, content_type: string {
   
   assert(content_type == "application/vscode-jsonrpc; charset=utf-8", "Received 'Content-Type: %', but only 'application/vscode-jsonrpc; charset=utf-8' is supported", content_type);
   
-  rpc_debug_log("Header:\nContent-Length: %\r\nContent-Type: \"%\"\r\n\r\n", content_length, content_type);
+  // rpc_debug_log("Header:\nContent-Length: %\r\nContent-Type: \"%\"\r\n\r\n", content_length, content_type);
   
   buffer.count -= header_offset + header_count;
   memcpy(buffer.data, header.data + header_count, buffer.count);
@@ -107,6 +107,7 @@ read_message_from_stdin : JSON_RPC_Read_Message : (_data: *void) -> string {
 
 send_message_to_stdout : JSON_RPC_Send_Message : (data: *void, message: string) {
   print("Content-Length: %\r\n", message.count);
+  print("Content-Type: application/vscode-jsonrpc; charset=utf-8\r\n");
   print("\r\n");
   print(message);
 }

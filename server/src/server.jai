@@ -35,7 +35,12 @@ main :: () {
   
   add_rpc_request_handler("$/setTrace", lsp_setTrace);
   add_rpc_request_handler("initialize", lsp_initialize);
+  add_rpc_request_handler("initialized", lsp_initialized);
   add_rpc_request_handler("shutdown", lsp_shutdown);
+  add_rpc_request_handler("exit", lsp_exit);
+  add_rpc_request_handler("textDocument/declaration", lsp_textDocument_declaration);
+  
+  // add_rpc_response_handler("client/registerCapability", lsp_client_registerCapability, lsp_client_registerCapability_error);
   
   start_rpc();
 }

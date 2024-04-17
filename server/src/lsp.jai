@@ -161,11 +161,13 @@ LSP_TextDocumentEdit :: struct {
   edits: [] Any; @LSP_TextEdit @LSP_AnnotatedTextEdit
 }
 
+_LSP_Locations :: [..] LSP_Location;
 LSP_Location :: struct {
   uri: LSP_DocumentUri;
   range: LSP_Range;
 }
 
+_LSP_LocationLinks :: [..] LSP_LocationLink;
 LSP_LocationLink :: struct {
   originSelectionRange: LSP_Range; @?
   targetUri: LSP_DocumentUri;
@@ -321,36 +323,36 @@ LSP_WorkspaceEditClientCapabilities :: struct {
 }
 
 LSP_TextDocumentClientCapabilities :: struct {
-  // synchronization:    LSP_TextDocumentSyncClientCapabilities;         @?
-  // completion:         LSP_CompletionClientCapabilities;               @?
-  // hover:              LSP_HoverClientCapabilities;                    @?
-  // signatureHelp:      LSP_SignatureHelpClientCapabilities;            @?
-  // declaration:        LSP_DeclarationClientCapabilities;              @?
-  // definition:         LSP_DefinitionClientCapabilities;               @?
-  // typeDefinition:     LSP_TypeDefinitionClientCapabilities;           @?
-  // implementation:     LSP_ImplementationClientCapabilities;           @?
-  // references:         LSP_ReferenceClientCapabilities;                @?
-  // documentHighlight:  LSP_DocumentHighlightClientCapabilities;        @?
-  // documentSymbol:     LSP_DocumentSymbolClientCapabilities;           @?
-  // codeAction:         LSP_CodeActionClientCapabilities;               @?
-  // codeLens:           LSP_CodeLensClientCapabilities;                 @?
-  // documentLink:       LSP_DocumentLinkClientCapabilities;             @?
-  // colorProvider:      LSP_DocumentColorClientCapabilities;            @?
-  // formatting:         LSP_DocumentFormattingClientCapabilities;       @?
-  // rangeFormatting:    LSP_DocumentRangeFormattingClientCapabilities;  @?
-  // onTypeFormatting:   LSP_DocumentOnTypeFormattingClientCapabilities; @?
-  // rename:             LSP_RenameClientCapabilities;                   @?
-  // publishDiagnostics: LSP_PublishDiagnosticsClientCapabilities;       @?
-  // foldingRange:       LSP_FoldingRangeClientCapabilities;             @?
-  // selectionRange:     LSP_SelectionRangeClientCapabilities;           @?
-  // linkedEditingRange: LSP_LinkedEditingRangeClientCapabilities;       @?
-  // callHierarchy:      LSP_CallHierarchyClientCapabilities;            @?
-  // semanticTokens:     LSP_SemanticTokensClientCapabilities;           @?
-  // moniker:            LSP_MonikerClientCapabilities;                  @?
-  // typeHierarchy:      LSP_TypeHierarchyClientCapabilities;            @?
-  // inlineValue:        LSP_InlineValueClientCapabilities;              @?
-  // inlayHint:          LSP_InlayHintClientCapabilities;                @?
-  // diagnostic:         LSP_DiagnosticClientCapabilities;               @?
+  // synchronization:    *LSP_TextDocumentSyncClientCapabilities;         @?
+  // completion:         *LSP_CompletionClientCapabilities;               @?
+  // hover:              *LSP_HoverClientCapabilities;                    @?
+  // signatureHelp:      *LSP_SignatureHelpClientCapabilities;            @?
+  declaration:        *LSP_DeclarationClientCapabilities;              @?
+  // definition:         *LSP_DefinitionClientCapabilities;               @?
+  // typeDefinition:     *LSP_TypeDefinitionClientCapabilities;           @?
+  // implementation:     *LSP_ImplementationClientCapabilities;           @?
+  // references:         *LSP_ReferenceClientCapabilities;                @?
+  // documentHighlight:  *LSP_DocumentHighlightClientCapabilities;        @?
+  // documentSymbol:     *LSP_DocumentSymbolClientCapabilities;           @?
+  // codeAction:         *LSP_CodeActionClientCapabilities;               @?
+  // codeLens:           *LSP_CodeLensClientCapabilities;                 @?
+  // documentLink:       *LSP_DocumentLinkClientCapabilities;             @?
+  // colorProvider:      *LSP_DocumentColorClientCapabilities;            @?
+  // formatting:         *LSP_DocumentFormattingClientCapabilities;       @?
+  // rangeFormatting:    *LSP_DocumentRangeFormattingClientCapabilities;  @?
+  // onTypeFormatting:   *LSP_DocumentOnTypeFormattingClientCapabilities; @?
+  // rename:             *LSP_RenameClientCapabilities;                   @?
+  // publishDiagnostics: *LSP_PublishDiagnosticsClientCapabilities;       @?
+  // foldingRange:       *LSP_FoldingRangeClientCapabilities;             @?
+  // selectionRange:     *LSP_SelectionRangeClientCapabilities;           @?
+  // linkedEditingRange: *LSP_LinkedEditingRangeClientCapabilities;       @?
+  // callHierarchy:      *LSP_CallHierarchyClientCapabilities;            @?
+  // semanticTokens:     *LSP_SemanticTokensClientCapabilities;           @?
+  // moniker:            *LSP_MonikerClientCapabilities;                  @?
+  // typeHierarchy:      *LSP_TypeHierarchyClientCapabilities;            @?
+  // inlineValue:        *LSP_InlineValueClientCapabilities;              @?
+  // inlayHint:          *LSP_InlayHintClientCapabilities;                @?
+  // diagnostic:         *LSP_DiagnosticClientCapabilities;               @?
 }
 
 LSP_NotebookDocumentClientCapabilities :: struct {
@@ -408,7 +410,7 @@ LSP_ServerCapabilities :: struct {
   // completionProvider:               LSP_CompletionOptions; @?
   // hoverProvider:                    Any; @? @bool @LSP_HoverOptions
   // signatureHelpProvider:            LSP_SignatureHelpOptions; @?
-  // declarationProvider:              Any; @? @bool @LSP_DeclarationOptions             @LSP_DeclarationRegistrationOptions
+  declarationProvider:              Any; @? @bool @LSP_DeclarationOptions             @LSP_DeclarationRegistrationOptions
   // definitionProvider:               Any; @? @bool @LSP_DefinitionOptions
   // typeDefinitionProvider:           Any; @? @bool @LSP_TypeDefinitionOptions          @LSP_TypeDefinitionRegistrationOptions
   // implementationProvider:           Any; @? @bool @LSP_ImplementationOptions          @LSP_ImplementationRegistrationOptions
@@ -518,8 +520,9 @@ lsp_initialize :: (data: *Data, params: LSP_InitializeParams) -> LSP_InitializeR
   
   data.is_initialized = true;
   
-  result.serverInfo.name = SERVER_VERSION;
-  result.serverInfo.version = SERVER_NAME;
+  result.serverInfo.name = copy_string(SERVER_VERSION);
+  result.serverInfo.version = copy_string(SERVER_NAME);
+  result.capabilities.declarationProvider = alloc_any(!!params.capabilities.textDocument.declaration);
   return result;
 }
 
@@ -538,7 +541,16 @@ LSP_RegistrationParams :: struct {
   registrations: [] LSP_Registration;
 }
 
-lsp_client_registerCapability :: (data: *Data, params: LSP_RegistrationParams) {
+_LSP_Client_RegisterCapability_Result :: struct {
+}
+_LSP_Client_RegisterCapability_Error :: struct {
+}
+
+lsp_client_registerCapability :: (data: *Data, result: _LSP_Client_RegisterCapability_Result) {
+  assert_running();
+}
+
+lsp_client_registerCapability_error :: (data: *Data, code: JSON_RPC_Error_Code, message: string, error_data: _LSP_Client_RegisterCapability_Error) {
   assert_running();
 }
 
@@ -608,6 +620,42 @@ LSP_ProgressParams :: struct(Value_Type: Type) {
 
 lsp_progress :: (data: *Data) {
   assert_running();
+}
+
+// Go to Declaration
+
+LSP_DeclarationClientCapabilities :: struct {
+	dynamicRegistration: bool; @?
+	linkSupport: bool; @?
+}
+
+LSP_DeclarationOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+}
+
+LSP_DeclarationRegistrationOptions :: struct {
+  #as using _0: LSP_DeclarationOptions;
+	#as using _1: LSP_TextDocumentRegistrationOptions;
+  #as using _2: LSP_StaticRegistrationOptions;
+}
+
+LSP_DeclarationParams :: struct {
+  #as using _0: LSP_TextDocumentPositionParams;
+	#as using _1: LSP_WorkDoneProgressParams;
+  #as using _2: LSP_PartialResultParams;
+}
+
+LSP_DeclarationResult :: struct {
+  _: Any; @LSP_Location @_LSP_Locations @_LSP_LocationLinks @$Null
+}
+
+LSP_DeclarationPartialResult :: struct {
+  _: Any; @_LSP_Locations @_LSP_LocationLinks
+}
+
+lsp_textDocument_declaration :: (data: *Data, params: LSP_DeclarationParams) -> LSP_DeclarationResult {
+  assert_running();
+  return .{make_null_any()};
 }
 
 #scope_file

@@ -607,6 +607,8 @@ free_casted_json :: (value: *void, type: *Type_Info, log: (f: string, a: ..Any, 
     return cast(*T) `value;
   }
   
+  json_log("Freeing %: %", get_type_name(type,, temp), Any.{type, value});
+  
   if #complete type.type == {
     case .INTEGER;
     case .FLOAT;
@@ -614,14 +616,12 @@ free_casted_json :: (value: *void, type: *Type_Info, log: (f: string, a: ..Any, 
     
     case .STRING;
       str := cast_value(string);
-      json_log("Freeing %: %", get_type_name(type,, temp), str.*);
       free(str.*);
       str.* = "";
     
     case .POINTER;
       t: *Type_Info_Pointer = xx type;
       ptr := cast_value(*void);
-      json_log("Freeing %: %", get_type_name(type,, temp), ptr.*);
       free_casted_json(ptr.*, t.pointer_to, log);
       free(ptr.*);
       ptr.* = null;
@@ -630,7 +630,6 @@ free_casted_json :: (value: *void, type: *Type_Info, log: (f: string, a: ..Any, 
     
     case .STRUCT;
       t: *Type_Info_Struct = xx type;
-      json_log("Freeing %: <struct>", get_type_name(type,, temp));
       if array_find(t.notes, "$Table") {
         table := cast_value(Table(void, void));
         assert(t.specified_parameters.count >= 2 && t.specified_parameters[0].name == "Key_Type" && t.specified_parameters[1].name == "Value_Type", "Expected a Hash_Table.Table because of '$Table', but got '%'", get_type_name(t,, temp));
@@ -664,7 +663,6 @@ free_casted_json :: (value: *void, type: *Type_Info, log: (f: string, a: ..Any, 
     case .ARRAY;
       t: *Type_Info_Array = xx type;
       array := cast_value([] void);
-      json_log("Freeing %: <array>", get_type_name(type,, temp));
       for 0 .. array.count - 1
         free_casted_json(array.data + it * t.element_type.runtime_size, t.element_type, log);
       if t.array_type == .RESIZABLE
@@ -674,7 +672,6 @@ free_casted_json :: (value: *void, type: *Type_Info, log: (f: string, a: ..Any, 
     
     case .ANY;
       any := cast_value(Any);
-      json_log("Freeing %: %", get_type_name(type,, temp), any.*);
       if any.type == type_info(JSON_Element) free_json(cast_any(any.*, JSON_Element));
       else {
         free_casted_json(any.value_pointer, any.type, log);
@@ -683,11 +680,9 @@ free_casted_json :: (value: *void, type: *Type_Info, log: (f: string, a: ..Any, 
       any.* = Any.{};
     
     case .ENUM;
-      json_log("Freeing %: <enum>", get_type_name(type,, temp));
     
     case .VARIANT;
       t: *Type_Info_Variant = xx type;
-      json_log("Freeing %: <variant>", get_type_name(type,, temp));
       free_casted_json(value, t.variant_of, log);
     
     case .PROCEDURE;

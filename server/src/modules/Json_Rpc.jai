@@ -2,12 +2,7 @@
 
 /* TODO:
  - Validate memory is freed on assert
- - (Test)
- 
- - Try to merge casters
  - Add server->client requests
- - (Test)
- 
  - Change log to use context in Cast_Json
 */
 
@@ -60,75 +55,93 @@ start_rpc :: () {
   while state.is_initialized {
     for * state.threads
       if !it.index
-        start_rpc_thread(ifx it_index then threaded_rpc_worker_loop else threaded_rpc_main_loop, it);
-    sleep_milliseconds(500);
+        start_rpc_thread(ifx it_index then threaded_rpc_handler_loop else threaded_rpc_parse_loop, it);
+    sleep_milliseconds(100);
   }
   
   for * state.threads thread_is_done(it, -1);
   for * state.threads thread_deinit(it);
   array_free(state.threads);
   
-  for * state.requests_to_handle free_casted_json(it, log = rpc_debug_log);
-  for * state.responses_to_handle free_casted_json(it, log = rpc_debug_log);
-  for * state.responses_to_send free_casted_json(it, log = rpc_debug_log);
+  for * state.requests_to_handle  free_casted_json(it);
+  for * state.responses_to_handle free_casted_json(it);
+  // for * state.requests_to_send    free_casted_json(it);
+  for * state.responses_to_send   free_casted_json(it);
   array_free(state.requests_to_handle);
   array_free(state.responses_to_handle);
+  // array_free(state.requests_to_send);
   deinit(*state.responses_to_send);
   
-  deinit(*state.methods);
+  deinit(*state.request_methods);
+  // deinit(*state.response_methods);
+  // deinit(*state.response_names);
 }
 
-add_rpc_request_handler :: (name: string, method: (data: *$D, params: $P) -> $R) {
+add_rpc_request_handler :: (name: string, method: (data: *$D, params: $P) -> $R) #expand {
   caster :: (proc: (data: *D, params: P) -> R, params: *Any) -> Any {
     json_params := cast_any(params.*, JSON_Element);
     casted_params: *P = alloc(size_of(P));
     params.type = type_info(P);
     params.value_pointer = casted_params;
-    cast_json(json_params, casted_params, log = rpc_debug_log, scope = SCOPE);
+    cast_json(json_params, casted_params, scope = SCOPE);
     free_json(json_params);
     rpc_debug_log("Params:\n%", casted_params.*);
     
     result := proc(xx context.json_rpc.state.data, casted_params.*);
-    any := Any.{type_info(R), alloc(size_of(R))};
-    memcpy(any.value_pointer, *result, size_of(R));
-    return any;
+    return alloc_any(result);
   }
   add_rpc_method(name, xx caster, xx method);
 }
 
-add_rpc_request_handler :: (name: string, method: (data: *$D, params: $P)) {
+add_rpc_request_handler :: (name: string, method: (data: *$D, params: $P)) #expand {
   caster :: (proc: (data: *D, params: P), params: *Any) -> Any {
     json_params := cast_any(params.*, JSON_Element);
     casted_params: *P = alloc(size_of(P));
     params.type = type_info(P);
     params.value_pointer = casted_params;
-    cast_json(json_params, casted_params, log = rpc_debug_log, scope = SCOPE);
+    cast_json(json_params, casted_params, scope = SCOPE);
     free_json(json_params);
     rpc_debug_log("Params:\n%", casted_params.*);
     
     proc(xx context.json_rpc.state.data, casted_params.*);
-    return Any.{type_info(void), null};
+    return make_null_any();
   }
   add_rpc_method(name, xx caster, xx method);
 }
 
-add_rpc_request_handler :: (name: string, method: (data: *$D) -> $R) {
+add_rpc_request_handler :: (name: string, method: (data: *$D) -> $R) #expand {
   caster :: (proc: (data: *D) -> R, params: *Any) -> Any {
     result := proc(xx context.json_rpc.state.data);
-    any := Any.{type_info(R), alloc(size_of(R))};
-    memcpy(any.value_pointer, *result, size_of(R));
-    return any;
+    return alloc_any(result);
   }
   add_rpc_method(name, xx caster, xx method);
 }
 
-add_rpc_request_handler :: (name: string, method: (data: *$D)) {
+add_rpc_request_handler :: (name: string, method: (data: *$D)) #expand {
   caster :: (proc: (data: *D), params: *Any) -> Any {
     proc(xx context.json_rpc.state.data);
-    return Any.{type_info(void), null};
+    return make_null_any();
   }
   add_rpc_method(name, xx caster, xx method);
 }
+
+// add_rpc_response_handler :: (name: string, success_proc: (data: *$D, result: $R), error_proc: (data: *D, code: JSON_RPC_Error_Code, message: string, error_data: $E)) {
+//   success_caster :: (proc: (data: *D, result: R), result: *Any) {
+//     json_params := cast_any(params.*, JSON_Element);
+//     casted_params: *P = alloc(size_of(P));
+//     params.type = type_info(P);
+//     params.value_pointer = casted_params;
+//     cast_json(json_params, casted_params, scope = SCOPE);
+//     free_json(json_params);
+//     rpc_debug_log("Params:\n%", casted_params.*);
+    
+//     proc(xx context.json_rpc.state.data);
+//   }
+//   error_caster :: (proc: (data: *D), params: *Any) -> Any {
+//     proc(xx context.json_rpc.state.data);
+//     return make_null_any();
+//   }
+// }
 
 deinitialize_rpc :: () {
   state := context.json_rpc.state;
@@ -150,18 +163,38 @@ push_error :: (code: JSON_RPC_Error_Code) #expand {
   `defer context.json_rpc.assertion_code = old_code;
 }
 
-// add_request_to_batch(method: string, params: Any = .{}, is_notification := true, version := DEFAULT_JSON_RPC_VERSION) {
+// add_request_to_batch(method: string, params: Any = Any.{}, is_notification := false, version := DEFAULT_JSON_RPC_VERSION) {
+//   push_error(.INTERNAL_ERROR);
 //   state := context.json_rpc.state;
-//   
+  
 //   message: JSON_RPC_Message_Header;
 //   if is_notification
 //     message = JSON_RPC_Notification.{jsonrpc, version, method, params};
 //   else
 //     message = JSON_RPC_Request.{jsonrpc, version, method, params, get_next_id()};
-//   
-//   json_message := cast_json(message, log = rpc_debug_log,, temp);
+  
+//   request := JSON_RPC_Request.{
+//     jsonrpc = version,
+//     method = method,
+//     params = params,
+//     id = get_next_id(),
+//     batch_id = 0,
+//     is_notification = is_notification,
+//   };
+  
 //   lock(*state.mutex);
-//   array_add(*state.requests_to_send, json_notification);
+//   array_add(*state.requests_to_send, request);
+//   unlock(*state.mutex);
+  
+//   rpc_debug_log("Added '%' (id %) to the batch, with params:\n%", method, request.id, params);
+// }
+
+// send_all_requests :: () {
+//   push_error(.INTERNAL_ERROR);
+//   state := context.json_rpc.state;
+  
+//   lock(*state.mutex);
+//   state.send_message(*state.data, );
 //   unlock(*state.mutex);
 // }
 
@@ -170,6 +203,20 @@ rpc_debug_log :: (format_string: string, args: ..Any, to_standard_error := false
   lock(*state.mutex);
   defer unlock(*state.mutex);
   return state.debug_log(state.data, tprint("[Thread %] %\n", context.thread_index, tprint(format_string, ..args)));
+}
+
+alloc_any :: inline (value: Any) -> Any {
+  result := Any.{value.type, alloc(value.type.runtime_size)};
+  memcpy(result.value_pointer, value.value_pointer, value.type.runtime_size);
+  return result;
+}
+
+make_null_any :: inline () -> Any {
+  return Any.{type_info(void), null};
+}
+
+make_undef_any :: inline () -> Any {
+  return Any.{};
 }
 
 #scope_file
@@ -218,10 +265,14 @@ JSON_RPC_Error :: struct {
 }
 
 JSON_RPC_Caster :: #type (proc: *void, params: *Any) -> Any;
-JSON_RPC_Method_Data :: struct {
+JSON_RPC_Caster_Data :: struct {
   caster: JSON_RPC_Caster;
   proc: *void;
 }
+// JSON_RPC_Response_Handling_Data :: struct {
+//   JSON_RPC_Caster_Data: success_proc;
+//   JSON_RPC_Caster_Data: error_proc;
+// }
 
 JSON_RPC :: struct {
   mutex: Mutex;
@@ -229,6 +280,7 @@ JSON_RPC :: struct {
   requests_to_handle: [..] JSON_RPC_Request;
   responses_to_handle: [..] JSON_RPC_Batch_Response;
   
+  // requests_to_send: [..] JSON_RPC_Request;
   responses_to_send: Table(int, JSON_RPC_Batch_Response);
   
   next_id: s32;
@@ -237,8 +289,11 @@ JSON_RPC :: struct {
   
   threads: [..] Thread;
   
+  request_methods: Table(string, JSON_RPC_Caster_Data);
+  // response_methods: Table(string, JSON_RPC_Response_Handling_Data);
+  // response_names: Table(s32, string);
+  
   data: *void;
-  methods: Table(string, JSON_RPC_Method_Data);
   read_message: JSON_RPC_Read_Message;
   send_message: JSON_RPC_Send_Message;
   debug_log: JSON_RPC_Debug_Log;
@@ -252,7 +307,7 @@ JSON_RPC_Thread :: struct {
   result: Any;
   message: JSON_RPC_Message;
   request: JSON_RPC_Request;
-  // response: *JSON_RPC_Response;
+  response: JSON_RPC_Response;
   
   assertion_code: JSON_RPC_Error_Code;
   assertion_data: Any;
@@ -286,7 +341,7 @@ get_next_batch_id :: () -> s32 {
 add_rpc_method :: (name: string, caster: JSON_RPC_Caster, method: *void) {
   state := context.json_rpc.state;
   lock(*state.mutex);
-  table_set(*state.methods, name, .{xx caster, xx method});
+  table_set(*state.request_methods, name, .{xx caster, xx method});
   unlock(*state.mutex);
   rpc_debug_log("Added '%'", name);
 }
@@ -302,8 +357,9 @@ start_rpc_thread :: (proc: Thread_Proc, thread: *Thread = null) {
   
   thread.starting_context = context;
   thread.starting_context.assertion_failed = assert_rpc;
+  // thread.starting_context.print_style.default_format_struct = FormatStruct.{use_long_form_if_more_than_this_many_members = -1, use_newlines_if_long_form = true, indentation_width = 2};
   thread.starting_context.json_rpc.thread = thread;
-  thread.starting_context.json_rpc.assertion_data = Any.{};
+  thread.starting_context.json_rpc.assertion_data = make_undef_any();
   thread.starting_context.json_rpc.assertion_code = .INTERNAL_ERROR;
   
   thread_init(thread, proc);
@@ -311,7 +367,7 @@ start_rpc_thread :: (proc: Thread_Proc, thread: *Thread = null) {
   thread_start(thread);
 }
 
-threaded_rpc_main_loop : Thread_Proc : (thread: *Thread) -> s64 {
+threaded_rpc_parse_loop : Thread_Proc : (thread: *Thread) -> s64 {
   thread_state := *context.json_rpc;
   state := thread_state.state;
   set_error(.INTERNAL_ERROR);
@@ -321,10 +377,11 @@ threaded_rpc_main_loop : Thread_Proc : (thread: *Thread) -> s64 {
     push_error(.PARSE_ERROR);
     thread_state := *context.json_rpc;
     state := thread_state.state;
-    content := state.read_message(state.data,, temp);
+    rpc_debug_log("Looking for a message");
+    content := state.read_message(state.data);
     json_message := parse_json(content,, temp);
     rpc_debug_log("Parsed message content:\n%", print_json(json_message,, temp));
-    thread_state.message = cast_json(json_message, JSON_RPC_Message, log = rpc_debug_log);
+    thread_state.message = cast_json(json_message, JSON_RPC_Message);
     rpc_debug_log("Casted the message into:\n%", thread_state.message);
   }
   
@@ -361,7 +418,7 @@ threaded_rpc_main_loop : Thread_Proc : (thread: *Thread) -> s64 {
       lock(*state.mutex);
       _responses: JSON_RPC_Responses;
       responses := find_or_add(*state.responses_to_send, thread_state.batch_id);
-      responses._ = Any.{type_info(JSON_RPC_Responses), alloc(size_of(JSON_RPC_Responses))};
+      responses._ = alloc_any(JSON_RPC_Responses.{});
       responses.count_remaining = count;
       cast_any(responses._, JSON_RPC_Responses).* = _responses;
       unlock(*state.mutex);
@@ -375,7 +432,7 @@ threaded_rpc_main_loop : Thread_Proc : (thread: *Thread) -> s64 {
     rpc_debug_log("Validated the request");
   }
   
-  // validate_and_add_responses :: (message: *JSON_Element) {
+  validate_and_add_responses :: () {
   //   push_error(.INVALID_RESPONSE);
   //   state := context.json_rpc.state;
     
@@ -386,7 +443,7 @@ threaded_rpc_main_loop : Thread_Proc : (thread: *Thread) -> s64 {
   //   lock(*state.mutex);
   //   batch := array_add(*state.responses_to_handle);
   //   unlock(*state.mutex);
-  //   cast_json(message, batch, log = rpc_debug_log);
+  //   cast_json(message, batch);
     
   //   count: int;
   //   if get_any_type(batch._) == type_info(JSON_RPC_Responses) {
@@ -408,29 +465,6 @@ threaded_rpc_main_loop : Thread_Proc : (thread: *Thread) -> s64 {
   //   unlock(*state.mutex);
     
   //   rpc_debug_log("Validated the response");
-  // }
-  
-  send_ready_responses :: () {
-    push_error(.INTERNAL_ERROR);
-    state := context.json_rpc.state;
-    
-    builder: String_Builder;
-    init_string_builder(*builder,, temp);
-    append(*builder, "Sending the responses:");
-    
-    lock(*state.mutex);
-    for * state.responses_to_send {
-      if it.count_remaining > 0 continue;
-      json := cast_json(it.*, log = rpc_debug_log,, temp);
-      free_casted_json(it, log = rpc_debug_log);
-      remove it;
-      printed_json := print_json(json,, temp);
-      print_to_builder(*builder, "\n%", printed_json);
-      state.send_message(state.data, printed_json);
-    }
-    unlock(*state.mutex);
-    
-    rpc_debug_log(builder_to_string(*builder));
   }
   
   while state.is_initialized {
@@ -439,12 +473,10 @@ threaded_rpc_main_loop : Thread_Proc : (thread: *Thread) -> s64 {
     
     if thread_state.message._.type == type_info(JSON_RPC_Batch_Request)
       validate_and_add_requests();
-    // else
-    //   validate_and_add_responses(message);
+    else
+      validate_and_add_responses();
     
-    free_casted_json(*thread_state.message, log = rpc_debug_log);
-    
-    send_ready_responses();
+    free_casted_json(*thread_state.message);
     
     reset_temporary_storage();
   }
@@ -452,7 +484,7 @@ threaded_rpc_main_loop : Thread_Proc : (thread: *Thread) -> s64 {
   return 0;
 }
 
-threaded_rpc_worker_loop : Thread_Proc : (thread: *Thread) -> s64 {
+threaded_rpc_handler_loop : Thread_Proc : (thread: *Thread) -> s64 {
   thread_state := *context.json_rpc;
   state := thread_state.state;
   set_error(.INTERNAL_ERROR);
@@ -462,6 +494,7 @@ threaded_rpc_worker_loop : Thread_Proc : (thread: *Thread) -> s64 {
     thread_state := *context.json_rpc;
     state := thread_state.state;
     push_error(.INTERNAL_ERROR);
+    rpc_debug_log("Looking for tasks");
     lock(*state.mutex);
     // while !state.responses_to_handle.count && !state.requests_to_handle.count {
     while !state.requests_to_handle.count {
@@ -483,7 +516,7 @@ threaded_rpc_worker_loop : Thread_Proc : (thread: *Thread) -> s64 {
     //     }
     //     it.count_remaining -= 1;
     //     if !it.count_remaining {
-    //       free_casted_json(it, log = rpc_debug_log);
+    //       free_casted_json(it);
     //       remove it;
     //     }
     //     break;
@@ -501,17 +534,17 @@ threaded_rpc_worker_loop : Thread_Proc : (thread: *Thread) -> s64 {
     // }
   }
   
-  retrieve_method :: () -> name: string, method: JSON_RPC_Method_Data {
+  retrieve_method :: () -> name: string, method: JSON_RPC_Caster_Data {
     thread_state := *context.json_rpc;
     state := thread_state.state;
     push_error(.METHOD_NOT_FOUND);
     name: string;
-    method: JSON_RPC_Method_Data;
+    method: JSON_RPC_Caster_Data;
     // if thread_state.request {
       name = thread_state.request.method;
-      method=, success := table_find(*state.methods, name);
+      method=, success := table_find(*state.request_methods, name);
       assert(success);
-      rpc_debug_log("Found %", name);
+      rpc_debug_log("Found '%'", name);
       return name, method;
     // } else {
     //   assert(false);
@@ -519,7 +552,7 @@ threaded_rpc_worker_loop : Thread_Proc : (thread: *Thread) -> s64 {
     // }
   }
   
-  call_method :: (name: string, method: JSON_RPC_Method_Data) {
+  call_method :: (name: string, method: JSON_RPC_Caster_Data) {
     thread_state := *context.json_rpc;
     state := thread_state.state;
     push_error(.INTERNAL_ERROR);
@@ -537,6 +570,33 @@ threaded_rpc_worker_loop : Thread_Proc : (thread: *Thread) -> s64 {
     // }
   }
   
+  send_ready_responses :: () {
+    push_error(.INTERNAL_ERROR);
+    state := context.json_rpc.state;
+    
+    builder: String_Builder;
+    init_string_builder(*builder,, temp);
+    append(*builder, "Sending the responses:");
+    something_was_sent := false;
+    
+    lock(*state.mutex);
+    for * state.responses_to_send {
+      if it.count_remaining > 0 continue;
+      response := it.*;
+      json := cast_json(response,, temp);
+      free_casted_json(*response);
+      remove it;
+      printed_json := print_json(json,, temp);
+      print_to_builder(*builder, "\n%", printed_json);
+      state.send_message(state.data, printed_json);
+      something_was_sent = true;
+    }
+    unlock(*state.mutex);
+    
+    if something_was_sent
+      rpc_debug_log(builder_to_string(*builder));
+  }
+  
   i := 0;
   while state.is_initialized {
     thread_state.batch_id = 0;
@@ -546,11 +606,14 @@ threaded_rpc_worker_loop : Thread_Proc : (thread: *Thread) -> s64 {
     name, method := retrieve_method();
     call_method(name, method);
     
-    add_response(thread_state.result, Any.{});
-    thread_state.result = Any.{};
+    add_response(thread_state.result, make_undef_any());
+    thread_state.result = make_undef_any();
     
-    free_casted_json(*thread_state.request, log = rpc_debug_log);
-    // free_casted_json(*thread_state.response, log = rpc_debug_log);
+    free_casted_json(*thread_state.request);
+    // free_casted_json(*thread_state.response);
+    
+    send_ready_responses();
+    // send_all_requests();
     
     reset_temporary_storage();
   }
@@ -573,13 +636,13 @@ add_response :: (result: Any, error: Any) {
     response_ptr.* = alloc(size_of(JSON_RPC_Response));
     response = response_ptr.*;
   } else {
-    if new batch.* = .{Any.{type_info(JSON_RPC_Response), alloc(size_of(JSON_RPC_Response))}, 1};
+    if new batch.* = .{alloc_any(JSON_RPC_Response.{}), 1};
     response = cast_any(batch._, JSON_RPC_Response);
   }
   response.jsonrpc = copy_casted_json(thread_state.request.jsonrpc);
   response.id = copy_casted_json(thread_state.request.id);
-  response.result = ifx !is_any_undef(result) then result else ifx response.jsonrpc then Any.{} else Any.{type_info(void), null};
-  response.error  = ifx !is_any_undef(error)  then error  else ifx response.jsonrpc then Any.{} else Any.{type_info(void), null};
+  response.result = ifx !is_any_undef(result) then result else ifx response.jsonrpc then make_undef_any() else make_null_any();
+  response.error  = ifx !is_any_undef(error)  then error  else ifx response.jsonrpc then make_undef_any() else make_null_any();
   batch.count_remaining -= 1;
 }
 
@@ -589,7 +652,7 @@ assert_rpc :: (loc: Source_Code_Location, message: string) -> bool {
   
   // if thread_state.response {
   //   exit(2);
-  //   free_casted_json(*thread_state.response, log = rpc_debug_log);
+  //   free_casted_json(*thread_state.response);
   // } else {
     error: *JSON_RPC_Error = alloc(size_of(JSON_RPC_Error));
     error.code = thread_state.assertion_code;
@@ -639,16 +702,25 @@ assert_rpc :: (loc: Source_Code_Location, message: string) -> bool {
     rpc_debug_log(builder_to_string(*builder));
     
     if !thread_state.batch_id || !thread_state.request.is_notification
-      add_response(Any.{}, Any.{type_info(JSON_RPC_Error), xx error});
+      add_response(make_undef_any(), Any.{type_info(JSON_RPC_Error), xx error});
     
-    free_casted_json(*thread_state.result, log = rpc_debug_log);
-    free_casted_json(*thread_state.request, log = rpc_debug_log);
+    free_casted_json(*thread_state.result);
+    free_casted_json(*thread_state.request);
   // }
   
   free_casted_json(*thread_state.message);
   
   rpc_debug_log("Exiting");
   thread_deinit(thread_state.thread);
+  #if OS == .WINDOWS {
+    kernel32 :: #system_library "kernel32";
+    ExitThread :: (exit_code: u32) #foreign kernel32;
+    ExitThread(1);
+  }
+  while true {
+    sleep_milliseconds(1000);
+    rpc_debug_log("Still alive...");
+  }
   return true;
 }
 
