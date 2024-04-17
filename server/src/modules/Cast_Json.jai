@@ -9,11 +9,9 @@
 //NOTE: For structs, members named '_' will be treated as being labelled as 'using', so that you can union
 // multiple types in an Any without needing an outer object. Note that if the member is resolved to anything
 // other than a struct, all other members will be ignored during serialization.
-cast_json :: inline (json: *JSON_Element, $T: Type, $notes: [] string = .[], $blacklist: [] string = BLACKLIST, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none, scope := #caller_code) -> T, success: bool {
+cast_json :: inline (json: *JSON_Element, $T: Type, $notes: [] string = .[], $blacklist: [] string = BLACKLIST, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none, $scope := #caller_code) -> T, success: bool {
   value: T;
-  if !json return value;
   success := cast_json(json, *value, notes, blacklist, should_assert, log, scope);
-  if success && out out.* = value;
   return value, success;
 }
 
