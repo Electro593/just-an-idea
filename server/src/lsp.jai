@@ -533,6 +533,7 @@ LSP_InitializedParams :: struct {
 
 lsp_initialized :: (data: *Data, params: LSP_InitializedParams) {
   assert_running();
+  lsp_logTrace(data, .{message = "Initialized!"});
 }
 
 // client/registerCapability
@@ -546,13 +547,13 @@ _LSP_Client_RegisterCapability_Result :: struct {
 _LSP_Client_RegisterCapability_Error :: struct {
 }
 
-lsp_client_registerCapability :: (data: *Data, result: _LSP_Client_RegisterCapability_Result) {
-  assert_running();
-}
+// lsp_client_registerCapability :: (data: *Data, result: _LSP_Client_RegisterCapability_Result) {
+//   assert_running();
+// }
 
-lsp_client_registerCapability_error :: (data: *Data, code: JSON_RPC_Error_Code, message: string, error_data: _LSP_Client_RegisterCapability_Error) {
-  assert_running();
-}
+// lsp_client_registerCapability_error :: (data: *Data, code: JSON_RPC_Error_Code, message: string, error_data: _LSP_Client_RegisterCapability_Error) {
+//   assert_running();
+// }
 
 // client/unregisterCapability
 
@@ -560,9 +561,9 @@ LSP_UnregistrationParams :: struct {
   unregistrations: [] LSP_Unregistration;
 }
 
-lsp_client_unregisterCapability :: (data: *Data, params: LSP_UnregistrationParams) {
-  assert_running();
-}
+// lsp_client_unregisterCapability :: (data: *Data, params: LSP_UnregistrationParams) {
+//   assert_running();
+// }
 
 // $/setTrace
 
@@ -582,9 +583,13 @@ LSP_LogTraceParams :: struct {
   verbose: string; @?
 }
 
-lsp_logTrace :: (data: *Data, params: LSP_LogTraceParams) {
+lsp_logTrace :: (data: *Data, message: string, verbose_extra := "") {
   assert_running();
-  // send_notification("$/logTrace", params);
+  rpc_debug_log("Trace is %", data.trace);
+  if data.trace != LSP_TraceValue_Verbose
+    verbose_extra = "";
+  if data.trace != LSP_TraceValue_Off
+    add_request_to_batch("$/logTrace", LSP_LogTraceParams.{message, verbose_extra}, true);
 }
 
 // shutdown

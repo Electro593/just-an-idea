@@ -65,11 +65,11 @@ start_rpc :: () {
   
   for * state.requests_to_handle  free_casted_json(it);
   for * state.responses_to_handle free_casted_json(it);
-  // for * state.requests_to_send    free_casted_json(it);
+  for * state.requests_to_send    free_casted_json(it);
   for * state.responses_to_send   free_casted_json(it);
   array_free(state.requests_to_handle);
   array_free(state.responses_to_handle);
-  // array_free(state.requests_to_send);
+  array_free(state.requests_to_send);
   deinit(*state.responses_to_send);
   
   deinit(*state.request_methods);
@@ -163,40 +163,44 @@ push_error :: (code: JSON_RPC_Error_Code) #expand {
   `defer context.json_rpc.assertion_code = old_code;
 }
 
-// add_request_to_batch(method: string, params: Any = Any.{}, is_notification := false, version := DEFAULT_JSON_RPC_VERSION) {
-//   push_error(.INTERNAL_ERROR);
-//   state := context.json_rpc.state;
+add_request_to_batch :: (method: string, params: Any = Any.{}, is_notification := false, version := DEFAULT_JSON_RPC_VERSION) {
+  push_error(.INTERNAL_ERROR);
+  state := context.json_rpc.state;
   
-//   message: JSON_RPC_Message_Header;
-//   if is_notification
-//     message = JSON_RPC_Notification.{jsonrpc, version, method, params};
-//   else
-//     message = JSON_RPC_Request.{jsonrpc, version, method, params, get_next_id()};
+  request := JSON_RPC_Request.{
+    jsonrpc = copy_string(version),
+    method = copy_string(method),
+    params = copy_casted_json(params),
+    is_notification = is_notification
+  };
+  if !is_notification request.id = alloc_any(get_next_id());
   
-//   request := JSON_RPC_Request.{
-//     jsonrpc = version,
-//     method = method,
-//     params = params,
-//     id = get_next_id(),
-//     batch_id = 0,
-//     is_notification = is_notification,
-//   };
+  lock(*state.mutex);
+  array_add(*state.requests_to_send, request);
+  unlock(*state.mutex);
   
-//   lock(*state.mutex);
-//   array_add(*state.requests_to_send, request);
-//   unlock(*state.mutex);
-  
-//   rpc_debug_log("Added '%' (id %) to the batch, with params:\n%", method, request.id, params);
-// }
+  rpc_debug_log("Added '%' (id %) to the batch, with params:\n%", method, request.id, params);
+}
 
-// send_all_requests :: () {
-//   push_error(.INTERNAL_ERROR);
-//   state := context.json_rpc.state;
+send_all_requests :: () {
+  push_error(.INTERNAL_ERROR);
+  state := context.json_rpc.state;
   
-//   lock(*state.mutex);
-//   state.send_message(*state.data, );
-//   unlock(*state.mutex);
-// }
+  if !state.requests_to_send.count return;
+  
+  batch: JSON_RPC_Batch_Request = .{Any.{type_info(JSON_RPC_Requests), *state.requests_to_send}, 0};
+  json := cast_json(batch,, temp);
+  for * state.requests_to_send {
+    free_casted_json(it);
+    remove it;
+  }
+  message := print_json(json,, temp);
+  rpc_debug_log("Sending requests:\n%", message);
+  
+  lock(*state.mutex);
+  state.send_message(*state.data, message);
+  unlock(*state.mutex);
+}
 
 rpc_debug_log :: (format_string: string, args: ..Any, to_standard_error := false) -> bytes_printed: s64 {
   state := context.json_rpc.state;
@@ -280,7 +284,7 @@ JSON_RPC :: struct {
   requests_to_handle: [..] JSON_RPC_Request;
   responses_to_handle: [..] JSON_RPC_Batch_Response;
   
-  // requests_to_send: [..] JSON_RPC_Request;
+  requests_to_send: [..] JSON_RPC_Request;
   responses_to_send: Table(int, JSON_RPC_Batch_Response);
   
   next_id: s32;
@@ -613,7 +617,7 @@ threaded_rpc_handler_loop : Thread_Proc : (thread: *Thread) -> s64 {
     // free_casted_json(*thread_state.response);
     
     send_ready_responses();
-    // send_all_requests();
+    send_all_requests();
     
     reset_temporary_storage();
   }

@@ -22,9 +22,9 @@ cast_json :: (value: Any, notes: [] string = .[], log: (f: string, a: ..Any, t :
 
 // Copy value and output the result. This will copy the values according to what is
 // allocated by cast_json, and will ignore values marked as $Ignore.
-copy_casted_json :: (value: $T) -> T #expand {
+copy_casted_json :: (value: $T, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> T #expand {
   out: T;
-  copy_casted_json(*value, type_info(T), *out);
+  copy_casted_json(*value, type_info(T), *out, .[], log);
   return out;
 }
 
@@ -491,7 +491,7 @@ cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: s
   }
 }
 
-copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] string = .[]) {
+copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] string = .[], log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) {
   if !value return;
   assert(xx type, "Cannot copy casted json with a null type");
   assert(xx out, "Cannot copy casted json to a null output");
@@ -503,6 +503,8 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] strin
   set_out :: (value: $T) #expand {
     (cast(*T) `out).* = value;
   }
+  
+  json_log("Copying % to %: %", get_type_name(type,, temp), out, Any.{type, value});
   
   if #complete type.type == {
     case .INTEGER; #through;
@@ -519,7 +521,7 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] strin
       if !_value set_out(_value);
       else {
         _out := alloc(t.pointer_to.runtime_size);
-        copy_casted_json(_value, t.pointer_to, _out, notes);
+        copy_casted_json(_value, t.pointer_to, _out, notes, log);
         set_out(_out);
       }
     
@@ -546,14 +548,14 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] strin
           if hash < FIRST_VALID_HASH continue;
           key_offset := hash_size;
           value_offset := key_offset + key_type.runtime_size;
-          copy_casted_json(value_entry + key_offset, key_type, out_entry + key_offset, .[]);
-          copy_casted_json(value_entry + value_offset, value_type, out_entry + value_offset, .[]);
+          copy_casted_json(value_entry + key_offset, key_type, out_entry + key_offset, .[], log);
+          copy_casted_json(value_entry + value_offset, value_type, out_entry + value_offset, .[], log);
         }
       } else {
-        t.initializer(out);
+        if t.initializer t.initializer(out);
         for t.members {
           if array_find(it.notes, "$Ignore") continue;
-          copy_casted_json(xx (cast(*u8) value + it.offset_in_bytes), it.type, xx (cast(*u8) out + it.offset_in_bytes), it.notes);
+          copy_casted_json(xx (cast(*u8) value + it.offset_in_bytes), it.type, xx (cast(*u8) out + it.offset_in_bytes), it.notes, log);
         }
       }
     
@@ -564,12 +566,12 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] strin
         _value := cast_value([..] void);
         _out := _value;
         _out.data = alloc(_value.allocated * t.element_type.runtime_size);
-        copy_casted_json(_value.data, t.element_type, _out.data);
+        copy_casted_json(_value.data, t.element_type, _out.data, .[], log);
         set_out(_out);
       } else {
         _value := cast_value([] void);
         _out := []void.{_value.count, alloc(_value.count * t.element_type.runtime_size)};
-        copy_casted_json(_value.data, t.element_type, _out.data);
+        copy_casted_json(_value.data, t.element_type, _out.data, .[], log);
         set_out(_out);
       }
     
@@ -579,17 +581,17 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] strin
       else if _value.type == type_info(JSON_Element) set_out(Any.{_value.type, copy_json(cast_any(_value, JSON_Element))});
       else {
         _out := Any.{_value.type, alloc(_value.type.runtime_size)};
-        copy_casted_json(_value.value_pointer, _value.type, _out.value_pointer);
+        copy_casted_json(_value.value_pointer, _value.type, _out.value_pointer, .[], log);
         set_out(_out);
       }
     
     case .ENUM;
       t: *Type_Info_Enum = xx type;
-      copy_casted_json(value, t.internal_type, out, notes);
+      copy_casted_json(value, t.internal_type, out, notes, log);
     
     case .VARIANT;
       t: *Type_Info_Variant = xx type;
-      copy_casted_json(value, t.variant_of, out, notes);
+      copy_casted_json(value, t.variant_of, out, notes, log);
     
     case .PROCEDURE;
     case .OVERLOAD_SET;
