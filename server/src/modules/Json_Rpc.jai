@@ -3,6 +3,7 @@
 /* TODO:
  - Validate memory is freed on assert
  - Add server->client requests
+ - More mutexes
  - Change log to use context in Cast_Json
 */
 
@@ -55,7 +56,7 @@ start_rpc :: () {
   while state.is_initialized {
     for * state.threads
       if !it.index
-        start_rpc_thread(ifx it_index then threaded_rpc_handler_loop else threaded_rpc_parse_loop, it);
+        start_rpc_thread(ifx it_index then threaded_rpc_handler_loop else threaded_rpc_parse_loop, it, it_index);
     sleep_milliseconds(100);
   }
   
@@ -223,8 +224,6 @@ make_undef_any :: inline () -> Any {
   return Any.{};
 }
 
-#scope_file
-
 DEFAULT_JSON_RPC_VERSION :: "2.0";
 
 JSON_RPC_Message :: struct {
@@ -291,6 +290,7 @@ JSON_RPC :: struct {
   next_batch_id: s32;
   is_initialized: bool;
   
+  thread_contexts: [..] *Context;
   threads: [..] Thread;
   
   request_methods: Table(string, JSON_RPC_Caster_Data);
@@ -304,8 +304,10 @@ JSON_RPC :: struct {
 }
 
 JSON_RPC_Thread :: struct {
-  thread: *Thread;
   state: *JSON_RPC;
+  
+  thread: *Thread;
+  threads_index: int;
   
   batch_id: s32;
   result: Any;
@@ -316,6 +318,8 @@ JSON_RPC_Thread :: struct {
   assertion_code: JSON_RPC_Error_Code;
   assertion_data: Any;
 }
+
+#scope_file
 
 _state: JSON_RPC;
 #add_context json_rpc: JSON_RPC_Thread;
@@ -350,12 +354,14 @@ add_rpc_method :: (name: string, caster: JSON_RPC_Caster, method: *void) {
   rpc_debug_log("Added '%'", name);
 }
 
-start_rpc_thread :: (proc: Thread_Proc, thread: *Thread = null) {
+start_rpc_thread :: (proc: Thread_Proc, thread: *Thread = null, index := 0) {
   state := context.json_rpc.state;
   
   if !thread {
     lock(*state.mutex);
+    index = state.threads.count;
     thread = array_add(*state.threads);
+    array_add(*state.thread_contexts, null);
     unlock(*state.mutex);
   }
   
@@ -363,6 +369,7 @@ start_rpc_thread :: (proc: Thread_Proc, thread: *Thread = null) {
   thread.starting_context.assertion_failed = assert_rpc;
   // thread.starting_context.print_style.default_format_struct = FormatStruct.{use_long_form_if_more_than_this_many_members = -1, use_newlines_if_long_form = true, indentation_width = 2};
   thread.starting_context.json_rpc.thread = thread;
+  thread.starting_context.json_rpc.threads_index = index;
   thread.starting_context.json_rpc.assertion_data = make_undef_any();
   thread.starting_context.json_rpc.assertion_code = .INTERNAL_ERROR;
   
@@ -375,6 +382,9 @@ threaded_rpc_parse_loop : Thread_Proc : (thread: *Thread) -> s64 {
   thread_state := *context.json_rpc;
   state := thread_state.state;
   set_error(.INTERNAL_ERROR);
+  lock(*state.mutex);
+  state.thread_contexts[thread_state.threads_index] = *context;
+  unlock(*state.mutex);
   rpc_debug_log("Starting the JSON-RPC main loop");
   
   parse_message :: () {
@@ -492,6 +502,9 @@ threaded_rpc_handler_loop : Thread_Proc : (thread: *Thread) -> s64 {
   thread_state := *context.json_rpc;
   state := thread_state.state;
   set_error(.INTERNAL_ERROR);
+  lock(*state.mutex);
+  state.thread_contexts[thread_state.threads_index] = *context;
+  unlock(*state.mutex);
   rpc_debug_log("Starting a JSON-RPC worker loop");
   
   retrieve_task :: (index: int) {

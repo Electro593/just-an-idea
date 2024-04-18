@@ -613,7 +613,52 @@ LSP_CancelParams :: struct {
 }
 
 lsp_cancel :: (data: *Data, params: LSP_CancelParams) {
+  state := context.json_rpc.state;
   assert_running();
+  
+  Thread :: #import "Thread";
+  Thread.lock(*state.mutex);
+  defer Thread.unlock(*state.mutex);
+  
+  cancel_thread :: () {
+    set_error(.REQUEST_CANCELLED);
+    //TODO Kind of gross, and definitely not safe-- need a way to pause the thread somehow
+    Thread.unlock(*context.json_rpc.state.mutex);
+    assert(false);
+  }
+  
+  // Don't do anything if it's already done
+  for state.responses_to_send {
+    if it._.type == type_info(JSON_RPC_Responses) {
+      for cast_any(it._, JSON_RPC_Responses)
+        if are_any_equal(it.id, value.id) return;
+    } else if are_any_equal(it.id, value.id) {
+      return;
+    }
+  }
+  
+  // Check if it's currently being handled
+  for state.thread_contexts {
+    if !it continue;
+    request := it.request;
+    if is_undef(request) || !are_any_equal(request.id, value.id) continue;
+    // Impersonate the thread to assert
+    //IMPORTANT won't work!
+    push_context it.* {
+      cancel_thread();
+    }
+    return;
+  }
+  
+  // Check if it's in the queue
+  for state.requests_to_handle {
+    if !are_any_equal(it.id, value.id) continue;
+    context.json_rpc.request = it;
+    context.json_rpc.batch_id = it.batch_id;
+    remove it;
+    cancel_thread();
+    return;
+  }
 }
 
 // $/progress
