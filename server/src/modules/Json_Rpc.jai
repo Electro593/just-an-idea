@@ -78,8 +78,8 @@ start_rpc :: () {
   // deinit(*state.response_names);
 }
 
-add_rpc_request_handler :: (name: string, method: (data: *$D, params: $P) -> $R) #expand {
-  caster :: (proc: (data: *D, params: P) -> R, params: *Any) -> Any {
+add_rpc_request_handler :: (name: string, method: (data: *$D, params: *$P) -> $R) #expand {
+  caster :: (proc: (data: *D, params: *P) -> R, params: *Any) -> Any {
     json_params := cast_any(params.*, JSON_Element);
     casted_params: *P = alloc(size_of(P));
     params.type = type_info(P);
@@ -88,14 +88,14 @@ add_rpc_request_handler :: (name: string, method: (data: *$D, params: $P) -> $R)
     free_json(json_params);
     rpc_debug_log("Params:\n%", casted_params.*);
     
-    result := proc(xx context.json_rpc.state.data, casted_params.*);
+    result := proc(xx context.json_rpc.state.data, casted_params);
     return alloc_any(result);
   }
   add_rpc_method(name, xx caster, xx method);
 }
 
-add_rpc_request_handler :: (name: string, method: (data: *$D, params: $P)) #expand {
-  caster :: (proc: (data: *D, params: P), params: *Any) -> Any {
+add_rpc_request_handler :: (name: string, method: (data: *$D, params: *$P)) #expand {
+  caster :: (proc: (data: *D, params: *P), params: *Any) -> Any {
     json_params := cast_any(params.*, JSON_Element);
     casted_params: *P = alloc(size_of(P));
     params.type = type_info(P);
@@ -104,7 +104,7 @@ add_rpc_request_handler :: (name: string, method: (data: *$D, params: $P)) #expa
     free_json(json_params);
     rpc_debug_log("Params:\n%", casted_params.*);
     
-    proc(xx context.json_rpc.state.data, casted_params.*);
+    proc(xx context.json_rpc.state.data, casted_params);
     return make_null_any();
   }
   add_rpc_method(name, xx caster, xx method);
@@ -210,20 +210,6 @@ rpc_debug_log :: (format_string: string, args: ..Any, to_standard_error := false
   return state.debug_log(state.data, tprint("[Thread %] %\n", context.thread_index, tprint(format_string, ..args)));
 }
 
-alloc_any :: inline (value: Any) -> Any {
-  result := Any.{value.type, alloc(value.type.runtime_size)};
-  memcpy(result.value_pointer, value.value_pointer, value.type.runtime_size);
-  return result;
-}
-
-make_null_any :: inline () -> Any {
-  return Any.{type_info(void), null};
-}
-
-make_undef_any :: inline () -> Any {
-  return Any.{};
-}
-
 DEFAULT_JSON_RPC_VERSION :: "2.0";
 
 JSON_RPC_Message :: struct {
@@ -290,7 +276,6 @@ JSON_RPC :: struct {
   next_batch_id: s32;
   is_initialized: bool;
   
-  thread_contexts: [..] *Context;
   threads: [..] Thread;
   
   request_methods: Table(string, JSON_RPC_Caster_Data);
@@ -361,7 +346,6 @@ start_rpc_thread :: (proc: Thread_Proc, thread: *Thread = null, index := 0) {
     lock(*state.mutex);
     index = state.threads.count;
     thread = array_add(*state.threads);
-    array_add(*state.thread_contexts, null);
     unlock(*state.mutex);
   }
   
@@ -382,9 +366,6 @@ threaded_rpc_parse_loop : Thread_Proc : (thread: *Thread) -> s64 {
   thread_state := *context.json_rpc;
   state := thread_state.state;
   set_error(.INTERNAL_ERROR);
-  lock(*state.mutex);
-  state.thread_contexts[thread_state.threads_index] = *context;
-  unlock(*state.mutex);
   rpc_debug_log("Starting the JSON-RPC main loop");
   
   parse_message :: () {
@@ -420,7 +401,7 @@ threaded_rpc_parse_loop : Thread_Proc : (thread: *Thread) -> s64 {
     thread_state.batch_id = get_next_batch_id();
     batch := cast_any(thread_state.message._, JSON_RPC_Batch_Request);
     
-    if get_any_type(batch._) == type_info(JSON_RPC_Requests) {
+    if is_any_of_type(batch._, JSON_RPC_Requests) {
       requests := cast_any(batch._, JSON_RPC_Requests);
       count := requests.count;
       for requests.* {
@@ -460,7 +441,7 @@ threaded_rpc_parse_loop : Thread_Proc : (thread: *Thread) -> s64 {
   //   cast_json(message, batch);
     
   //   count: int;
-  //   if get_any_type(batch._) == type_info(JSON_RPC_Responses) {
+  //   if is_any_of_type(batch._, JSON_RPC_Responses) {
   //     responses := cast_any(batch._, JSON_RPC_Responses);
   //     count = responses.count;
   //     for responses.* {
@@ -502,9 +483,6 @@ threaded_rpc_handler_loop : Thread_Proc : (thread: *Thread) -> s64 {
   thread_state := *context.json_rpc;
   state := thread_state.state;
   set_error(.INTERNAL_ERROR);
-  lock(*state.mutex);
-  state.thread_contexts[thread_state.threads_index] = *context;
-  unlock(*state.mutex);
   rpc_debug_log("Starting a JSON-RPC worker loop");
   
   retrieve_task :: (index: int) {
@@ -523,7 +501,7 @@ threaded_rpc_handler_loop : Thread_Proc : (thread: *Thread) -> s64 {
     // if is_response {
     //   for * state.responses_to_handle {
     //     if !it.count_remaining continue;
-    //     if get_any_type(it._) == type_info(JSON_RPC_Responses) {
+    //     if is_any_of_type(it._, JSON_RPC_Responses) {
     //       responses := cast_any(it._, JSON_RPC_Responses);
     //       thread_state.response = responses.*[0];
     //       array_unordered_remove_by_index(responses, 0);
@@ -647,7 +625,7 @@ add_response :: (result: Any, error: Any) {
   batch, new := find_or_add(*state.responses_to_send, thread_state.batch_id);
   unlock(*state.mutex);
   response: *JSON_RPC_Response;
-  if get_any_type(batch._) == type_info(JSON_RPC_Responses) {
+  if is_any_of_type(batch._, JSON_RPC_Responses) {
     responses := cast_any(batch._, JSON_RPC_Responses);
     response_ptr := array_add(responses);
     response_ptr.* = alloc(size_of(JSON_RPC_Response));

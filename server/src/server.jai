@@ -12,13 +12,20 @@ SERVER_VERSION :: "0.0.1";
   });
 }
 
+TextDocument :: struct {
+  version: s32;
+  lines: [..] string;
+}
+
 Data :: struct {
   buffer: [..] u8;
   filename: string;
   
+  documents: Table(LSP_DocumentUri, TextDocument);
+  
   is_initialized: bool;
   is_shutdown: bool;
-  trace: LSP_TraceValue;
+  trace: LSP_TraceValue = LSP_TraceValue_Off;
 }
 
 main :: () {
@@ -33,12 +40,18 @@ main :: () {
   
   initialize_rpc(*data, read_message_from_stdin, send_message_to_stdout, debug_log);
   
-  add_rpc_request_handler("$/setTrace", lsp_setTrace);
-  add_rpc_request_handler("initialize", lsp_initialize);
-  add_rpc_request_handler("initialized", lsp_initialized);
-  add_rpc_request_handler("shutdown", lsp_shutdown);
-  add_rpc_request_handler("exit", lsp_exit);
-  add_rpc_request_handler("textDocument/declaration", lsp_textDocument_declaration);
+  add_rpc_request_handler("$/setTrace",                     lsp_setTrace);
+  add_rpc_request_handler("initialize",                     lsp_initialize);
+  add_rpc_request_handler("initialized",                    lsp_initialized);
+  add_rpc_request_handler("shutdown",                       lsp_shutdown);
+  add_rpc_request_handler("exit",                           lsp_exit);
+  add_rpc_request_handler("textDocument/declaration",       lsp_textDocument_declaration);
+  add_rpc_request_handler("textDocument/didChange",         lsp_textDocument_didChange);
+  add_rpc_request_handler("textDocument/didClose",          lsp_textDocument_didClose);
+  add_rpc_request_handler("textDocument/didOpen",           lsp_textDocument_didOpen);
+  add_rpc_request_handler("textDocument/didSave",           lsp_textDocument_didSave);
+  add_rpc_request_handler("textDocument/willSave",          lsp_textDocument_willSave);
+  add_rpc_request_handler("textDocument/willSaveWaitUntil", lsp_textDocument_willSaveWaitUntil);
   
   // add_rpc_response_handler("client/registerCapability", lsp_client_registerCapability, lsp_client_registerCapability_error);
   
@@ -52,6 +65,7 @@ main :: () {
 #import "File";
 #import "String";
 #import "Hash_Table";
+#import "Cast_Json";
 #import "Json_Rpc" (SCOPE = #code main);
 
 #if OS == .WINDOWS {

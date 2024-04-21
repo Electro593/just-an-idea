@@ -115,8 +115,6 @@ send_message_to_stdout : JSON_RPC_Send_Message : (data: *void, message: string) 
 debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string, to_standard_error := false) -> bytes_printed: s64 {
   data: *Data = xx _data;
   
-  if data.trace == "off" return 0;
-  
   #if OS == .WINDOWS {
     stdin := File.{GetStdHandle(STD_INPUT_HANDLE)};
   }
@@ -127,8 +125,6 @@ debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string, to_standard_err
     file_write(*file, message);
     file_close(*file);
   }
-  
-  // lsp_logTrace(data, .{message = message});
   
   return message.count;
 }

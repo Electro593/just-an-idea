@@ -138,6 +138,7 @@ LSP_DocumentFilter :: struct {
 
 LSP_DocumentSelector :: [] LSP_DocumentFilter;
 
+_LSP_TextEdits :: [] LSP_TextEdit;
 LSP_TextEdit :: struct {
   range: LSP_Range;
   newText: string;
@@ -323,7 +324,7 @@ LSP_WorkspaceEditClientCapabilities :: struct {
 }
 
 LSP_TextDocumentClientCapabilities :: struct {
-  // synchronization:    *LSP_TextDocumentSyncClientCapabilities;         @?
+  synchronization:    *LSP_TextDocumentSyncClientCapabilities;         @?
   // completion:         *LSP_CompletionClientCapabilities;               @?
   // hover:              *LSP_HoverClientCapabilities;                    @?
   // signatureHelp:      *LSP_SignatureHelpClientCapabilities;            @?
@@ -405,7 +406,7 @@ LSP_ClientCapabilities :: struct {
 
 LSP_ServerCapabilities :: struct {
   positionEncoding:                 LSP_PositionEncodingKind; @?
-  // textDocumentSync:                 Any; @?       @LSP_TextDocumentSyncOptions        @LSP_TextDocumentSyncKind
+  textDocumentSync:                 Any; @?       @LSP_TextDocumentSyncOptions        @LSP_TextDocumentSyncKind
   // notebookDocumentSync:             Any; @?       @LSP_NotebookDocumentSyncOptions    @LSP_NotebookDocumentSyncRegistrationOptions
   // completionProvider:               LSP_CompletionOptions; @?
   // hoverProvider:                    Any; @? @bool @LSP_HoverOptions
@@ -510,7 +511,7 @@ LSP_InitializeError :: struct {
   retry: bool;
 }
 
-lsp_initialize :: (data: *Data, params: LSP_InitializeParams) -> LSP_InitializeResult {
+lsp_initialize :: (data: *Data, params: *LSP_InitializeParams) -> LSP_InitializeResult {
   result := LSP_InitializeResult.{};
   error := LSP_InitializeError.{false};
   set_error_data(error);
@@ -523,6 +524,13 @@ lsp_initialize :: (data: *Data, params: LSP_InitializeParams) -> LSP_InitializeR
   result.serverInfo.name = copy_string(SERVER_VERSION);
   result.serverInfo.version = copy_string(SERVER_NAME);
   result.capabilities.declarationProvider = alloc_any(!!params.capabilities.textDocument.declaration);
+  result.capabilities.textDocumentSync = alloc_any(LSP_TextDocumentSyncOptions.{
+    openClose = true,
+    change = .Incremental,
+    willSave = false,
+    willSaveUntilWait = false,
+    save = alloc_any(false),
+  });
   return result;
 }
 
@@ -531,9 +539,8 @@ lsp_initialize :: (data: *Data, params: LSP_InitializeParams) -> LSP_InitializeR
 LSP_InitializedParams :: struct {
 }
 
-lsp_initialized :: (data: *Data, params: LSP_InitializedParams) {
+lsp_initialized :: (data: *Data, params: *LSP_InitializedParams) {
   assert_running();
-  lsp_logTrace(data, .{message = "Initialized!"});
 }
 
 // client/registerCapability
@@ -561,7 +568,7 @@ LSP_UnregistrationParams :: struct {
   unregistrations: [] LSP_Unregistration;
 }
 
-// lsp_client_unregisterCapability :: (data: *Data, params: LSP_UnregistrationParams) {
+// lsp_client_unregisterCapability :: (data: *Data, params: *LSP_UnregistrationParams) {
 //   assert_running();
 // }
 
@@ -571,7 +578,7 @@ LSP_SetTraceParams :: struct {
   value: LSP_TraceValue;
 }
 
-lsp_setTrace :: (data: *Data, params: LSP_SetTraceParams) {
+lsp_setTrace :: (data: *Data, params: *LSP_SetTraceParams) {
   assert_running();
   data.trace = params.value;
 }
@@ -586,10 +593,11 @@ LSP_LogTraceParams :: struct {
 lsp_logTrace :: (data: *Data, message: string, verbose_extra := "") {
   assert_running();
   rpc_debug_log("Trace is %", data.trace);
-  if data.trace != LSP_TraceValue_Verbose
-    verbose_extra = "";
-  if data.trace != LSP_TraceValue_Off
-    add_request_to_batch("$/logTrace", LSP_LogTraceParams.{message, verbose_extra}, true);
+  if data.trace == LSP_TraceValue_Off return;
+  params := LSP_LogTraceParams.{message = message};
+  if data.trace == LSP_TraceValue_Verbose
+    params.verbose = verbose_extra;
+  add_request_to_batch("$/logTrace", params, true);
 }
 
 // shutdown
@@ -612,54 +620,9 @@ LSP_CancelParams :: struct {
   id: Any; @s32 @string
 }
 
-lsp_cancel :: (data: *Data, params: LSP_CancelParams) {
-  state := context.json_rpc.state;
-  assert_running();
-  
-  Thread :: #import "Thread";
-  Thread.lock(*state.mutex);
-  defer Thread.unlock(*state.mutex);
-  
-  cancel_thread :: () {
-    set_error(.REQUEST_CANCELLED);
-    //TODO Kind of gross, and definitely not safe-- need a way to pause the thread somehow
-    Thread.unlock(*context.json_rpc.state.mutex);
-    assert(false);
-  }
-  
-  // Don't do anything if it's already done
-  for state.responses_to_send {
-    if it._.type == type_info(JSON_RPC_Responses) {
-      for cast_any(it._, JSON_RPC_Responses)
-        if are_any_equal(it.id, value.id) return;
-    } else if are_any_equal(it.id, value.id) {
-      return;
-    }
-  }
-  
-  // Check if it's currently being handled
-  for state.thread_contexts {
-    if !it continue;
-    request := it.request;
-    if is_undef(request) || !are_any_equal(request.id, value.id) continue;
-    // Impersonate the thread to assert
-    //IMPORTANT won't work!
-    push_context it.* {
-      cancel_thread();
-    }
-    return;
-  }
-  
-  // Check if it's in the queue
-  for state.requests_to_handle {
-    if !are_any_equal(it.id, value.id) continue;
-    context.json_rpc.request = it;
-    context.json_rpc.batch_id = it.batch_id;
-    remove it;
-    cancel_thread();
-    return;
-  }
-}
+// lsp_cancel :: (data: *Data, params: LSP_CancelParams) {
+//   assert_running();
+// }
 
 // $/progress
 
@@ -668,9 +631,173 @@ LSP_ProgressParams :: struct(Value_Type: Type) {
   value: Value_Type;
 }
 
-lsp_progress :: (data: *Data) {
-  assert_running();
+// lsp_progress :: (data: *Data) {
+//   assert_running();
+// }
+
+//
+// Document Synchronization
+//
+
+LSP_TextDocumentSyncClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+  willSave: bool; @?
+  willSaveUntilWait: bool; @?
+  didSave: bool; @?
 }
+
+LSP_TextDocumentSyncKind :: enum {
+  None        :: 0;
+  Full        :: 1;
+  Incremental :: 2;
+}
+
+LSP_TextDocumentSyncOptions :: struct {
+  openClose: bool; @?
+  change: LSP_TextDocumentSyncKind; @?
+  willSave: bool; @?
+  willSaveUntilWait: bool; @?
+  save: Any; @? @bool @LSP_SaveOptions
+}
+
+// Did Open Text Document
+
+LSP_DidOpenTextDocumentParams :: struct {
+  textDocument: LSP_TextDocumentItem;
+}
+
+lsp_textDocument_didOpen :: (data: *Data, params: *LSP_DidOpenTextDocumentParams) {
+  assert_running();
+  decode_uri(*params.textDocument.uri);
+  document, is_new := find_or_add(*data.documents, params.textDocument.uri);
+  assert(is_new, "Received textDocument/didOpen for %, but it was already opened", params.textDocument.uri);
+  params.textDocument.uri = "";
+  document.version = params.textDocument.version;
+  apply_document_change(*document.lines, params.textDocument.text, 0, 0, 0, 0);
+  rpc_debug_log("%", document.lines);
+}
+
+// Did Change Text Document
+
+LSP_TextDocumentChangeRegistrationOptions :: struct {
+  #as using _: LSP_TextDocumentRegistrationOptions;
+  syncKind: LSP_TextDocumentSyncKind;
+}
+
+_LSP_TextDocumentContentChangeEvent_Range :: struct {
+  range: LSP_Range;
+  rangeLength: u32; @?
+  text: string;
+}
+_LSP_TextDocumentContentChangeEvent_Full :: struct {
+  text: string;
+}
+LSP_TextDocumentContentChangeEvent :: struct {
+  _: Any; @_LSP_TextDocumentContentChangeEvent_Range @_LSP_TextDocumentContentChangeEvent_Full
+}
+
+LSP_DidChangeTextDocumentParams :: struct {
+  textDocument: LSP_VersionedTextDocumentIdentifier;
+  contentChanges: [] LSP_TextDocumentContentChangeEvent;
+}
+
+lsp_textDocument_didChange :: (data: *Data, params: *LSP_DidChangeTextDocumentParams) {
+  assert_running();
+  decode_uri(*params.textDocument.uri);
+  document, found := table_find(*data.documents, params.textDocument.uri);
+  assert(found, "Received textDocument/didChange for %, but it wasn't open", params.textDocument.uri);
+  assert(document.version < params.textDocument.version, "Received textDocument/didChange for % version %, but our current version is %", params.textDocument.uri, params.textDocument.version, document.version);
+  for params.contentChanges {
+    if is_any_of_type(it._, _LSP_TextDocumentContentChangeEvent_Full) {
+      change := cast_any(it._, _LSP_TextDocumentContentChangeEvent_Full);
+      last := document.lines.count-1;
+      apply_document_change(*document.lines, change.text, 0, 0, last, document.lines[last].count);
+    } else {
+      change := cast_any(it._, _LSP_TextDocumentContentChangeEvent_Range);
+      using change.range;
+      apply_document_change(*document.lines, change.text, xx start.line, xx start.character, xx end.line, xx end.character);
+    }
+  }
+  document.version = params.textDocument.version;
+}
+
+// Will Save Text Document
+
+LSP_TextDocumentSaveReason :: struct {
+  Manual     :: 1;
+  AfterDelay :: 2;
+  FocusOut   :: 3;
+}
+
+LSP_WillSaveTextDocumentParams :: struct {
+  textDocument: LSP_TextDocumentIdentifier;
+  reason: LSP_TextDocumentSaveReason;
+}
+
+lsp_textDocument_willSave :: (data: *Data, params: *LSP_WillSaveTextDocumentParams) {
+  assert_running();
+  decode_uri(*params.textDocument.uri);
+  found := table_contains(*data.documents, params.textDocument.uri);
+  assert(found, "Received textDocument/willSave for %, but it wasn't open", params.textDocument.uri);
+}
+
+// Will Save Document Wait Until
+
+LSP_WillSaveDocumentWaitUntilParams :: LSP_WillSaveTextDocumentParams;
+
+LSP_WillSaveDocumentWaitUntilResult :: struct {
+  _: Any; @_LSP_TextEdits @$Null
+}
+
+lsp_textDocument_willSaveWaitUntil :: (data: *Data, params: *LSP_WillSaveDocumentWaitUntilParams) -> LSP_WillSaveDocumentWaitUntilResult {
+  assert_running();
+  decode_uri(*params.textDocument.uri);
+  found := table_contains(*data.documents, params.textDocument.uri);
+  assert(found, "Received textDocument/willSaveWaitUntil for %, but it wasn't open", params.textDocument.uri);
+  return .{make_null_any()};
+}
+
+// Did Save Text Document
+
+LSP_SaveOptions :: struct {
+  includeText: bool; @?
+}
+
+LSP_TextDocumentSaveRegistrationOptions :: struct {
+  #as using _: LSP_TextDocumentRegistrationOptions;
+  includeText: bool; @?
+}
+
+LSP_DidSaveTextDocumentParams :: struct {
+  textDocument: LSP_TextDocumentIdentifier;
+  text: string; @?
+}
+
+lsp_textDocument_didSave :: (data: *Data, params: *LSP_DidSaveTextDocumentParams) {
+  assert_running();
+  decode_uri(*params.textDocument.uri);
+  found := table_contains(*data.documents, params.textDocument.uri);
+  assert(found, "Received textDocument/didSave for %, but it wasn't open", params.textDocument.uri);
+}
+
+// Did Close Text Document
+
+LSP_DidCloseTextDocumentParams :: struct {
+  textDocument: LSP_TextDocumentIdentifier;
+}
+
+lsp_textDocument_didClose :: (data: *Data, params: *LSP_DidCloseTextDocumentParams) {
+  assert_running();
+  decode_uri(*params.textDocument.uri);
+  removed, document := table_remove(*data.documents, params.textDocument.uri);
+  assert(removed, "Received textDocument/didClose for %, but it wasn't open", params.textDocument.uri);
+  for document.lines free(it);
+  array_free(document.lines);
+}
+
+//
+// Language Features
+//
 
 // Go to Declaration
 
@@ -703,7 +830,7 @@ LSP_DeclarationPartialResult :: struct {
   _: Any; @_LSP_Locations @_LSP_LocationLinks
 }
 
-lsp_textDocument_declaration :: (data: *Data, params: LSP_DeclarationParams) -> LSP_DeclarationResult {
+lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) -> LSP_DeclarationResult {
   assert_running();
   return .{make_null_any()};
 }
@@ -718,3 +845,83 @@ assert_running :: () #expand {
     assert(!`data.is_shutdown);
   }
 }
+
+decode_uri :: (uri: *string) {
+  get_hex_value :: inline (char: u8) -> u8 {
+    return char - cast(u8)
+      ifx char <= #char "9" then #char "0"
+      else ifx char <= #char "Z" then #char "A" + 10
+      else #char "a" + 10;
+  }
+  
+  i, j := 0;
+  while i < uri.count {
+    if uri.data[i] == #char "%" {
+      uri.data[j] = (get_hex_value(uri.data[i+1]) << 4) | get_hex_value(uri.data[i+2]);
+      i += 3;
+    } else {
+      uri.data[j] = uri.data[i];
+      i += 1;
+    }
+    j += 1;
+  }
+  
+  uri.count = j;
+}
+
+apply_document_change :: (lines: *[..] string, text: string, start_line: s64, start_column: s64, end_line: s64, end_column: s64) {
+  //TODO encoding
+  line: string;
+  j := 0;
+  i := start_line;
+  el := end_line;
+  line_start := 0;
+  
+  if !lines.count array_add(lines, "");
+  
+  // Split and insert text into lines
+  while j <= text.count {
+    defer j += 1;
+    
+    c := text.data + j;
+    if j < text.count {
+      if !is_any(c.*, "\r\n") continue;
+      
+      // Insert new lines
+      if i == el {
+        array_insert_at(lines, "", i + 1);
+        el += 1;
+      }
+    } else if i < el {
+      // Remove full lines
+      for i..el-1 free(lines.*[it]);
+      memcpy(lines.data + i, lines.data + el, lines.count - el);
+      lines.count -= el - i;
+      el = i;
+    }
+    
+    old_line := lines.*[i];
+    count := j - line_start;
+    offset := ifx i == start_line then start_column else 0;
+    removal := ifx i == el then end_column - offset else old_line.count - offset;
+    
+    if removal == count {
+      memcpy(line.data + offset, text.data + line_start, count);
+    } else {
+      line.count = old_line.count - removal + count;
+      line.data = alloc(line.count);
+      memcpy(line.data, old_line.data, offset);
+      memcpy(line.data + offset, text.data + line_start, count);
+      memcpy(line.data + offset + count, old_line.data + offset + removal, old_line.count - removal - offset);
+      free(old_line);
+      lines.*[i] = line;
+    }
+    
+    line_start = j + 1 + xx (j+1 < text.count && c.* == #char "\r" && (c+1).* == #char "\n");
+    i += 1;
+  }
+}
+
+#scope_file
+
+#import "String";

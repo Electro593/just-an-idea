@@ -42,6 +42,10 @@ is_any_undef :: inline (any: Any) -> bool {
   return any.type == null && any.value_pointer == null;
 }
 
+is_any_of_type :: (any: Any, T: Type) -> bool #expand {
+  return get_any_type(any) == type_info(T);
+}
+
 get_any_type :: (any: $A) -> *Type_Info #modify {
   return A == Any;
 } #expand {
@@ -59,6 +63,20 @@ cast_any :: (any: $A, $T: Type) -> *T #modify {
 
 are_any_equal :: inline (a: Any, b: Any) -> bool {
   return a.type == b.type && memcmp(a.value_pointer, b.value_pointer, a.type.runtime_size) == 0;
+}
+
+alloc_any :: inline (value: Any) -> Any {
+  result := Any.{value.type, alloc(value.type.runtime_size)};
+  memcpy(result.value_pointer, value.value_pointer, value.type.runtime_size);
+  return result;
+}
+
+make_null_any :: inline () -> Any {
+  return Any.{type_info(void), null};
+}
+
+make_undef_any :: inline () -> Any {
+  return Any.{};
 }
 
 cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist: [] string = BLACKLIST, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none, $scope := #caller_code) -> success: bool {
