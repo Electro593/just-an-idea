@@ -224,9 +224,49 @@ print_json :: (element: *JSON_Element) -> string {
         stb_print_float(builder, .{value = as_number(element).value});
       
       case .STRING;
-        //TODO: Re-escape this
         append(builder, "\"");
-        append(builder, as_string(element).value);
+        str := as_string(element).value;
+        i := 0;
+        while i < str.count {
+          defer i += 1;
+          it := str.data[i];
+          if it == {
+            case #char "\""; append(builder, "\\\"");
+            case #char "\\"; append(builder, "\\\\");
+            case #char 0x08; append(builder, "\\b");
+            case #char 0x0C; append(builder, "\\f");
+            case #char "\n"; append(builder, "\\n");
+            case #char "\r"; append(builder, "\\r");
+            case #char "\t"; append(builder, "\\t");
+            case;
+              if it >= 0x20 && it <= 0x7F append(builder, string.{1, *it});
+              else {
+                codepoint := get_codepoint(string.{str.count-i, str.data+i});
+                mapper :: "0123456789ABCDEF";
+                if codepoint >= 0x10000 {
+                  codepoint -= 0x10000;
+                  high := 0xD800 | ((codepoint >> 10) & 0x3FF);
+                  low  := 0xDC00 | ((codepoint >>  0) & 0x3FF);
+                  print_to_builder(builder, "\\u%0%0%0%",
+                    string.{1, mapper.data + ((high >> 12) & 0x0F)},
+                    string.{1, mapper.data + ((high >>  8) & 0x0F)},
+                    string.{1, mapper.data + ((high >>  4) & 0x0F)},
+                    string.{1, mapper.data + ((high >>  0) & 0x0F)});
+                  print_to_builder(builder, "\\u%0%0%0%",
+                    string.{1, mapper.data + ((low >> 12) & 0x0F)},
+                    string.{1, mapper.data + ((low >>  8) & 0x0F)},
+                    string.{1, mapper.data + ((low >>  4) & 0x0F)},
+                    string.{1, mapper.data + ((low >>  0) & 0x0F)});
+                } else {
+                  print_to_builder(builder, "\\u%0%0%0%",
+                    string.{1, mapper.data + ((codepoint >> 12) & 0x0F)},
+                    string.{1, mapper.data + ((codepoint >>  8) & 0x0F)},
+                    string.{1, mapper.data + ((codepoint >>  4) & 0x0F)},
+                    string.{1, mapper.data + ((codepoint >>  0) & 0x0F)});
+                }
+              }
+          }
+        }
         append(builder, "\"");
       
       case .ARRAY;
@@ -264,9 +304,9 @@ print_json :: (element: *JSON_Element) -> string {
 #scope_file
 
 JSON :: struct {
+  count: s64;
   data: *u8;
   index: int;
-  count: int;
 }
 
 Text_Encoding :: enum {
@@ -323,27 +363,27 @@ validate_utf_8 :: (json: *JSON) {
   }
 }
 
-encode_utf_8 :: (json: *JSON, codepoint: u32, name: string) {
+encode_utf_8 :: (codepoint: u32, out: *string, $should_assert: bool = true) {
   if codepoint <= 0x7F {
-    json.data[json.count+0] = xx 0x7F & codepoint;
-    json.count += 1;
+    out.data[out.count+0] = xx 0x7F & codepoint;
+    out.count += 1;
   } else if codepoint <= 0x7FF {
-    json.data[json.count+0] = xx 0xC0 | ((codepoint >> 6) & 0x1F);
-    json.data[json.count+1] = xx 0x80 | (codepoint & 0x3F);
-    json.count += 2;
+    out.data[out.count+0] = xx 0xC0 | ((codepoint >> 6) & 0x1F);
+    out.data[out.count+1] = xx 0x80 | (codepoint & 0x3F);
+    out.count += 2;
   } else if codepoint <= 0xFFFF {
-    assert_syntax(codepoint < 0xD800 || codepoint > 0xDFFF, json, "Encountered an invalid UTF-16 surrogate % while transcoding from % to UTF-8", codepoint, name);
-    json.data[json.count+0] = xx 0xE0 | ((codepoint >> 12) & 0x0F);
-    json.data[json.count+1] = xx 0x80 | ((codepoint >> 6) & 0x3F);
-    json.data[json.count+2] = xx 0x80 | (codepoint & 0x3F);
-    json.count += 3;
+    #if should_assert assert(codepoint < 0xD800 || codepoint > 0xDFFF, "Encountered an invalid UTF-16 surrogate % while transcoding to UTF-8", codepoint);
+    out.data[out.count+0] = xx 0xE0 | ((codepoint >> 12) & 0x0F);
+    out.data[out.count+1] = xx 0x80 | ((codepoint >> 6) & 0x3F);
+    out.data[out.count+2] = xx 0x80 | (codepoint & 0x3F);
+    out.count += 3;
   } else {
-    assert_syntax(codepoint <= 0x10FFFF, json, "Encountered an undefined encoding % while transcoding from % to UTF-8", codepoint, name);
-    json.data[json.count+0] = xx 0xF0 | ((codepoint >> 18) & 0x07);
-    json.data[json.count+1] = xx 0x80 | ((codepoint >> 12) & 0x3F);
-    json.data[json.count+2] = xx 0x80 | ((codepoint >> 6) & 0x3F);
-    json.data[json.count+3] = xx 0x80 | (codepoint & 0x3F);
-    json.count += 4;
+    #if should_assert assert(codepoint <= 0x10FFFF, "Encountered an undefined encoding % while transcoding to UTF-8", codepoint);
+    out.data[out.count+1] = xx 0x80 | ((codepoint >> 12) & 0x3F);
+    out.data[out.count+0] = xx 0xF0 | ((codepoint >> 18) & 0x07);
+    out.data[out.count+2] = xx 0x80 | ((codepoint >> 6) & 0x3F);
+    out.data[out.count+3] = xx 0x80 | (codepoint & 0x3F);
+    out.count += 4;
   }
 }
 
@@ -377,7 +417,7 @@ process_utf_16 :: (json: *JSON, big_endian: bool) {
       codepoint = 0x10000 + (((c0 & 0x3FF) << 10) | (c1 & 0x3FF));
     }
     
-    encode_utf_8(json, codepoint, "UTF-16");
+    encode_utf_8(codepoint, xx json);
   }
 }
 
@@ -393,7 +433,7 @@ process_utf_32 :: (json: *JSON, big_endian: bool) {
     codepoint := data32[it];
     if big_endian then codepoint = byte_swap(codepoint);
     
-    encode_utf_8(json, codepoint, "UTF-32");
+    encode_utf_8(codepoint, xx json);
   }
 }
 
@@ -533,55 +573,79 @@ parse_string :: (json: *JSON) -> string {
 }
 
 parse_characters :: (json: *JSON) -> string {
-  characters := peek(json, 0);
+  result: string;
+  index := json.index;
+  count := 0;
   while peek(json) != "\""
-    characters.count += parse_character(json).count;
-  return copy_string(characters);
+    result.count += parse_character(json).count;
+  result = string.{0, alloc(result.count)};
+  json.index = index;
+  while peek(json) != "\"" {
+    char := parse_character(json);
+    memcpy(result.data + result.count, char.data, char.count);
+    result.count += char.count;
+  }
+  return result;
 }
 
 parse_character :: (json: *JSON) -> string {
   c, codepoint := peek(json);
-  result := string.{json.index, json.data + json.index};
-  
   if c == "\\" {
     skip(json);
-    parse_escape(json);
-    result.count = json.index - result.count;
-  } else {
-    assert_syntax(c != "\"" && codepoint >= 0x0020 && codepoint <= 0x10FFFF,
-      json, "Expected a character [ -!#-[]-\\u{10FFFF}], but got %", c);
-    result.count = c.count;
-    skip(json);
+    return parse_escape(json);
   }
-  
-  return result;
+  assert_syntax(c != "\"" && codepoint >= 0x0020 && codepoint <= 0x10FFFF, json, "Expected a character [ -!#-\\[\\]-\\u{10FFFF}], but got %", c);
+  skip(json);
+  return c;
 }
 
-parse_escape :: (json: *JSON) {
-  //TODO Store an additional string that replaces escapes with their respective codepoints
-  
+parse_escape :: (json: *JSON) -> string {
   c, codepoint := peek(json);
+  
+  if c == "u" {
+    skip(json);
+    value: u64 = 0;
+    result := string.{0, talloc(4)};
+    for 1..4 value = (value << 4) | parse_hex(json);
+    if 0xD800 <= value && value <= 0xDFFF {
+      assert_syntax(peek(json, 2) == "\\u", json, "Encountered a UTF-64 surrogate but it was not a pair");
+      skip(json, 2);
+      
+      high := value;
+      low: u64;
+      for 1..4 low = (low << 4) | parse_hex(json);
+      assert_syntax(0xD800 <= low && low <= 0xDFFF, json, "Encountered a UTF-16 surrogate but the following codepoint was not a surrogate");
+      if low < 0xDC00 {
+        high = low;
+        low = value;
+      }
+      assert_syntax(high >= 0x8C00, json, "Encountered a UTF-16 surrogate pair, but both were high");
+      assert_syntax(low < 0x8C00, json, "Encountered a UTF-16 surrogate pair, but both were low");
+      
+      value = 0x10000 + ((high << 10) | low);
+    }
+    encode_utf_8(xx value, *result, false);
+    return result;
+  }
+  
+  defer skip(json);
   if c == {
-    case "\""; #through;
-    case "\\"; #through;
-    case  "/"; #through;
-    case  "b"; #through;
-    case  "f"; #through;
-    case  "n"; #through;
-    case  "r"; #through;
-    case  "t"; skip(json);
-    
-    case  "u";
-      skip(json);
-      for 1..4 parse_hex(json);
-    
+    case "\""; return "\"";
+    case "\\"; return "\\";
+    case  "/"; return "/";
+    case  "b"; return "\u0008";
+    case  "f"; return "\u000C";
+    case  "n"; return "\n";
+    case  "r"; return "\r";
+    case  "t"; return "\t";
     case;
       assert_syntax(xx codepoint, json, "Expected an escape character [\"\\/bfnrt]|u[0-9A-Fa-f]{4}, but got EOF");
       assert_syntax(false, json, "Expected an escape character [\"\\/bfnrt]|u[0-9A-Fa-f]{4}, but got %", c);
+      return "";
   }
 }
 
-parse_hex :: (json: *JSON) {
+parse_hex :: (json: *JSON) -> u64 {
   hex, codepoint := peek(json);
   assert_syntax(xx codepoint, json, "Expected a hex character [0-9A-Fa-f], but got EOF");
   assert_syntax(#char "0" <= codepoint && codepoint <= #char "9"
@@ -589,6 +653,9 @@ parse_hex :: (json: *JSON) {
     || #char "a" <= codepoint && codepoint <= #char "f",
     json, "Expected a hex character [0-9A-Fa-f], but got %", hex);
   skip(json);
+  if codepoint <= #char "9" return codepoint - #char "0";
+  if codepoint <= #char "Z" return codepoint + 10 - #char "A";
+  return codepoint + 10 - #char "a";
 }
 
 parse_number :: (json: *JSON) -> float64 {
@@ -759,28 +826,34 @@ peek :: (json: *JSON, count: int) -> string {
 
 peek :: (json: *JSON) -> string, u32 {
   c := string.{json.count - json.index, json.data + json.index};
+  codepoint, count := get_codepoint(c);
+  c.count = count;
+  return c, codepoint;
+}
+
+get_codepoint :: (c: string) -> u32, count: int {
+  c0: u32 = ifx c.count >= 1 then c[0];
+  c1: u32 = ifx c.count >= 2 then c[1];
+  c2: u32 = ifx c.count >= 3 then c[2];
+  c3: u32 = ifx c.count >= 4 then c[3];
+  
   codepoint: u32;
-  
-  c0: u32 = ifx has_next(json, 1) then c[0];
-  c1: u32 = ifx has_next(json, 2) then c[1];
-  c2: u32 = ifx has_next(json, 3) then c[2];
-  c3: u32 = ifx has_next(json, 4) then c[3];
-  
+  count: int;
   if c0 <= 0x7F {
-    c.count = 1;
+    count = 1;
     codepoint = c0;
   } else if c0 <= 0xDF {
-    c.count = 2;
+    count = 2;
     codepoint = ((c0 & 0x1F) << 6) | (c1 & 0x3F);
   } else if c0 <= 0xEF {
-    c.count = 3;
+    count = 3;
     codepoint = ((c0 & 0x0F) << 12) | ((c1 & 0x3F) << 6) | (c2 & 0x3F);
   } else {
-    c.count = 4;
+    count = 4;
     codepoint = ((c0 & 0x07) << 18) | ((c1 & 0x3F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
   }
   
-  return c, codepoint;
+  return codepoint, count;
 }
 
 skip :: (json: *JSON, count: int) {

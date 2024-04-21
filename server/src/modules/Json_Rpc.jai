@@ -86,7 +86,6 @@ add_rpc_request_handler :: (name: string, method: (data: *$D, params: *$P) -> $R
     params.value_pointer = casted_params;
     cast_json(json_params, casted_params, scope = SCOPE);
     free_json(json_params);
-    rpc_debug_log("Params:\n%", casted_params.*);
     
     result := proc(xx context.json_rpc.state.data, casted_params);
     return alloc_any(result);
@@ -102,7 +101,6 @@ add_rpc_request_handler :: (name: string, method: (data: *$D, params: *$P)) #exp
     params.value_pointer = casted_params;
     cast_json(json_params, casted_params, scope = SCOPE);
     free_json(json_params);
-    rpc_debug_log("Params:\n%", casted_params.*);
     
     proc(xx context.json_rpc.state.data, casted_params);
     return make_null_any();
