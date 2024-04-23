@@ -671,10 +671,10 @@ lsp_textDocument_didOpen :: (data: *Data, params: *LSP_DidOpenTextDocumentParams
   decode_uri(*params.textDocument.uri);
   document, is_new := find_or_add(*data.documents, params.textDocument.uri);
   assert(is_new, "Received textDocument/didOpen for %, but it was already opened", params.textDocument.uri);
+  rpc_debug_log("File opened: %", params.textDocument.uri);
   params.textDocument.uri = "";
   document.version = params.textDocument.version;
   apply_document_change(*document.lines, params.textDocument.text, 0, 0, 0, 0);
-  rpc_debug_log("File opened:\n%", document.lines);
 }
 
 // Did Change Text Document
@@ -707,7 +707,6 @@ lsp_textDocument_didChange :: (data: *Data, params: *LSP_DidChangeTextDocumentPa
   document := table_find_pointer(*data.documents, params.textDocument.uri);
   assert(xx document, "Received textDocument/didChange for %, but it wasn't open", params.textDocument.uri);
   assert(document.version < params.textDocument.version, "Received textDocument/didChange for % version %, but our current version is %", params.textDocument.uri, params.textDocument.version, document.version);
-  rpc_debug_log("Before apply:\n%", document.lines);
   for params.contentChanges {
     if is_any_of_type(it._, _LSP_TextDocumentContentChangeEvent_Full) {
       change := cast_any(it._, _LSP_TextDocumentContentChangeEvent_Full);
@@ -720,7 +719,6 @@ lsp_textDocument_didChange :: (data: *Data, params: *LSP_DidChangeTextDocumentPa
     }
   }
   document.version = params.textDocument.version;
-  rpc_debug_log("After apply:\n%", document.lines);
 }
 
 // Will Save Text Document
@@ -852,17 +850,18 @@ decode_uri :: (uri: *string) {
   get_hex_value :: inline (char: u8) -> u8 {
     return char - cast(u8)
       ifx char <= #char "9" then #char "0"
-      else ifx char <= #char "Z" then #char "A" + 10
-      else #char "a" + 10;
+      else ifx char <= #char "Z" then #char "A" - 10
+      else #char "a" - 10;
   }
   
   i, j := 0;
   while i < uri.count {
-    if uri.data[i] == #char "%" {
-      uri.data[j] = (get_hex_value(uri.data[i+1]) << 4) | get_hex_value(uri.data[i+2]);
+    if uri.*[i] == #char "%" {
+      value := (get_hex_value(uri.*[i+1]) << 4) | get_hex_value(uri.*[i+2]);
+      uri.*[j] = value;
       i += 3;
     } else {
-      uri.data[j] = uri.data[i];
+      uri.*[j] = uri.*[i];
       i += 1;
     }
     j += 1;
@@ -963,6 +962,12 @@ apply_document_change :: (lines: *[..] string, text: string, start_line: s64, st
 RUN_TESTS :: false;
 #if RUN_TESTS {
   #run {
+    test_decode_uri :: (expected: string, uri: string) {
+      document_uri: LSP_DocumentUri = copy_string(uri);
+      decode_uri(*document_uri);
+      assert(expected == cast(string) document_uri, "Expected % from % but got %", expected, uri, document_uri);
+    }
+    
     test_apply_document_change :: (expected_lines: [] string, start_lines: [] string, text: string, start_line: s64, start_column: s64, end_line: s64, end_column: s64) {
       lines: [..] string;
       for start_lines array_add(*lines, copy_string(it));
@@ -977,6 +982,9 @@ RUN_TESTS :: false;
       for lines free(it);
       array_free(lines);
     }
+    
+    test_decode_uri("a:\\b\\c\\d.e", "a:\\b\\c\\d.e");
+    test_decode_uri("a:\\b\\c\\d.e", "a%3A\\b\\c\\d.e");
     
     // Add start
     test_apply_document_change(.["za1","b2","c3"], .["a1","b2","c3"], "z", 0, 0, 0, 0);
