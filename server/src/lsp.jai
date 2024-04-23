@@ -674,7 +674,7 @@ lsp_textDocument_didOpen :: (data: *Data, params: *LSP_DidOpenTextDocumentParams
   params.textDocument.uri = "";
   document.version = params.textDocument.version;
   apply_document_change(*document.lines, params.textDocument.text, 0, 0, 0, 0);
-  rpc_debug_log("%", document.lines);
+  rpc_debug_log("File opened:\n%", document.lines);
 }
 
 // Did Change Text Document
@@ -704,9 +704,10 @@ LSP_DidChangeTextDocumentParams :: struct {
 lsp_textDocument_didChange :: (data: *Data, params: *LSP_DidChangeTextDocumentParams) {
   assert_running();
   decode_uri(*params.textDocument.uri);
-  document, found := table_find(*data.documents, params.textDocument.uri);
-  assert(found, "Received textDocument/didChange for %, but it wasn't open", params.textDocument.uri);
+  document := table_find_pointer(*data.documents, params.textDocument.uri);
+  assert(xx document, "Received textDocument/didChange for %, but it wasn't open", params.textDocument.uri);
   assert(document.version < params.textDocument.version, "Received textDocument/didChange for % version %, but our current version is %", params.textDocument.uri, params.textDocument.version, document.version);
+  rpc_debug_log("Before apply:\n%", document.lines);
   for params.contentChanges {
     if is_any_of_type(it._, _LSP_TextDocumentContentChangeEvent_Full) {
       change := cast_any(it._, _LSP_TextDocumentContentChangeEvent_Full);
@@ -719,6 +720,7 @@ lsp_textDocument_didChange :: (data: *Data, params: *LSP_DidChangeTextDocumentPa
     }
   }
   document.version = params.textDocument.version;
+  rpc_debug_log("After apply:\n%", document.lines);
 }
 
 // Will Save Text Document
@@ -870,55 +872,154 @@ decode_uri :: (uri: *string) {
 }
 
 apply_document_change :: (lines: *[..] string, text: string, start_line: s64, start_column: s64, end_line: s64, end_column: s64) {
-  //TODO encoding
-  line: string;
-  j := 0;
-  i := start_line;
-  el := end_line;
-  line_start := 0;
-  
-  if !lines.count array_add(lines, "");
-  
-  // Split and insert text into lines
-  while j <= text.count {
-    defer j += 1;
+  remove_selection :: (lines: *[..] string, sl: s64, sc: s64, el: s64, ec: s64) {
+    assert(sl >= 0 && sc >= 0 && el >= 0 && ec >= 0, "Cannot have a negative range (%,%)->(%,%)", sl, sc, el, ec);
+    assert(sc <= ec && sl <= el, "Cannot have an end (%,%) before the start (%,%)", el, ec, sl, sc);
+    assert(lines.count > el, "Cannot remove line % of only % lines", el, lines.count);
     
-    c := text.data + j;
-    if j < text.count {
-      if !is_any(c.*, "\r\n") continue;
+    start_line := lines.*[sl];
+    end_line := lines.*[el];
+    lead := sc;
+    tail := end_line.count - ec;
+    
+    // Merge the parts before and after the selection
+    line: string;
+    line.count = lead + tail;
+    line.data = alloc(line.count);
+    memcpy(line.data, start_line.data, lead);
+    memcpy(line.data + lead, end_line.data + ec, tail);
+    free(start_line);
+    lines.*[sl] = line;
+    
+    // Remove the remaining lines
+    for sl+1..el free(lines.*[it]);
+    memcpy(lines.data + sl+1, lines.data + el+1, (lines.count - (el+1)) * size_of(type_of(lines.*[0])));
+    lines.count -= el - sl;
+  }
+  
+  insert_text :: (lines: *[..] string, text: string, sl: s64, sc: s64) {
+    assert(sl >= 0 && sc >= 0, "Cannot have a negative insertion point (%,%)", sl, sc);
+    start := lines.*[sl];
+    
+    // Get the number of added lines
+    j := 0;
+    lines_to_add := 0;
+    while j < text.count {
+      defer j += 1;
+      if !is_any(text[j], "\r\n") continue;
+      lines_to_add += 1;
+      j += xx (j+1 < text.count && text[j] == #char "\r" && text[j+1] == #char "\n");
+    }
+    
+    if lines_to_add {
+      // Insert the new lines
+      original_line_count := lines.count;
+      array_resize(lines, original_line_count + lines_to_add, false);
+      memcpy(lines.data + sl + 1 + lines_to_add, lines.data + sl + 1, (original_line_count - sl - 1) * size_of(type_of(lines.*[0])));
+      memset(lines.data + sl + 1, 0, lines_to_add * size_of(type_of(lines.*[0])));
       
-      // Insert new lines
-      if i == el {
-        array_insert_at(lines, "", i + 1);
-        el += 1;
-      }
-    } else if i < el {
-      // Remove full lines
-      for i..el-1 free(lines.*[it]);
-      memcpy(lines.data + i, lines.data + el, lines.count - el);
-      lines.count -= el - i;
-      el = i;
+      // Split the insert point into two
+      tail_line := string.{start.count - sc, null};
+      tail_line.data = alloc(tail_line.count);
+      memcpy(tail_line.data, start.data + sc, tail_line.count);
+      free(lines.*[sl + lines_to_add]);
+      lines.*[sl + lines_to_add] = tail_line;
+      lines.*[sl].count = sc;
     }
     
-    old_line := lines.*[i];
-    count := j - line_start;
-    offset := ifx i == start_line then start_column else 0;
-    removal := ifx i == el then end_column - offset else old_line.count - offset;
-    
-    if removal == count {
-      memcpy(line.data + offset, text.data + line_start, count);
-    } else {
-      line.count = old_line.count - removal + count;
+    // Insert the new text
+    j = 0;
+    l := sl;
+    line_start := 0;
+    while j <= text.count {
+      defer j += 1;
+      if j < text.count && !is_any(text[j], "\r\n") continue;
+      
+      old_line := lines.*[l];
+      lead := ifx l == sl then sc else 0;
+      insertion := j - line_start;
+      tail := old_line.count - lead;
+      
+      line := string.{lead + insertion + tail, null};
       line.data = alloc(line.count);
-      memcpy(line.data, old_line.data, offset);
-      memcpy(line.data + offset, text.data + line_start, count);
-      memcpy(line.data + offset + count, old_line.data + offset + removal, old_line.count - removal - offset);
+      memcpy(line.data, old_line.data, lead);
+      memcpy(line.data + lead, text.data + line_start, insertion);
+      memcpy(line.data + lead + insertion, old_line.data + lead, tail);
       free(old_line);
-      lines.*[i] = line;
+      lines.*[l] = line;
+      
+      j += xx (j+1 < text.count && text[j] == #char "\r" && text[j+1] == #char "\n");
+      l += 1;
+      line_start = j + 1;
+    }
+  }
+  
+  //TODO encoding
+  if !lines.count array_add(lines, "");
+  remove_selection(lines, start_line, start_column, end_line, end_column);
+  insert_text(lines, text, start_line, start_column);
+}
+
+RUN_TESTS :: false;
+#if RUN_TESTS {
+  #run {
+    test_apply_document_change :: (expected_lines: [] string, start_lines: [] string, text: string, start_line: s64, start_column: s64, end_line: s64, end_column: s64) {
+      lines: [..] string;
+      for start_lines array_add(*lines, copy_string(it));
+      // print("(%,%)->(%,%):\n%\n", start_line, start_column, end_line, end_column, text);
+      // print("Start: %\n", lines);
+      apply_document_change(*lines, text, start_line, start_column, end_line, end_column);
+      // print("End: %\n", lines);
+      // print("Expected: %\n\n", expected_lines);
+      assert(expected_lines.count == lines.count, "The counts weren't the same (expected %, but got %)", expected_lines.count, lines.count);
+      for lines
+        assert(expected_lines[it_index] == it, "The lines weren't the same (expected line % to be '%', but got '%'", it_index, expected_lines[it_index], it);
+      for lines free(it);
+      array_free(lines);
     }
     
-    line_start = j + 1 + xx (j+1 < text.count && c.* == #char "\r" && (c+1).* == #char "\n");
-    i += 1;
+    // Add start
+    test_apply_document_change(.["za1","b2","c3"], .["a1","b2","c3"], "z", 0, 0, 0, 0);
+    test_apply_document_change(.["z","!a1","b2","c3"], .["a1","b2","c3"], "z\n!", 0, 0, 0, 0);
+    
+    // Add middle
+    test_apply_document_change(.["a1","bz2","c3"], .["a1","b2","c3"], "z", 1, 1, 1, 1);
+    test_apply_document_change(.["a1","b!","z","?2","c3"], .["a1","b2","c3"], "!\nz\n?", 1, 1, 1, 1);
+    
+    // Add end
+    test_apply_document_change(.["a1","b2","c3z"], .["a1","b2","c3"], "z", 2, 2, 2, 2);
+    test_apply_document_change(.["a1","b2","c3!","z"], .["a1","b2","c3"], "!\nz", 2, 2, 2, 2);
+    test_apply_document_change(.["a1","b2","",""], .["a1","b2",""], "\n", 2, 0, 2, 0);
+    
+    // Remove start
+    test_apply_document_change(.["b2","c3"], .["a1","b2","c3"], "", 0, 0, 1, 0);
+    test_apply_document_change(.["2","c3"], .["a1","b2","c3"], "", 0, 0, 1, 1);
+    
+    // Remove middle
+    test_apply_document_change(.["a3"], .["a1","b2","c3"], "", 0, 1, 2, 1);
+    test_apply_document_change(.[""], .["a1","b2","c3"], "", 0, 0, 2, 2);
+    
+    // Remove end
+    test_apply_document_change(.["a1","b2"], .["a1","b2","c3"], "", 1, 2, 2, 2);
+    test_apply_document_change(.["a1","b"], .["a1","b2","c3"], "", 1, 1, 2, 2);
+    
+    // Replace start
+    test_apply_document_change(.["z1","b2","c3"], .["a1","b2","c3"], "z", 0, 0, 0, 1);
+    test_apply_document_change(.["z2","c3"], .["a1","b2","c3"], "z", 0, 0, 1, 1);
+    
+    // Replace middle
+    test_apply_document_change(.["a1","z","c3"], .["a1","b2","c3"], "z", 1, 0, 1, 2);
+    test_apply_document_change(.["az3"], .["a1","b2","c3"], "z", 0, 1, 2, 1);
+    
+    // Replace end
+    test_apply_document_change(.["a1","b2","cz"], .["a1","b2","c3"], "z", 2, 1, 2, 2);
+    test_apply_document_change(.["a1","bz"], .["a1","b2","c3"], "z", 1, 1, 2, 2);
+    
+    // Add more than remove
+    test_apply_document_change(.["a","w","x","y","z","","3"], .["a1","b2","c3"], "\nw\nx\ny\nz\n\n", 0, 1, 2, 1);
+    
+    // Remove more than add
+    test_apply_document_change(.["","x","y"], .["a1","b2","c3","d4","e5","f6"], "\nx\ny", 0, 0, 5, 2);
   }
 }
 

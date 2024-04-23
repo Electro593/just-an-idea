@@ -233,8 +233,8 @@ print_json :: (element: *JSON_Element) -> string {
           if it == {
             case #char "\""; append(builder, "\\\"");
             case #char "\\"; append(builder, "\\\\");
-            case #char 0x08; append(builder, "\\b");
-            case #char 0x0C; append(builder, "\\f");
+            case       0x08; append(builder, "\\b");
+            case       0x0C; append(builder, "\\f");
             case #char "\n"; append(builder, "\\n");
             case #char "\r"; append(builder, "\\r");
             case #char "\t"; append(builder, "\\t");
