@@ -19,10 +19,12 @@ TextDocument :: struct {
 
 Data :: struct {
   client: Process;
+  capabilities: LSP_ClientCapabilities;
   
   buffer: [..] u8;
   filename: string;
   
+  mutex: Mutex;
   documents: Table(LSP_DocumentUri, TextDocument);
   
   is_initialized: bool;
@@ -48,6 +50,7 @@ main :: () {
   add_rpc_request_handler("initialized",                    lsp_initialized);
   add_rpc_request_handler("shutdown",                       lsp_shutdown);
   add_rpc_request_handler("textDocument/declaration",       lsp_textDocument_declaration);
+  add_rpc_request_handler("textDocument/definition",        lsp_textDocument_definition);
   add_rpc_request_handler("textDocument/didChange",         lsp_textDocument_didChange);
   add_rpc_request_handler("textDocument/didClose",          lsp_textDocument_didClose);
   add_rpc_request_handler("textDocument/didOpen",           lsp_textDocument_didOpen);

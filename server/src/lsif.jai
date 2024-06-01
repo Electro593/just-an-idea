@@ -116,6 +116,7 @@ RecordFile :: struct {
   hash_entry_table_block_index: u64;
   
   hash_table: Table(string, RecordFile_HashEntryValue);
+  lockfile: File;
   file: File;
 }
 
@@ -157,26 +158,26 @@ RecordFile_HashEntryValue :: struct {
   range_index: u64;
 }
 
-make_hash_table_key :: inline (uri: LSP_DocumentUri, range: LSP_Range) -> string {
-  return sprint("%;%:%-%:%", uri, range.start.line, range.start.character, range.end.line, range.end.character);
+make_hash_table_key :: inline (uri: LSP_DocumentUri, position: LSP_Position) -> string {
+  return sprint("%;%:%", uri, position.line, position.character);
 }
 
-lock_and_open_index :: (mutex: *Mutex, for_writing: bool, interrupting: bool) -> header: RecordFile, success: bool {
-  lockfile: File;
-  if interrupting {
-    lockfile=, success := file_open(tprint("%/%", INDEX_FOLDER, LOCK_NAME), true, true);
-    if !success return .{}, false;
+lock_index :: (for_writing: bool) -> lockfile: File {
+  lockfile_name := tprint("%/%", INDEX_FOLDER, LOCK_NAME);
+  lockfile, success := file_open(lockfile_name, for_writing);
+  while !success {
+    sleep_milliseconds(10);
+    lockfile, success = file_open(lockfile_name, for_writing);
   }
-  
-  lock(mutex);
-  
-  if interrupting {
-    file_close(*lockfile);
-  }
+  return lockfile;
+}
+
+lock_and_open_index :: (for_writing: bool) -> header: RecordFile, success: bool {
+  lockfile := lock_index(for_writing);
   
   file, success := file_open(tprint("%/%", INDEX_FOLDER, INDEX_NAME), for_writing, true);
   if !success {
-    unlock(mutex);
+    file_close(*lockfile);
     return .{}, false;
   }
   
@@ -184,20 +185,22 @@ lock_and_open_index :: (mutex: *Mutex, for_writing: bool, interrupting: bool) ->
   success=, bytes_read := file_read(file, *header, size_of(RecordFile));
   if !success || bytes_read != size_of(RecordFile) {
     file_close(*file);
-    unlock(mutex);
+    file_close(*lockfile);
     return .{}, false;
   }
   
   header.hash_table.allocator = context.allocator;
   header.hash_table.entries = .[];
+  header.lockfile = lockfile;
   header.file = file;
   
   return header, true;
 }
 
-close_and_unlock_index :: inline (mutex: *Mutex, header: *RecordFile) {
+close_and_unlock_index :: (header: *RecordFile) {
   file_close(*header.file);
-  unlock(mutex);
+  file_close(*header.lockfile);
+  header.* = .{};
 }
 
 read_records :: (using header: *RecordFile, block_index: u64, record_index: u64, record_count: u64, records: *[]$T) -> success: bool {
@@ -230,7 +233,7 @@ read_record :: (using header: *RecordFile, block_index: u64, record_index: u64, 
   return true;
 }
 
-find_result_set :: (using header: *RecordFile, input_uri: LSP_DocumentUri, input_range: LSP_Range, result_set: *RecordFile_ResultSet) -> found: bool {
+find_result_set :: (using header: *RecordFile, uri: LSP_DocumentUri, position: LSP_Position, document: *RecordFile_Document, range: *RecordFile_Range, result_set: *RecordFile_ResultSet) -> found: bool {
   hash_entry_table: [] hash_table.Entry;
   if !read_records(header, hash_entry_table_block_index, 0, hash_entry_count, *hash_entry_table)
     return false;
@@ -238,18 +241,14 @@ find_result_set :: (using header: *RecordFile, input_uri: LSP_DocumentUri, input
   
   hash_table.allocator = context.allocator;
   hash_table.entries = hash_entry_table;
-  key := make_hash_table_key(input_uri, input_range,, temp);
+  key := make_hash_table_key(uri, position,, temp);
   value, found := table_find(*hash_table, key);
   if !found return false;
   
-  document: RecordFile_Document;
-  if !read_record(header, document_table_block_index, value.document_index, *document)
+  if !read_record(header, document_table_block_index, value.document_index, document)
     return false;
-  
-  range: RecordFile_Range;
-  if !read_record(header, document.range_table_block_index, value.range_index, *range)
+  if !read_record(header, document.range_table_block_index, value.range_index, range)
     return false;
-  
   if !read_record(header, result_set_table_block_index, range.result_set_index, result_set)
     return false;
   
@@ -297,9 +296,11 @@ create_location_links_from_item_set :: (using header: *RecordFile, range: LSP_Ra
   return locations, true;
 }
 
-find_declaration :: (using header: *RecordFile, input_uri: LSP_DocumentUri, input_range: LSP_Range) -> links: [] LSP_LocationLink, found: bool {
+find_declaration_links :: (using header: *RecordFile, uri: LSP_DocumentUri, position: LSP_Position) -> links: [] LSP_LocationLink, found: bool {
+  document: RecordFile_Document;
+  range: RecordFile_Range;
   result_set: RecordFile_ResultSet;
-  if !find_result_set(header, input_uri, input_range, *result_set)
+  if !find_result_set(header, uri, position, *document, *range, *result_set)
     return .[], false;
   if result_set.declaration_index == cast,no_check(u64) -1
     return .[], true;
@@ -308,13 +309,15 @@ find_declaration :: (using header: *RecordFile, input_uri: LSP_DocumentUri, inpu
   if !read_record(header, declaration_table_block_index, result_set.declaration_index, *declaration)
     return .[], false;
   
-  links, success := create_location_links_from_item_set(header, input_range, declaration);
+  links, success := create_location_links_from_item_set(header, range.range, declaration);
   return links, success;
 }
 
-find_definition :: (using header: *RecordFile, input_uri: LSP_DocumentUri, input_range: LSP_Range) -> links: [] LSP_LocationLink, found: bool {
+find_definition_links :: (using header: *RecordFile, uri: LSP_DocumentUri, position: LSP_Position) -> links: [] LSP_LocationLink, found: bool {
+  document: RecordFile_Document;
+  range: RecordFile_Range;
   result_set: RecordFile_ResultSet;
-  if !find_result_set(header, input_uri, input_range, *result_set)
+  if !find_result_set(header, uri, position, *document, *range, *result_set)
     return .[], false;
   if result_set.definition_index == cast,no_check(u64) -1
     return .[], true;
@@ -323,6 +326,6 @@ find_definition :: (using header: *RecordFile, input_uri: LSP_DocumentUri, input
   if !read_record(header, definition_table_block_index, result_set.definition_index, *definition)
     return .[], false;
   
-  links, success := create_location_links_from_item_set(header, input_range, definition);
+  links, success := create_location_links_from_item_set(header, range.range, definition);
   return links, success;
 }

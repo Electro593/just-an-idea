@@ -329,7 +329,7 @@ LSP_TextDocumentClientCapabilities :: struct {
   // hover:              *LSP_HoverClientCapabilities;                    @?
   // signatureHelp:      *LSP_SignatureHelpClientCapabilities;            @?
   declaration:        *LSP_DeclarationClientCapabilities;              @?
-  // definition:         *LSP_DefinitionClientCapabilities;               @?
+  definition:         *LSP_DefinitionClientCapabilities;               @?
   // typeDefinition:     *LSP_TypeDefinitionClientCapabilities;           @?
   // implementation:     *LSP_ImplementationClientCapabilities;           @?
   // references:         *LSP_ReferenceClientCapabilities;                @?
@@ -412,7 +412,7 @@ LSP_ServerCapabilities :: struct {
   // hoverProvider:                    Any; @? @bool @LSP_HoverOptions
   // signatureHelpProvider:            LSP_SignatureHelpOptions; @?
   declarationProvider:              Any; @? @bool @LSP_DeclarationOptions             @LSP_DeclarationRegistrationOptions
-  // definitionProvider:               Any; @? @bool @LSP_DefinitionOptions
+  definitionProvider:               Any; @? @bool @LSP_DefinitionOptions
   // typeDefinitionProvider:           Any; @? @bool @LSP_TypeDefinitionOptions          @LSP_TypeDefinitionRegistrationOptions
   // implementationProvider:           Any; @? @bool @LSP_ImplementationOptions          @LSP_ImplementationRegistrationOptions
   // referencesProvider:               Any; @? @bool @LSP_ReferenceOptions
@@ -529,11 +529,13 @@ lsp_initialize :: (data: *Data, params: *LSP_InitializeParams) -> LSP_Initialize
     }
   }
   
+  init(*data.mutex, "Index Lock");
   data.is_initialized = true;
   
   result.serverInfo.name = copy_string(SERVER_VERSION);
   result.serverInfo.version = copy_string(SERVER_NAME);
   result.capabilities.declarationProvider = alloc_any(!!params.capabilities.textDocument.declaration);
+  result.capabilities.definitionProvider = alloc_any(!!params.capabilities.textDocument.definition);
   result.capabilities.textDocumentSync = alloc_any(LSP_TextDocumentSyncOptions.{
     openClose = true,
     change = .Incremental,
@@ -541,6 +543,8 @@ lsp_initialize :: (data: *Data, params: *LSP_InitializeParams) -> LSP_Initialize
     willSaveUntilWait = false,
     save = alloc_any(false),
   });
+  
+  data.capabilities = copy_casted_json(params.capabilities);
   return result;
 }
 
@@ -614,6 +618,7 @@ lsp_logTrace :: (data: *Data, message: string, verbose_extra := "") {
 
 lsp_shutdown :: (data: *Data) {
   assert_running();
+  destroy(*data.mutex);
   data.is_shutdown = true;
 }
 
@@ -844,7 +849,58 @@ LSP_DeclarationPartialResult :: struct {
 
 lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) -> LSP_DeclarationResult {
   assert_running();
-  return .{make_null_any()};
+  header, success := lock_and_open_index(false);
+  if !success return .{make_null_any()};
+  links, found := find_declaration_links(*header, params.textDocument.uri, params.position);
+  close_and_unlock_index(*header);
+  if !found return .{make_null_any()};
+  if data.capabilities.textDocument.declaration.linkSupport
+    return .{alloc_any(links)};
+  locations := location_links_to_locations(links);
+  return .{alloc_any(locations)};
+}
+
+// Go to Definition
+
+LSP_DefinitionClientCapabilities :: struct {
+	dynamicRegistration: bool; @?
+	linkSupport: bool; @?
+}
+
+LSP_DefinitionOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+}
+
+LSP_DefinitionRegistrationOptions :: struct {
+  #as using _0: LSP_DefinitionOptions;
+	#as using _1: LSP_TextDocumentRegistrationOptions;
+}
+
+LSP_DefinitionParams :: struct {
+  #as using _0: LSP_TextDocumentPositionParams;
+	#as using _1: LSP_WorkDoneProgressParams;
+  #as using _2: LSP_PartialResultParams;
+}
+
+LSP_DefinitionResult :: struct {
+  _: Any; @LSP_Location @_LSP_Locations @_LSP_LocationLinks @$Null
+}
+
+LSP_DefinitionPartialResult :: struct {
+  _: Any; @_LSP_Locations @_LSP_LocationLinks
+}
+
+lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> LSP_DefinitionResult {
+  assert_running();
+  header, success := lock_and_open_index(false);
+  if !success return .{make_null_any()};
+  links, found := find_definition_links(*header, params.textDocument.uri, params.position);
+  close_and_unlock_index(*header);
+  if !found return .{make_null_any()};
+  if data.capabilities.textDocument.definition.linkSupport
+    return .{alloc_any(links)};
+  locations := location_links_to_locations(links);
+  return .{alloc_any(locations)};
 }
 
 #scope_file
@@ -873,6 +929,22 @@ is_process_running :: (process: Process) -> bool {
     if process.pid == 0 return true;
     return kill(process.pid, 0) != -1;
   }
+}
+
+location_links_to_locations :: (links: [] LSP_LocationLink) -> [] LSP_Location {
+  locations: [] LSP_Location;
+  locations.count = links.count;
+  locations.data = alloc(links.count * size_of(LSP_Location));
+  
+  for links {
+    locations[it_index] = .{
+      uri = it.targetUri,
+      range = it.targetRange
+    };
+  }
+  
+  free(links.data);
+  return locations;
 }
 
 decode_uri :: (uri: *string) {
