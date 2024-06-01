@@ -519,6 +519,16 @@ lsp_initialize :: (data: *Data, params: *LSP_InitializeParams) -> LSP_Initialize
   assert(!data.is_shutdown, "Cannot initialize because the server was shut down");
   assert(!data.is_initialized, "The server is already initialized.");
   
+  data.client = .{};
+  if !is_any_null(params.processId) {
+    pid := cast_any(params.processId, s32).*;
+    #if OS == .WINDOWS {
+      data.client.info.dwProcessId = pid;
+    } else #if OS == .LINUX || OS == .MACOS {
+      data.client.pid = pid;
+    }
+  }
+  
   data.is_initialized = true;
   
   result.serverInfo.name = copy_string(SERVER_VERSION);
@@ -795,6 +805,8 @@ lsp_textDocument_didClose :: (data: *Data, params: *LSP_DidCloseTextDocumentPara
   array_free(document.lines);
 }
 
+//TODO: Notebook (didOpen, didChange, didSave, didClose)
+
 //
 // Language Features
 //
@@ -839,10 +851,27 @@ lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) ->
 
 assert_running :: () #expand {
   {
+    if !is_process_running(`data.client) then lsp_exit(`data);
     push_error(.NOT_INITIALIZED);
     assert(`data.is_initialized);
     set_error(.INVALID_REQUEST);
     assert(!`data.is_shutdown);
+  }
+}
+
+is_process_running :: (process: Process) -> bool {
+  #if OS == .WINDOWS {
+    OpenProcess :: (dwDesiredAccess: DWORD, bInheritHandle: BOOL, dwProcessId: DWORD) -> HANDLE #foreign kernel32;
+    SYNCHRONIZE : DWORD : 0x00100000;
+    
+    if process.info.dwProcessId == -1 then return true;
+    handle := OpenProcess(SYNCHRONIZE, xx false, xx process.info.dwProcessId);
+    status := WaitForSingleObject(handle, 0);
+    CloseHandle(handle);
+    return status == WAIT_TIMEOUT;
+  } else #if OS == .LINUX || OS == .MACOS {
+    if process.pid == 0 return true;
+    return kill(process.pid, 0) != -1;
   }
 }
 

@@ -18,6 +18,8 @@ TextDocument :: struct {
 }
 
 Data :: struct {
+  client: Process;
+  
   buffer: [..] u8;
   filename: string;
   
@@ -41,10 +43,10 @@ main :: () {
   initialize_rpc(*data, read_message_from_stdin, send_message_to_stdout, debug_log);
   
   add_rpc_request_handler("$/setTrace",                     lsp_setTrace);
+  add_rpc_request_handler("exit",                           lsp_exit);
   add_rpc_request_handler("initialize",                     lsp_initialize);
   add_rpc_request_handler("initialized",                    lsp_initialized);
   add_rpc_request_handler("shutdown",                       lsp_shutdown);
-  add_rpc_request_handler("exit",                           lsp_exit);
   add_rpc_request_handler("textDocument/declaration",       lsp_textDocument_declaration);
   add_rpc_request_handler("textDocument/didChange",         lsp_textDocument_didChange);
   add_rpc_request_handler("textDocument/didClose",          lsp_textDocument_didClose);
@@ -55,6 +57,8 @@ main :: () {
   
   // add_rpc_response_handler("client/registerCapability", lsp_client_registerCapability, lsp_client_registerCapability_error);
   
+  //TODO: Periodic checker thread that kills the server if the client dies
+  
   start_rpc();
 }
 
@@ -64,6 +68,8 @@ main :: () {
 #import "Compiler";
 #import "File";
 #import "String";
+#import "Process";
+#import "Thread";
 #import "Hash_Table";
 #import "Cast_Json";
 #import "Json_Rpc" (SCOPE = #code main);
@@ -76,3 +82,4 @@ main :: () {
 
 #load "io.jai";
 #load "lsp.jai";
+#load "lsif.jai";
