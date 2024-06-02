@@ -576,6 +576,7 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] strin
       } else {
         if t.initializer t.initializer(out);
         for t.members {
+          if it.flags & .CONSTANT continue;
           if array_find(it.notes, "$Ignore") continue;
           copy_casted_json(xx (cast(*u8) value + it.offset_in_bytes), it.type, xx (cast(*u8) out + it.offset_in_bytes), it.notes, log);
         }
@@ -584,16 +585,20 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] strin
     case .ARRAY;
       t: *Type_Info_Array = xx type;
       assert(t.array_type != .FIXED, "Cannot copy fixed arrays yet");
+      element_size := t.element_type.runtime_size;
       if t.array_type == .RESIZABLE {
         _value := cast_value([..] void);
         _out := _value;
-        _out.data = alloc(_value.allocated * t.element_type.runtime_size);
-        copy_casted_json(_value.data, t.element_type, _out.data, .[], log);
+        _out.data = alloc(_value.allocated * element_size);
+        for 0.._value.count-1
+          copy_casted_json(_value.data + it * element_size, t.element_type, _out.data + it * element_size, .[], log);
         set_out(_out);
       } else {
         _value := cast_value([] void);
-        _out := []void.{_value.count, alloc(_value.count * t.element_type.runtime_size)};
-        copy_casted_json(_value.data, t.element_type, _out.data, .[], log);
+        _out := _value;
+        _out.data = alloc(_value.count * element_size);
+        for 0.._value.count-1
+          copy_casted_json(_value.data + it * element_size, t.element_type, _out.data + it * element_size, .[], log);
         set_out(_out);
       }
     

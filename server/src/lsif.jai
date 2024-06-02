@@ -175,7 +175,8 @@ lock_index :: (for_writing: bool) -> lockfile: File {
 lock_and_open_index :: (for_writing: bool) -> header: RecordFile, success: bool {
   lockfile := lock_index(for_writing);
   
-  file, success := file_open(tprint("%/%", INDEX_FOLDER, INDEX_NAME), for_writing, true);
+  index_name := tprint("%/%", INDEX_FOLDER, INDEX_NAME);
+  file, success := file_open(index_name, for_writing, true);
   if !success {
     file_close(*lockfile);
     return .{}, false;
@@ -183,10 +184,34 @@ lock_and_open_index :: (for_writing: bool) -> header: RecordFile, success: bool 
   
   header: RecordFile;
   success=, bytes_read := file_read(file, *header, size_of(RecordFile));
+  
   if !success || bytes_read != size_of(RecordFile) {
     file_close(*file);
-    file_close(*lockfile);
-    return .{}, false;
+    file, success = file_open(index_name, true);
+    if !success {
+      file_close(*lockfile);
+      return .{}, false;
+    }
+    
+    value := 0;
+    header = .{};
+    header.block_size_exponent = 12; // 4096-byte (page-sized) blocks
+    header.block_count = 1;
+    header.file_size = header.block_count << header.block_size_exponent;
+    if !file_write(*file, *header, size_of(RecordFile))
+      || !file_seek(file, xx header.file_size - 1, .START)
+      || !file_write(*file, *value, 1) {
+      file_close(*file);
+      file_close(*lockfile);
+      return .{}, false;
+    }
+    
+    file_close(*file);
+    file, success = file_open(index_name, for_writing, true);
+    if !success {
+      file_close(*lockfile);
+      return .{}, false;
+    }
   }
   
   header.hash_table.allocator = context.allocator;
@@ -281,6 +306,7 @@ create_location_links_from_item_set :: (using header: *RecordFile, range: LSP_Ra
       if !read_record(header, item_document.range_table_block_index, item_range_pointer.range_index, *item_range)
         continue;
       
+      // TODO: Figure out what targetSelectionRange does
       locations[index] = .{
         originSelectionRange = range,
         targetUri = item_document.uri,

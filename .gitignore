@@ -1,6 +1,7 @@
 out
 node_modules
 log/
+database/
 .vscode-test/
 .build/
 *.js

@@ -529,9 +529,6 @@ lsp_initialize :: (data: *Data, params: *LSP_InitializeParams) -> LSP_Initialize
     }
   }
   
-  init(*data.mutex, "Index Lock");
-  data.is_initialized = true;
-  
   result.serverInfo.name = copy_string(SERVER_VERSION);
   result.serverInfo.version = copy_string(SERVER_NAME);
   result.capabilities.declarationProvider = alloc_any(!!params.capabilities.textDocument.declaration);
@@ -545,6 +542,8 @@ lsp_initialize :: (data: *Data, params: *LSP_InitializeParams) -> LSP_Initialize
   });
   
   data.capabilities = copy_casted_json(params.capabilities);
+  
+  data.is_initialized = true;
   return result;
 }
 
@@ -618,7 +617,6 @@ lsp_logTrace :: (data: *Data, message: string, verbose_extra := "") {
 
 lsp_shutdown :: (data: *Data) {
   assert_running();
-  destroy(*data.mutex);
   data.is_shutdown = true;
 }
 

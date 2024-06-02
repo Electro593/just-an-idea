@@ -24,7 +24,6 @@ Data :: struct {
   buffer: [..] u8;
   filename: string;
   
-  mutex: Mutex;
   documents: Table(LSP_DocumentUri, TextDocument);
   
   is_initialized: bool;
@@ -41,6 +40,10 @@ main :: () {
   
   make_directory_if_it_does_not_exist(LOG_FOLDER);
   data.filename = sprint("%/%.log", LOG_FOLDER, current_time_monotonic().low);
+  
+  make_directory_if_it_does_not_exist(INDEX_FOLDER);
+  file_close(*file_open(tprint("%/%", INDEX_FOLDER, LOCK_NAME), true));
+  file_close(*file_open(tprint("%/%", INDEX_FOLDER, INDEX_NAME), true, true));
   
   initialize_rpc(*data, read_message_from_stdin, send_message_to_stdout, debug_log);
   
