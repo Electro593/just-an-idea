@@ -119,7 +119,7 @@ debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string, to_standard_err
     stdin := File.{GetStdHandle(STD_INPUT_HANDLE)};
   }
   
-  file, file_opened := file_open(data.filename, true, true, false);
+  file, file_opened := file_open(data.buffer_filename, true, true, false);
   if file_opened {
     file_seek(file, 0, .END);
     file_write(*file, message);

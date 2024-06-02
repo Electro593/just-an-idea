@@ -172,8 +172,12 @@ lock_index :: (for_writing: bool) -> lockfile: File {
   return lockfile;
 }
 
-lock_and_open_index :: (for_writing: bool) -> header: RecordFile, success: bool {
+lock_and_open_index :: (terminate: *Process, for_writing: bool) -> header: RecordFile, success: bool {
   lockfile := lock_index(for_writing);
+  
+  if terminate {
+    kill_process(terminate);
+  }
   
   index_name := tprint("%/%", INDEX_FOLDER, INDEX_NAME);
   file, success := file_open(index_name, for_writing, true);

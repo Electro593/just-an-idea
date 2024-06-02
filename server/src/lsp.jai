@@ -749,9 +749,6 @@ LSP_WillSaveTextDocumentParams :: struct {
 
 lsp_textDocument_willSave :: (data: *Data, params: *LSP_WillSaveTextDocumentParams) {
   assert_running();
-  decode_uri(*params.textDocument.uri);
-  found := table_contains(*data.documents, params.textDocument.uri);
-  assert(found, "Received textDocument/willSave for %, but it wasn't open", params.textDocument.uri);
 }
 
 // Will Save Document Wait Until
@@ -764,9 +761,6 @@ LSP_WillSaveDocumentWaitUntilResult :: struct {
 
 lsp_textDocument_willSaveWaitUntil :: (data: *Data, params: *LSP_WillSaveDocumentWaitUntilParams) -> LSP_WillSaveDocumentWaitUntilResult {
   assert_running();
-  decode_uri(*params.textDocument.uri);
-  found := table_contains(*data.documents, params.textDocument.uri);
-  assert(found, "Received textDocument/willSaveWaitUntil for %, but it wasn't open", params.textDocument.uri);
   return .{make_null_any()};
 }
 
@@ -788,9 +782,6 @@ LSP_DidSaveTextDocumentParams :: struct {
 
 lsp_textDocument_didSave :: (data: *Data, params: *LSP_DidSaveTextDocumentParams) {
   assert_running();
-  decode_uri(*params.textDocument.uri);
-  found := table_contains(*data.documents, params.textDocument.uri);
-  assert(found, "Received textDocument/didSave for %, but it wasn't open", params.textDocument.uri);
 }
 
 // Did Close Text Document
@@ -801,11 +792,6 @@ LSP_DidCloseTextDocumentParams :: struct {
 
 lsp_textDocument_didClose :: (data: *Data, params: *LSP_DidCloseTextDocumentParams) {
   assert_running();
-  decode_uri(*params.textDocument.uri);
-  removed, document := table_remove(*data.documents, params.textDocument.uri);
-  assert(removed, "Received textDocument/didClose for %, but it wasn't open", params.textDocument.uri);
-  for document.lines free(it);
-  array_free(document.lines);
 }
 
 //TODO: Notebook (didOpen, didChange, didSave, didClose)
@@ -847,7 +833,7 @@ LSP_DeclarationPartialResult :: struct {
 
 lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) -> LSP_DeclarationResult {
   assert_running();
-  header, success := lock_and_open_index(false);
+  header, success := lock_and_open_index(*data.compiler, false);
   if !success return .{make_null_any()};
   links, found := find_declaration_links(*header, params.textDocument.uri, params.position);
   close_and_unlock_index(*header);
@@ -890,7 +876,7 @@ LSP_DefinitionPartialResult :: struct {
 
 lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> LSP_DefinitionResult {
   assert_running();
-  header, success := lock_and_open_index(false);
+  header, success := lock_and_open_index(*data.compiler, false);
   if !success return .{make_null_any()};
   links, found := find_definition_links(*header, params.textDocument.uri, params.position);
   close_and_unlock_index(*header);

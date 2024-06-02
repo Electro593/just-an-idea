@@ -19,12 +19,11 @@ TextDocument :: struct {
 
 Data :: struct {
   client: Process;
+  compiler: Process;
   capabilities: LSP_ClientCapabilities;
   
   buffer: [..] u8;
-  filename: string;
-  
-  documents: Table(LSP_DocumentUri, TextDocument);
+  buffer_filename: string;
   
   is_initialized: bool;
   is_shutdown: bool;
@@ -39,7 +38,7 @@ main :: () {
   data: Data;
   
   make_directory_if_it_does_not_exist(LOG_FOLDER);
-  data.filename = sprint("%/%.log", LOG_FOLDER, current_time_monotonic().low);
+  data.buffer_filename = sprint("%/%.log", LOG_FOLDER, current_time_monotonic().low);
   
   make_directory_if_it_does_not_exist(INDEX_FOLDER);
   file_close(*file_open(tprint("%/%", INDEX_FOLDER, LOCK_NAME), true));
