@@ -682,12 +682,8 @@ LSP_DidOpenTextDocumentParams :: struct {
 lsp_textDocument_didOpen :: (data: *Data, params: *LSP_DidOpenTextDocumentParams) {
   assert_running();
   decode_uri(*params.textDocument.uri);
-  document, is_new := find_or_add(*data.documents, params.textDocument.uri);
-  assert(is_new, "Received textDocument/didOpen for %, but it was already opened", params.textDocument.uri);
-  rpc_debug_log("File opened: %", params.textDocument.uri);
-  params.textDocument.uri = "";
-  document.version = params.textDocument.version;
-  apply_document_change(*document.lines, params.textDocument.text, 0, 0, 0, 0);
+  // TODO: Handle externally-modified files?
+  launch_compiler(data, params.textDocument.uri);
 }
 
 // Did Change Text Document
@@ -717,21 +713,9 @@ LSP_DidChangeTextDocumentParams :: struct {
 lsp_textDocument_didChange :: (data: *Data, params: *LSP_DidChangeTextDocumentParams) {
   assert_running();
   decode_uri(*params.textDocument.uri);
-  document := table_find_pointer(*data.documents, params.textDocument.uri);
-  assert(xx document, "Received textDocument/didChange for %, but it wasn't open", params.textDocument.uri);
-  assert(document.version < params.textDocument.version, "Received textDocument/didChange for % version %, but our current version is %", params.textDocument.uri, params.textDocument.version, document.version);
-  for params.contentChanges {
-    if is_any_of_type(it._, _LSP_TextDocumentContentChangeEvent_Full) {
-      change := cast_any(it._, _LSP_TextDocumentContentChangeEvent_Full);
-      last := document.lines.count-1;
-      apply_document_change(*document.lines, change.text, 0, 0, last, document.lines[last].count);
-    } else {
-      change := cast_any(it._, _LSP_TextDocumentContentChangeEvent_Range);
-      using change.range;
-      apply_document_change(*document.lines, change.text, xx start.line, xx start.character, xx end.line, xx end.character);
-    }
-  }
-  document.version = params.textDocument.version;
+  //TODO: Handle this
+  // apply_document_changes(data, params.textDocument.uri, params.contentChanges);
+  launch_compiler(data, params.textDocument.uri);
 }
 
 // Will Save Text Document
@@ -833,11 +817,14 @@ LSP_DeclarationPartialResult :: struct {
 
 lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) -> LSP_DeclarationResult {
   assert_running();
-  header, success := lock_and_open_index(*data.compiler, false);
-  if !success return .{make_null_any()};
+  
+  header, success := lock_and_open_index(null, false);
+  assert(success, "Could not open the index");
+  
   links, found := find_declaration_links(*header, params.textDocument.uri, params.position);
   close_and_unlock_index(*header);
   if !found return .{make_null_any()};
+  
   if data.capabilities.textDocument.declaration.linkSupport
     return .{alloc_any(links)};
   locations := location_links_to_locations(links);
@@ -876,11 +863,14 @@ LSP_DefinitionPartialResult :: struct {
 
 lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> LSP_DefinitionResult {
   assert_running();
-  header, success := lock_and_open_index(*data.compiler, false);
-  if !success return .{make_null_any()};
+  
+  header, success := lock_and_open_index(null, false);
+  assert(success, "Could not open the index");
+  
   links, found := find_definition_links(*header, params.textDocument.uri, params.position);
   close_and_unlock_index(*header);
   if !found return .{make_null_any()};
+  
   if data.capabilities.textDocument.definition.linkSupport
     return .{alloc_any(links)};
   locations := location_links_to_locations(links);
@@ -913,6 +903,40 @@ is_process_running :: (process: Process) -> bool {
     if process.pid == 0 return true;
     return kill(process.pid, 0) != -1;
   }
+}
+
+apply_document_changes :: (data: *Data, uri: LSP_DocumentUri, content_changes: [] LSP_TextDocumentContentChangeEvent) {
+  // header, success := lock_and_open_index(null, true);
+  // assert(success, "Could not open the index");
+  
+  // //TODO: If we get an earlier version, something screwed up, so flush the database
+  
+  // for content_changes {
+  //   if is_any_of_type(it._, _LSP_TextDocumentContentChangeEvent_Full) {
+  //     success = remove_document(*header, uri);
+  //     assert(success, "Could not remove % from the index", uri);
+  //     break;
+  //   } else {
+  //     change := cast_any(it._, _LSP_TextDocumentContentChangeEvent_Range);
+  //     apply_document_change(*header, change.range);
+  //   }
+  // }
+  
+  // close_and_unlock_index(*header);
+}
+
+launch_compiler :: (data: *Data, document: LSP_DocumentUri) {
+  //TODO: Find main/module file
+  //TODO: Use config if jai is not in path
+  //TODO: Allow for user metaprograms and arguments for specific files
+  
+  // Wait for, or kill, the compiler
+  header, success := lock_and_open_index(*data.compiler, false);
+  assert(success, "Could not open the index");
+  close_and_unlock_index(*header);
+  
+  success = create_process(*data.compiler, "jai", document, "file", "--", "meta", "Parse", working_directory = SERVER_FOLDER);
+  assert(success, "Failed to launch compiler: 'jai % file -- meta Parse' in '${extensionDirectory}/%'", document, SERVER_FOLDER);
 }
 
 location_links_to_locations :: (links: [] LSP_LocationLink) -> [] LSP_Location {

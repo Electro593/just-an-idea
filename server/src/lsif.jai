@@ -262,16 +262,20 @@ read_record :: (using header: *RecordFile, block_index: u64, record_index: u64, 
   return true;
 }
 
-find_result_set :: (using header: *RecordFile, uri: LSP_DocumentUri, position: LSP_Position, document: *RecordFile_Document, range: *RecordFile_Range, result_set: *RecordFile_ResultSet) -> found: bool {
+read_from_hash_table :: (using header: *RecordFile, key: string) -> value: RecordFile_HashEntryValue, found: bool {
   hash_entry_table: [] hash_table.Entry;
   if !read_records(header, hash_entry_table_block_index, 0, hash_entry_count, *hash_entry_table)
-    return false;
+    return .{}, false;
   defer free(hash_entry_table.data);
   
   hash_table.allocator = context.allocator;
   hash_table.entries = hash_entry_table;
-  key := make_hash_table_key(uri, position,, temp);
   value, found := table_find(*hash_table, key);
+  return value, found;
+}
+
+find_result_set :: (using header: *RecordFile, uri: LSP_DocumentUri, position: LSP_Position, document: *RecordFile_Document, range: *RecordFile_Range, result_set: *RecordFile_ResultSet) -> found: bool {
+  value, found := read_from_hash_table(header, make_hash_table_key(uri, position,, temp));
   if !found return false;
   
   if !read_record(header, document_table_block_index, value.document_index, document)

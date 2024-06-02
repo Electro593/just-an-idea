@@ -1,5 +1,6 @@
 LOG_FOLDER :: "log";
 SERVER_NAME :: "Jai Language Server";
+SERVER_FOLDER :: "server/src";
 SERVER_VERSION :: "0.0.1";
 
 #run {

@@ -1,5 +1,5 @@
-#import "Basic"; // Hello!
-H :: #import"Hash_Table"; // Hello!
+// #import "Basic"; // Hello!
+// H :: #import"Hash_Table"; // Hello!
 
 // Hello!
 
@@ -15,7 +15,7 @@ here\ _str: : #string __STR
   asbcsdx // asd
 __STR;
 
-#run print("%\n", str);
+// #run print("%\n", str);
 
 Test_Struct :: struct {
   a: int;
@@ -30,5 +30,5 @@ Enum :: enum {
 
 main :: () {
   d := Test_Struct.{a = 1, b = "abc"};
-  print("Hello! % %\n", Enum.C, d.b);
+  // print("Hello! % %\n", Enum.C, d.b);
 }
