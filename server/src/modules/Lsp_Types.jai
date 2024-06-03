@@ -359,7 +359,7 @@ LSP_TextDocumentClientCapabilities :: struct {
   // implementation:     *LSP_ImplementationClientCapabilities;           @?
   // references:         *LSP_ReferenceClientCapabilities;                @?
   // documentHighlight:  *LSP_DocumentHighlightClientCapabilities;        @?
-  // documentSymbol:     *LSP_DocumentSymbolClientCapabilities;           @?
+  documentSymbol:     *LSP_DocumentSymbolClientCapabilities;           @?
   // codeAction:         *LSP_CodeActionClientCapabilities;               @?
   // codeLens:           *LSP_CodeLensClientCapabilities;                 @?
   // documentLink:       *LSP_DocumentLinkClientCapabilities;             @?
@@ -442,7 +442,7 @@ LSP_ServerCapabilities :: struct {
   // implementationProvider:           Any; @? @bool @LSP_ImplementationOptions          @LSP_ImplementationRegistrationOptions
   // referencesProvider:               Any; @? @bool @LSP_ReferenceOptions
   // documentHighlightProvider:        Any; @? @bool @LSP_DocumentHighlightOptions
-  // documentSymbolProvider:           Any; @? @bool @LSP_DocumentSymbolOptions
+  documentSymbolProvider:           Any; @? @bool @LSP_DocumentSymbolOptions
   // codeActionProvider:               Any; @? @bool @LSP_CodeActionOptions
   // codeLensProvider:                 LSP_CodeLensOptions; @?
   // documentLinkProvider:             LSP_DocumentLinkOptions; @?
@@ -680,7 +680,7 @@ LSP_NotebookCell :: struct {
 
 LSP_NotebookCellKind :: enum {
   Markup :: 1;
-  Code :: 2;
+  Executable :: 2;
 }
 
 LSP_ExecutionSummary :: struct {
@@ -694,7 +694,7 @@ LSP_NotebookCellTextDocumentFilter :: struct {
 }
 
 LSP_NotebookDocumentFilter :: struct {
-  notebookType; string; @?
+  notebookType: string; @?
   scheme: string; @?
   pattern: string; @?
 }
@@ -838,6 +838,100 @@ LSP_DefinitionResult :: struct {
 
 LSP_DefinitionPartialResult :: struct {
   _: Any; @_LSP_Locations @_LSP_LocationLinks
+}
+
+//TODO: More
+
+// Document Symbols (textDocument/documentSymbol)
+
+LSP_DocumentSymbolClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+  symbolKind: struct {
+    valueSet: [] LSP_SymbolKind; @?
+  }; @?
+  hierarchicalDocumentSymbolSupport: bool; @?
+  tagSupport: struct {
+    valueSet: [] LSP_SymbolTag;
+  }; @?
+  labelSupport: bool; @?
+}
+
+LSP_DocumentSymbolOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+  label: string; @?
+}
+
+LSP_DocumentSymbolRegistrationOptions :: struct {
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_DocumentSymbolOptions;
+}
+
+LSP_SymbolKind :: enum {
+	File :: 1;
+	Module :: 2;
+	Namespace :: 3;
+	Package :: 4;
+	Class :: 5;
+	Method :: 6;
+	Property :: 7;
+	Field :: 8;
+	Constructor :: 9;
+	Enum :: 10;
+	Interface :: 11;
+	Function :: 12;
+	Variable :: 13;
+	Constant :: 14;
+	String :: 15;
+	Number :: 16;
+	Boolean :: 17;
+	Array :: 18;
+	Object :: 19;
+	Key :: 20;
+	Null :: 21;
+	EnumMember :: 22;
+	Struct :: 23;
+	Event :: 24;
+	Operator :: 25;
+	TypeParameter :: 26;
+}
+
+LSP_SymbolTag :: enum {
+  Deprecated :: 1;
+}
+
+_LSP_DocumentSymbols :: [] LSP_DocumentSymbol;
+LSP_DocumentSymbol :: struct {
+  name: string;
+  detail: string; @?
+  kind: LSP_SymbolKind;
+  tags: [] LSP_SymbolTag; @?
+  deprecated: bool; @?
+  range: LSP_Range;
+  selectionRange: LSP_Range;
+  children: [] LSP_DocumentSymbol; @?
+}
+
+LSP_SymbolInformation :: struct {
+  name: string;
+  kind: LSP_SymbolKind;
+  tags: [] LSP_SymbolTag; @?
+  deprecated: bool; @?
+  location: LSP_Location;
+  containerName: string; @?
+}
+
+LSP_DocumentSymbolParams :: struct {
+  #as using _0: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_PartialResultParams;
+  textDocument: LSP_TextDocumentIdentifier;
+}
+
+LSP_DocumentSymbolResult :: struct {
+  _: Any; @_LSP_DocumentSymbols @_LSP_SymbolInformations @$Null
+}
+
+LSP_DocumentSymbolPartialResult :: struct {
+  _: Any; @_LSP_DocumentSymbols @_LSP_SymbolInformations
 }
 
 //TODO: More
