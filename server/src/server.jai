@@ -1,4 +1,5 @@
 LOG_FOLDER :: "log";
+
 SERVER_NAME :: "Jai Language Server";
 SERVER_FOLDER :: "server/src";
 SERVER_VERSION :: "0.0.1";
@@ -41,9 +42,7 @@ main :: () {
   make_directory_if_it_does_not_exist(LOG_FOLDER);
   data.buffer_filename = sprint("%/%.log", LOG_FOLDER, current_time_monotonic().low);
   
-  make_directory_if_it_does_not_exist(INDEX_FOLDER);
-  file_close(*file_open(tprint("%/%", INDEX_FOLDER, LOCK_NAME), true));
-  file_close(*file_open(tprint("%/%", INDEX_FOLDER, INDEX_NAME), true, true));
+  initialize_record_file();
   
   initialize_rpc(*data, read_message_from_stdin, send_message_to_stdout, debug_log);
   
@@ -73,12 +72,10 @@ main :: () {
 #import "Basic";
 #import "Compiler";
 #import "File";
-#import "String";
-#import "Process";
-#import "Thread";
 #import "Hash_Table";
-#import "Cast_Json";
-#import "Json_Rpc" (SCOPE = #code main);
+#import "Process";
+#import "String";
+#import "Thread";
 
 #if OS == .WINDOWS {
   #import "Windows";
@@ -86,6 +83,10 @@ main :: () {
   #import "POSIX";
 }
 
+#import "Cast_Json";
+#import "Json_Rpc" (SCOPE = #code main);
+#import "Lsp_Types";
+#import "Record_File";
+
 #load "io.jai";
 #load "lsp.jai";
-#load "lsif.jai";

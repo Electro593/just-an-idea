@@ -1,83 +1,6 @@
-INDEX_FOLDER :: "database";
-INDEX_NAME :: "index";
-LSIF_NAME :: "index.lsif";
-LOCK_NAME :: "index.lock";
+#module_parameters (RECORD_FILE_FOLDER := "database", RECORD_FILE_NAME := "index", LOCK_NAME := "index.lock") ();
 
-LSIF_Record_Type :: string;
-LSIF_Record_Type_Vertex :: "vertex";
-LSIF_Record_Type_Edge :: "edge";
-
-LSIF_Record :: struct {
-  id: int;
-  type: LSIF_Record_Type;
-  label: string;
-}
-
-LSIF_Edge :: struct {
-  #as using _: LSIF_Record;
-  type = LSIF_Record_Type_Edge;
-  
-  outV: u64;
-  inV: u64;
-}
-
-LSIF_Contains :: struct {
-  #as using _: LSIF_Record;
-  type = LSIF_Record_Type_Edge;
-  label = "contains";
-  
-  outV: u64;
-  inVs: [] u64;
-}
-
-LSIF_Project :: struct {
-  #as using _: LSIF_Record;
-  type = LSIF_Record_Type_Vertex;
-  label = "project";
-  
-  resource: string;
-  kind: string;
-  contents: string; @?
-}
-
-LSIF_Document :: struct {
-  #as using _: LSIF_Record;
-  type = LSIF_Record_Type_Vertex;
-  label = "document";
-  
-  uri: LSP_DocumentUri;
-  languageId: LSP_LanguageId;
-  contents: string; @?
-}
-
-LSIF_Range :: struct {
-  #as using _: LSIF_Record;
-  type = LSIF_Record_Type_Vertex;
-  label = "range";
-  
-  using range: LSP_Range;
-}
-
-LSIF_ResultSet :: struct {
-  #as using _: LSIF_Record;
-  type = LSIF_Record_Type_Vertex;
-  label = "resultSet";
-}
-
-LSIF_Item :: struct {
-  #as using _: LSIF_Record;
-  type = LSIF_Record_Type_Edge;
-  label = "item";
-  
-  outV: u64;
-  inVs: [] u64;
-  shard: u64; // document or project id
-}
-
-
-// file format
-
-RecordFile :: struct {
+Record_File :: struct {
   file_size: u64;
   block_count: u64;
   block_size_exponent: u8;
@@ -115,45 +38,45 @@ RecordFile :: struct {
   hash_entry_table_block_count: u64;
   hash_entry_table_block_index: u64;
   
-  hash_table: Table(string, RecordFile_HashEntryValue);
+  hash_table: Table(string, Record_File_Hash_Entry_Value);
   lockfile: File;
   file: File;
 }
 
-RecordFile_Document :: struct {
+Record_File_Document :: struct {
   uri: LSP_DocumentUri;
   range_count: u64;
   range_table_block_count: u64;
   range_table_block_index: u64;
 }
 
-RecordFile_Range :: struct {
+Record_File_Range :: struct {
   range: LSP_Range;
   result_set_index: u64;
 }
 
-RecordFile_ResultSet :: struct {
+Record_File_Result_set :: struct {
   declaration_index: u64;
   definition_index: u64;
 }
 
-RecordFile_ItemSet :: struct {
+Record_File_Item_Set :: struct {
   range_count: u64;
   item_count: u64;
   first_item_index: u64;
 }
 
-RecordFile_Item :: struct {
+Record_File_Item :: struct {
   document_index: u64;
   item_range_count: u64;
   first_item_range_index: u64;
 }
 
-RecordFile_ItemRange :: struct {
+Record_File_Item_Range :: struct {
   range_index: u64;
 }
 
-RecordFile_HashEntryValue :: struct {
+Record_File_Hash_Entry_Value :: struct {
   document_index: u64;
   range_index: u64;
 }
@@ -162,8 +85,14 @@ make_hash_table_key :: inline (uri: LSP_DocumentUri, position: LSP_Position) -> 
   return sprint("%;%:%", uri, position.line, position.character);
 }
 
-lock_index :: (for_writing: bool) -> lockfile: File {
-  lockfile_name := tprint("%/%", INDEX_FOLDER, LOCK_NAME);
+initialize_record_file :: () {
+  make_directory_if_it_does_not_exist(RECORD_FILE_FOLDER);
+  file_close(*file_open(tprint("%/%", RECORD_FILE_FOLDER, LOCK_NAME), true));
+  file_close(*file_open(tprint("%/%", RECORD_FILE_FOLDER, RECORD_FILE_NAME), true, true));
+}
+
+lock_record_file :: (for_writing: bool) -> lockfile: File {
+  lockfile_name := tprint("%/%", RECORD_FILE_FOLDER, LOCK_NAME);
   lockfile, success := file_open(lockfile_name, for_writing);
   while !success {
     sleep_milliseconds(10);
@@ -172,26 +101,26 @@ lock_index :: (for_writing: bool) -> lockfile: File {
   return lockfile;
 }
 
-lock_and_open_index :: (terminate: *Process, for_writing: bool) -> header: RecordFile, success: bool {
-  lockfile := lock_index(for_writing);
+lock_and_open_record_file :: (terminate: *Process, for_writing: bool) -> header: Record_File, success: bool {
+  lockfile := lock_record_file(for_writing);
   
   if terminate {
     kill_process(terminate);
   }
   
-  index_name := tprint("%/%", INDEX_FOLDER, INDEX_NAME);
-  file, success := file_open(index_name, for_writing, true);
+  record_file_name := tprint("%/%", RECORD_FILE_FOLDER, RECORD_FILE_NAME);
+  file, success := file_open(record_file_name, for_writing, true);
   if !success {
     file_close(*lockfile);
     return .{}, false;
   }
   
-  header: RecordFile;
-  success=, bytes_read := file_read(file, *header, size_of(RecordFile));
+  header: Record_File;
+  success=, bytes_read := file_read(file, *header, size_of(Record_File));
   
-  if !success || bytes_read != size_of(RecordFile) {
+  if !success || bytes_read != size_of(Record_File) {
     file_close(*file);
-    file, success = file_open(index_name, true);
+    file, success = file_open(record_file_name, true);
     if !success {
       file_close(*lockfile);
       return .{}, false;
@@ -202,7 +131,7 @@ lock_and_open_index :: (terminate: *Process, for_writing: bool) -> header: Recor
     header.block_size_exponent = 12; // 4096-byte (page-sized) blocks
     header.block_count = 1;
     header.file_size = header.block_count << header.block_size_exponent;
-    if !file_write(*file, *header, size_of(RecordFile))
+    if !file_write(*file, *header, size_of(Record_File))
       || !file_seek(file, xx header.file_size - 1, .START)
       || !file_write(*file, *value, 1) {
       file_close(*file);
@@ -211,7 +140,7 @@ lock_and_open_index :: (terminate: *Process, for_writing: bool) -> header: Recor
     }
     
     file_close(*file);
-    file, success = file_open(index_name, for_writing, true);
+    file, success = file_open(record_file_name, for_writing, true);
     if !success {
       file_close(*lockfile);
       return .{}, false;
@@ -226,13 +155,13 @@ lock_and_open_index :: (terminate: *Process, for_writing: bool) -> header: Recor
   return header, true;
 }
 
-close_and_unlock_index :: (header: *RecordFile) {
+close_and_unlock_record_file :: (header: *Record_File) {
   file_close(*header.file);
   file_close(*header.lockfile);
   header.* = .{};
 }
 
-read_records :: (using header: *RecordFile, block_index: u64, record_index: u64, record_count: u64, records: *[]$T) -> success: bool {
+read_records :: (using header: *Record_File, block_index: u64, record_index: u64, record_count: u64, records: *[]$T) -> success: bool {
   if !records return false;
   
   if !file_set_position(file, xx ((block_index << block_size_exponent) + (record_index * size_of(T))))
@@ -250,7 +179,7 @@ read_records :: (using header: *RecordFile, block_index: u64, record_index: u64,
   return true;
 }
 
-read_record :: (using header: *RecordFile, block_index: u64, record_index: u64, record: *$T) -> success: bool {
+read_record :: (using header: *Record_File, block_index: u64, record_index: u64, record: *$T) -> success: bool {
   if !record return false;
   
   if !file_set_position(file, xx ((block_index << block_size_exponent) + (record_index * size_of(T))))
@@ -262,7 +191,7 @@ read_record :: (using header: *RecordFile, block_index: u64, record_index: u64, 
   return true;
 }
 
-read_from_hash_table :: (using header: *RecordFile, key: string) -> value: RecordFile_HashEntryValue, found: bool {
+read_from_hash_table :: (using header: *Record_File, key: string) -> value: Record_File_Hash_Entry_Value, found: bool {
   hash_entry_table: [] hash_table.Entry;
   if !read_records(header, hash_entry_table_block_index, 0, hash_entry_count, *hash_entry_table)
     return .{}, false;
@@ -274,7 +203,7 @@ read_from_hash_table :: (using header: *RecordFile, key: string) -> value: Recor
   return value, found;
 }
 
-find_result_set :: (using header: *RecordFile, uri: LSP_DocumentUri, position: LSP_Position, document: *RecordFile_Document, range: *RecordFile_Range, result_set: *RecordFile_ResultSet) -> found: bool {
+find_result_set :: (using header: *Record_File, uri: LSP_DocumentUri, position: LSP_Position, document: *Record_File_Document, range: *Record_File_Range, result_set: *Record_File_Result_set) -> found: bool {
   value, found := read_from_hash_table(header, make_hash_table_key(uri, position,, temp));
   if !found return false;
   
@@ -288,8 +217,8 @@ find_result_set :: (using header: *RecordFile, uri: LSP_DocumentUri, position: L
   return true;
 }
 
-create_location_links_from_item_set :: (using header: *RecordFile, range: LSP_Range, item_set: RecordFile_ItemSet) -> links: [] LSP_LocationLink, success: bool {
-  items: [] RecordFile_Item;
+create_location_links_from_item_set :: (using header: *Record_File, range: LSP_Range, item_set: Record_File_Item_Set) -> links: [] LSP_LocationLink, success: bool {
+  items: [] Record_File_Item;
   if !read_records(header, item_table_block_index, item_set.first_item_index, item_set.item_count, *items)
     return .[], false;
   defer free(items.data);
@@ -300,17 +229,17 @@ create_location_links_from_item_set :: (using header: *RecordFile, range: LSP_Ra
   
   index := 0;
   for item: items {
-    item_document: RecordFile_Document;
+    item_document: Record_File_Document;
     if !read_record(header, document_table_block_index, item.document_index, *item_document)
       continue;
     
-    item_ranges: [] RecordFile_ItemRange;
+    item_ranges: [] Record_File_Item_Range;
     if !read_records(header, item_range_table_block_index, item.first_item_range_index, item.item_range_count, *item_ranges)
       continue;
     defer free(item_ranges.data);
     
     for item_range_pointer: item_ranges {
-      item_range: RecordFile_Range;
+      item_range: Record_File_Range;
       if !read_record(header, item_document.range_table_block_index, item_range_pointer.range_index, *item_range)
         continue;
       
@@ -330,16 +259,16 @@ create_location_links_from_item_set :: (using header: *RecordFile, range: LSP_Ra
   return locations, true;
 }
 
-find_declaration_links :: (using header: *RecordFile, uri: LSP_DocumentUri, position: LSP_Position) -> links: [] LSP_LocationLink, found: bool {
-  document: RecordFile_Document;
-  range: RecordFile_Range;
-  result_set: RecordFile_ResultSet;
+find_declaration_links :: (using header: *Record_File, uri: LSP_DocumentUri, position: LSP_Position) -> links: [] LSP_LocationLink, found: bool {
+  document: Record_File_Document;
+  range: Record_File_Range;
+  result_set: Record_File_Result_set;
   if !find_result_set(header, uri, position, *document, *range, *result_set)
     return .[], false;
   if result_set.declaration_index == cast,no_check(u64) -1
     return .[], true;
   
-  declaration: RecordFile_ItemSet;
+  declaration: Record_File_Item_Set;
   if !read_record(header, declaration_table_block_index, result_set.declaration_index, *declaration)
     return .[], false;
   
@@ -347,19 +276,28 @@ find_declaration_links :: (using header: *RecordFile, uri: LSP_DocumentUri, posi
   return links, success;
 }
 
-find_definition_links :: (using header: *RecordFile, uri: LSP_DocumentUri, position: LSP_Position) -> links: [] LSP_LocationLink, found: bool {
-  document: RecordFile_Document;
-  range: RecordFile_Range;
-  result_set: RecordFile_ResultSet;
+find_definition_links :: (using header: *Record_File, uri: LSP_DocumentUri, position: LSP_Position) -> links: [] LSP_LocationLink, found: bool {
+  document: Record_File_Document;
+  range: Record_File_Range;
+  result_set: Record_File_Result_set;
   if !find_result_set(header, uri, position, *document, *range, *result_set)
     return .[], false;
   if result_set.definition_index == cast,no_check(u64) -1
     return .[], true;
   
-  definition: RecordFile_ItemSet;
+  definition: Record_File_Item_Set;
   if !read_record(header, definition_table_block_index, result_set.definition_index, *definition)
     return .[], false;
   
   links, success := create_location_links_from_item_set(header, range.range, definition);
   return links, success;
 }
+
+#scope_module
+
+#import "Basic";
+#import "File";
+#import "Hash_Table";
+#import "Process";
+
+#import "Lsp_Types";
