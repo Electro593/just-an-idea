@@ -57,8 +57,6 @@ main :: () {
   add_rpc_request_handler("textDocument/didClose",               lsp_textDocument_didClose);
   add_rpc_request_handler("textDocument/didOpen",                lsp_textDocument_didOpen);
   add_rpc_request_handler("textDocument/didSave",                lsp_textDocument_didSave);
-  add_rpc_request_handler("textDocument/willSave",               lsp_textDocument_willSave);
-  add_rpc_request_handler("textDocument/willSaveWaitUntil",      lsp_textDocument_willSaveWaitUntil);
   
   // add_rpc_response_handler("client/registerCapability", lsp_client_registerCapability, lsp_client_registerCapability_error);
   

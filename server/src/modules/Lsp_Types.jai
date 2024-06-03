@@ -1,9 +1,39 @@
+//
+// Basic Structures
+//
+
+LSP_DocumentUri :: string;
+
+LSP_URI :: string;
+
+LSP_RegularExpressionsClientCapabilities :: struct {
+  engine: string;
+  version: string; @?
+}
+
 LSP_EOL :: string.["\n", "\r\n", "\r"];
+
+LSP_Position :: struct {
+  line: u32;
+  character: u32;
+}
 
 LSP_PositionEncodingKind :: string;
 LSP_PositionEncodingKind_UTF8 : LSP_PositionEncodingKind : "utf-8";
 LSP_PositionEncodingKind_UTF16 : LSP_PositionEncodingKind : "utf-16";
 LSP_PositionEncodingKind_UTF32 : LSP_PositionEncodingKind : "utf-32";
+
+LSP_Range :: struct {
+  start: LSP_Position;
+  end: LSP_Position;
+}
+
+LSP_TextDocumentItem :: struct {
+  uri: LSP_DocumentUri;
+  languageId: LSP_LanguageId;
+  version: s32;
+  text: string;
+}
 
 LSP_LanguageId :: string;
 LSP_LanguageId_ABAP            :: "abap";
@@ -64,52 +94,6 @@ LSP_LanguageId_XML             :: "xml";
 LSP_LanguageId_XSL             :: "xsl";
 LSP_LanguageId_YAML            :: "yaml";
 
-LSP_MarkupKind :: string;
-LSP_MarkupKind_PlainText :: "plaintext";
-LSP_MarkupKind_Markdown :: "markdown";
-
-LSP_ResourceOperationKind :: string;
-LSP_ResourceOperationKind_Create :: "create";
-LSP_ResourceOperationKind_Rename :: "rename";
-LSP_ResourceOperationKind_Delete :: "delete";
-
-LSP_FailureHandlingKind :: string;
-LSP_FailureHandlingKind_Abort                 :: "abort";
-LSP_FailureHandlingKind_Transactional         :: "transactional";
-LSP_FailureHandlingKind_TextOnlyTransactional :: "textOnlyTransactional";
-LSP_FailureHandlingKind_Undo :: "undo";
-
-LSP_WorkDoneProgressKind :: string;
-LSP_WorkDoneProgressKind_Begin  :: "begin";
-LSP_WorkDoneProgressKind_Report :: "report";
-LSP_WorkDoneProgressKind_End    :: "end";
-
-LSP_TraceValue :: string;
-LSP_TraceValue_Off      :: "off";
-LSP_TraceValue_Messages :: "messages";
-LSP_TraceValue_Verbose  :: "verbose";
-
-LSP_DocumentUri :: string;
-
-LSP_URI :: string;
-
-LSP_Position :: struct {
-  line: u32;
-  character: u32;
-}
-
-LSP_Range :: struct {
-  start: LSP_Position;
-  end: LSP_Position;
-}
-
-LSP_TextDocumentItem :: struct {
-  uri: LSP_DocumentUri;
-  languageId: LSP_LanguageId;
-  version: s32;
-  text: string;
-}
-
 LSP_TextDocumentIdentifier :: struct {
   uri: LSP_DocumentUri;
 }
@@ -130,7 +114,6 @@ LSP_TextDocumentPositionParams :: struct {
 }
 
 LSP_DocumentFilter :: struct {
-  // At least one must exist
   language: string; @?
   scheme: string; @?
   pattern: string; @?
@@ -215,9 +198,19 @@ LSP_Command :: struct {
   arguments: [] Any; @?
 }
 
+LSP_MarkupKind :: string;
+LSP_MarkupKind_PlainText :: "plaintext";
+LSP_MarkupKind_Markdown :: "markdown";
+
 LSP_MarkupContent :: struct {
   kind: LSP_MarkupKind;
   value: string;
+}
+
+LSP_MarkdownClientCapabilities :: struct {
+  parser: string;
+  version: string; @?
+  allowedTags: [] string; @?
 }
 
 LSP_CreateFileOptions :: struct {
@@ -265,9 +258,31 @@ LSP_WorkspaceEdit :: struct {
   changeAnnotations: Table(LSP_ChangeAnnotationIdentifier, LSP_ChangeAnnotation); @? @$Table
 }
 
-LSP_ProgressToken :: struct {
-  _: Any; @s32 @string
+LSP_WorkspaceEditClientCapabilities :: struct {
+  documentChanges: bool; @?
+  resourceOperations: [] LSP_ResourceOperationKind; @?
+  failureHandling: LSP_FailureHandlingKind; @?
+  normalizedLineEndings: bool; @?
+  changeAnnotationSupport: struct {
+    groupsOnLabel: bool; @?
+  }; @?
 }
+
+LSP_ResourceOperationKind :: string;
+LSP_ResourceOperationKind_Create :: "create";
+LSP_ResourceOperationKind_Rename :: "rename";
+LSP_ResourceOperationKind_Delete :: "delete";
+
+LSP_FailureHandlingKind :: string;
+LSP_FailureHandlingKind_Abort                 :: "abort";
+LSP_FailureHandlingKind_Transactional         :: "transactional";
+LSP_FailureHandlingKind_TextOnlyTransactional :: "textOnlyTransactional";
+LSP_FailureHandlingKind_Undo :: "undo";
+
+LSP_WorkDoneProgressKind :: string;
+LSP_WorkDoneProgressKind_Begin  :: "begin";
+LSP_WorkDoneProgressKind_Report :: "report";
+LSP_WorkDoneProgressKind_End    :: "end";
 
 LSP_WorkDoneProgressBegin :: struct {
   kind := LSP_WorkDoneProgressKind_Begin;
@@ -289,39 +304,49 @@ LSP_WorkDoneProgressEnd :: struct {
   message: string; @?
 }
 
-LSP_WorkDoneProgressParams :: struct {
-  workDoneToken: LSP_ProgressToken; @?
-}
 LSP_WorkDoneProgressOptions :: struct {
   workDoneProgress: bool; @?
+}
+
+LSP_TraceValue :: string;
+LSP_TraceValue_Off      :: "off";
+LSP_TraceValue_Messages :: "messages";
+LSP_TraceValue_Verbose  :: "verbose";
+
+//
+// Base Protocol
+//
+
+// Cancel ($/cancelRequest)
+
+LSP_CancelParams :: struct {
+  id: Any; @s32 @string
+}
+
+// Progress ($/progress)
+
+LSP_ProgressToken :: struct {
+  _: Any; @s32 @string
+}
+
+LSP_WorkDoneProgressParams :: struct {
+  workDoneToken: LSP_ProgressToken; @?
 }
 
 LSP_PartialResultParams :: struct {
   partialResultToken: LSP_ProgressToken; @?
 }
 
-LSP_RegularExpressionsClientCapabilities :: struct {
-  PROPERTY_PATH :: "general.regularExpressions";
-  //TODO Enum values, regex
-  engine: string;
-  version: string; @?
+LSP_ProgressParams :: struct(Value_Type: Type) {
+  token: LSP_ProgressToken;
+  value: Value_Type;
 }
 
-LSP_MarkdownClientCapabilities :: struct {
-  parser: string;
-  version: string; @?
-  allowedTags: [] string; @?
-}
+//
+// Lifecycle Messages
+//
 
-LSP_WorkspaceEditClientCapabilities :: struct {
-  documentChanges: bool; @?
-  resourceOperations: [] LSP_ResourceOperationKind; @?
-  failureHandling: LSP_FailureHandlingKind; @?
-  normalizedLineEndings: bool; @?
-  changeAnnotationSupport: struct {
-    groupsOnLabel: bool; @?
-  }; @?
-}
+// Initialize (initialize)
 
 LSP_TextDocumentClientCapabilities :: struct {
   synchronization:    *LSP_TextDocumentSyncClientCapabilities;         @?
@@ -357,17 +382,17 @@ LSP_TextDocumentClientCapabilities :: struct {
 }
 
 LSP_NotebookDocumentClientCapabilities :: struct {
-  // synchronization: LSP_NotebookDocumentSyncClientCapabilities;
+  synchronization: LSP_NotebookDocumentSyncClientCapabilities;
 }
 
 LSP_ClientCapabilities :: struct {
   workspace: struct {
     applyEdit: bool; @?
     workspaceEdit: LSP_WorkspaceEditClientCapabilities; @?
-    // didChangeConfiguration: LSP_DidChangeConfigurationClientCapabilities; @?
-    // didChangeWatchedFiles: LSP_DidChangeWatchedFilesClientCapabilities; @?
-    // symbol: LSP_WorkspaceSymbolClientCapabilities; @?
-    // executeCommand: LSP_ExecuteCommandClientCapabilities; @?
+    didChangeConfiguration: LSP_DidChangeConfigurationClientCapabilities; @?
+    didChangeWatchedFiles: LSP_DidChangeWatchedFilesClientCapabilities; @?
+    symbol: LSP_WorkspaceSymbolClientCapabilities; @?
+    executeCommand: LSP_ExecuteCommandClientCapabilities; @?
     workspaceFolders: bool; @?
     configuration: bool; @?
     // semanticTokens: LSP_SemanticTokensWorkspaceClientCapabilities; @?
@@ -389,8 +414,8 @@ LSP_ClientCapabilities :: struct {
   notebookDocument: LSP_NotebookDocumentClientCapabilities; @?
   window: struct {
     workDoneProgress: bool; @?
-    // showMessage: LSP_ShowMessageRequestClientCapabilities; @?
-    // showDocument: LSP_ShowDocumentClientCapabilities; @?
+    showMessage: LSP_ShowMessageRequestClientCapabilities; @?
+    showDocument: LSP_ShowDocumentClientCapabilities; @?
   }; @?
   general: struct {
     staleRequestSupport: struct {
@@ -407,7 +432,7 @@ LSP_ClientCapabilities :: struct {
 LSP_ServerCapabilities :: struct {
   positionEncoding:                 LSP_PositionEncodingKind; @?
   textDocumentSync:                 Any; @?       @LSP_TextDocumentSyncOptions        @LSP_TextDocumentSyncKind
-  // notebookDocumentSync:             Any; @?       @LSP_NotebookDocumentSyncOptions    @LSP_NotebookDocumentSyncRegistrationOptions
+  notebookDocumentSync:             Any; @?       @LSP_NotebookDocumentSyncOptions    @LSP_NotebookDocumentSyncRegistrationOptions
   // completionProvider:               LSP_CompletionOptions; @?
   // hoverProvider:                    Any; @? @bool @LSP_HoverOptions
   // signatureHelpProvider:            LSP_SignatureHelpOptions; @?
@@ -437,46 +462,24 @@ LSP_ServerCapabilities :: struct {
   // inlineValueProvider:              Any; @? @bool @LSP_InlineValueOptions             @LSP_InlineValueRegistrationOptions
   // inlayHintProvider:                Any; @? @bool @LSP_InlayHintOptions               @LSP_InlayHintRegistrationOptions
   // diagnosticProvider:               Any; @?       @LSP_DiagnosticOptions              @LSP_DiagnosticRegistrationOptions
-  // workspaceSymbolProvider:          Any; @? @bool @LSP_WorkspaceSymbolOptions
+  workspaceSymbolProvider:          Any; @? @bool @LSP_WorkspaceSymbolOptions
   workspace: struct {
-    // workspaceFolders: LSP_WorkspaceFoldersServerCapabilities; @?
+    workspaceFolders: LSP_WorkspaceFoldersServerCapabilities; @?
     fileOperations: struct {
-      // didCreate:  LSP_FileOperationRegistrationOptions; @?
-      // willCreate: LSP_FileOperationRegistrationOptions; @?
-      // didRename:  LSP_FileOperationRegistrationOptions; @?
-      // willRename: LSP_FileOperationRegistrationOptions; @?
-      // didDelete:  LSP_FileOperationRegistrationOptions; @?
-      // willDelete: LSP_FileOperationRegistrationOptions; @?
+      didCreate:  LSP_FileOperationRegistrationOptions; @?
+      willCreate: LSP_FileOperationRegistrationOptions; @?
+      didRename:  LSP_FileOperationRegistrationOptions; @?
+      willRename: LSP_FileOperationRegistrationOptions; @?
+      didDelete:  LSP_FileOperationRegistrationOptions; @?
+      willDelete: LSP_FileOperationRegistrationOptions; @?
     }; @?
   }; @?
   experimental: Any; @?
 }
 
-LSP_Registration :: struct {
-  id: string;
-  method: string;
-  registerOptions: Any; @?
+LSP_InitializeErrorCodes :: enum {
+  unknownProtocolVersion :: 1;
 }
-
-LSP_Unregistration :: struct {
-  id: string;
-  method: string;
-}
-
-LSP_StaticRegistrationOptions :: struct {
-  id: string; @?
-}
-
-LSP_TextDocumentRegistrationOptions :: struct {
-  documentSelector: Any; @? @LSP_DocumentSelector @$Null
-}
-
-LSP_WorkspaceFolder :: struct {
-  uri: LSP_URI;
-  name: string;
-}
-
-// initialize
 
 _LSP_InitializeParams_WorkspaceFolders :: [] LSP_WorkspaceFolder;
 LSP_InitializeParams :: struct {
@@ -503,69 +506,68 @@ LSP_InitializeResult :: struct {
   }; @?
 }
 
-LSP_InitializeErrorCodes :: enum {
-  unknownProtocolVersion :: 1;
-}
-
 LSP_InitializeError :: struct {
   retry: bool;
 }
 
-// initialized
+// Initialized (initialized)
 
 LSP_InitializedParams :: struct {
 }
 
-// client/registerCapability
+// Register Capability (client/registerCapability)
+
+LSP_Registration :: struct {
+  id: string;
+  method: string;
+  registerOptions: Any; @?
+}
+
+LSP_StaticRegistrationOptions :: struct {
+  id: string; @?
+}
+
+LSP_TextDocumentRegistrationOptions :: struct {
+  documentSelector: Any; @? @LSP_DocumentSelector @$Null
+}
 
 LSP_RegistrationParams :: struct {
   registrations: [] LSP_Registration;
 }
 
-_LSP_Client_RegisterCapability_Result :: struct {
-}
-_LSP_Client_RegisterCapability_Error :: struct {
-}
+// Unregister Capability (client/unregisterCapability)
 
-// client/unregisterCapability
+LSP_Unregistration :: struct {
+  id: string;
+  method: string;
+}
 
 LSP_UnregistrationParams :: struct {
   unregistrations: [] LSP_Unregistration;
 }
 
-// $/setTrace
+// Set Trace ($/setTrace)
 
 LSP_SetTraceParams :: struct {
   value: LSP_TraceValue;
 }
 
-// $/logTrace
+// Log Trace ($/logTrace)
 
 LSP_LogTraceParams :: struct {
   message: string;
   verbose: string; @?
 }
 
-// shutdown
+// Shutdown (shutdown)
 
-// exit
-
-// $/cancelRequest
-
-LSP_CancelParams :: struct {
-  id: Any; @s32 @string
-}
-
-// $/progress
-
-LSP_ProgressParams :: struct(Value_Type: Type) {
-  token: LSP_ProgressToken;
-  value: Value_Type;
-}
+// Exit (exit)
 
 //
 // Document Synchronization
 //
+
+// Did Open Text Document (textDocument/didOpen)
 
 LSP_TextDocumentSyncClientCapabilities :: struct {
   dynamicRegistration: bool; @?
@@ -588,13 +590,11 @@ LSP_TextDocumentSyncOptions :: struct {
   save: Any; @? @bool @LSP_SaveOptions
 }
 
-// Did Open Text Document
-
 LSP_DidOpenTextDocumentParams :: struct {
   textDocument: LSP_TextDocumentItem;
 }
 
-// Did Change Text Document
+// Did Change Text Document (textDocument/didChange)
 
 LSP_TextDocumentChangeRegistrationOptions :: struct {
   #as using _: LSP_TextDocumentRegistrationOptions;
@@ -618,7 +618,7 @@ LSP_DidChangeTextDocumentParams :: struct {
   contentChanges: [] LSP_TextDocumentContentChangeEvent;
 }
 
-// Will Save Text Document
+// Will Save Text Document (textDocument/willSave)
 
 LSP_TextDocumentSaveReason :: struct {
   Manual     :: 1;
@@ -631,7 +631,7 @@ LSP_WillSaveTextDocumentParams :: struct {
   reason: LSP_TextDocumentSaveReason;
 }
 
-// Will Save Document Wait Until
+// Will Save Document Wait Until (textDocument/willSaveWaitUntil)
 
 LSP_WillSaveDocumentWaitUntilParams :: LSP_WillSaveTextDocumentParams;
 
@@ -639,7 +639,7 @@ LSP_WillSaveDocumentWaitUntilResult :: struct {
   _: Any; @_LSP_TextEdits @$Null
 }
 
-// Did Save Text Document
+// Did Save Text Document (textDocument/didSave)
 
 LSP_SaveOptions :: struct {
   includeText: bool; @?
@@ -655,19 +655,131 @@ LSP_DidSaveTextDocumentParams :: struct {
   text: string; @?
 }
 
-// Did Close Text Document
+// Did Close Text Document (textDocument/didClose)
 
 LSP_DidCloseTextDocumentParams :: struct {
   textDocument: LSP_TextDocumentIdentifier;
 }
 
-//TODO: Notebook (didOpen, didChange, didSave, didClose)
+// Did Open Notebook Document (notebookDocument/didOpen)
+
+LSP_NotebookDocument :: struct {
+  uri: LSP_URI;
+  notebookType: string;
+  version: s32;
+  metadata: Any; @$Object @?
+  cells: [] LSP_NotebookCell;
+}
+
+LSP_NotebookCell :: struct {
+  kind: LSP_NotebookCellKind;
+  document: LSP_DocumentUri;
+  metadata: Any; @$Object @?
+  executionSummary: LSP_ExecutionSummary; @?
+}
+
+LSP_NotebookCellKind :: enum {
+  Markup :: 1;
+  Code :: 2;
+}
+
+LSP_ExecutionSummary :: struct {
+  executionOrder: u32;
+  success: bool; @?
+}
+
+LSP_NotebookCellTextDocumentFilter :: struct {
+  notebook: Any; @string @LSP_NotebookDocumentFilter
+  language: string; @?
+}
+
+LSP_NotebookDocumentFilter :: struct {
+  notebookType; string; @?
+  scheme: string; @?
+  pattern: string; @?
+}
+
+LSP_NotebookDocumentSyncClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+  executionSummarySupport: bool; @?
+}
+
+LSP_NotebookDocumentSyncOptions :: struct {
+  notebookSelector: struct {
+    notebook: Any; @string @LSP_NotebookDocumentFilter @?
+    cells: [] struct {
+      language: string;
+    }; @?
+  };
+  save: bool; @?
+}
+
+LSP_NotebookDocumentSyncRegistrationOptions :: struct {
+  #as using _0: LSP_NotebookDocumentSyncOptions;
+  #as using _1: LSP_StaticRegistrationOptions;
+}
+
+LSP_DidOpenNotebookDocumentParams :: struct {
+  notebookDocument: LSP_NotebookDocument;
+  cellTextDocuments: [] LSP_TextDocumentItem;
+}
+
+// Did Change Notebook Document (notebookDocument/didChange)
+
+LSP_VersionedNotebookDocumentIdentifier :: struct {
+  version: s32;
+  uri: LSP_URI;
+}
+
+LSP_NotebookDocumentChangeEvent :: struct {
+  metadata: Any; @$Object
+  cells: struct {
+    structure: struct {
+      array: LSP_NotebookCellArrayChange;
+      didOpen: [] LSP_TextDocumentItem; @?
+      didClose: [] LSP_TextDocumentIdentifier; @?
+    }; @?
+    data: [] LSP_NotebookCell; @?
+    textContent: [] struct {
+      document: LSP_VersionedTextDocumentIdentifier;
+      changes: [] LSP_TextDocumentContentChangeEvent;
+    }; @?
+  }; @?
+}
+
+LSP_NotebookCellArrayChange :: struct {
+  start: u32;
+  deleteCount: u32;
+  cells: [] LSP_NotebookCell; @?
+}
+
+LSP_DidChangeNotebookDocumentParams :: struct {
+  notebookDocument: LSP_VersionedNotebookDocumentIdentifier;
+  change: LSP_NotebookDocumentChangeEvent;
+}
+
+// Did Save Notebook Document (notebookDocument/didSave)
+
+LSP_DidSaveNotebookDocumentParams :: struct {
+  notebookDocument: LSP_NotebookDocumentIdentifier;
+}
+
+// Did Close Notebook Document (notebookDocument/didClose)
+
+LSP_NotebookDocumentIdentifier :: struct {
+  uri: LSP_URI;
+}
+
+LSP_DidCloseNotebookDocumentParams :: struct {
+  notebookDocument: LSP_NotebookDocumentIdentifier;
+  cellTextDocuments: [] LSP_TextDocumentIdentifier;
+}
 
 //
 // Language Features
 //
 
-// Go to Declaration
+// Go to Declaration (textDocument/declaration)
 
 LSP_DeclarationClientCapabilities :: struct {
 	dynamicRegistration: bool; @?
@@ -698,7 +810,7 @@ LSP_DeclarationPartialResult :: struct {
   _: Any; @_LSP_Locations @_LSP_LocationLinks
 }
 
-// Go to Definition
+// Go to Definition (textDocument/definition)
 
 LSP_DefinitionClientCapabilities :: struct {
 	dynamicRegistration: bool; @?
@@ -726,6 +838,371 @@ LSP_DefinitionResult :: struct {
 
 LSP_DefinitionPartialResult :: struct {
   _: Any; @_LSP_Locations @_LSP_LocationLinks
+}
+
+//TODO: More
+
+//
+// Workspace Features
+//
+
+// Workspace Symbols (workspace/symbol)
+
+LSP_WorkspaceSymbolClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+  symbolKind: struct {
+    valueSet: [] LSP_SymbolKind; @?
+  }; @?
+  tagSupport: struct {
+    valueSet: [] LSP_SymbolTag;
+  }; @?
+  resolveSupport: struct {
+    properties: [] string;
+  }; @?
+}
+
+LSP_WorkspaceSymbolOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+  resolveProvider: bool; @?
+}
+
+LSP_WorkspaceSymbolRegistrationOptions :: struct {
+  #as using _: LSP_WorkspaceSymbolOptions;
+}
+
+_LSP_WorkspaceSymbol_LocationUri :: struct {
+  uri: LSP_DocumentUri;
+}
+_LSP_WorkspaceSymbols :: [] LSP_WorkspaceSymbol;
+LSP_WorkspaceSymbol :: struct {
+  name: string;
+  kind: LSP_SymbolKind;
+  tags: [] LSP_SymbolTag; @?
+  containerName: string; @?
+  location: Any; @LSP_Location @_LSP_WorkspaceSymbol_LocationUri
+  data: Any; @?
+}
+
+LSP_WorkspaceSymbolParams :: struct {
+  #as using _0: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_PartialResultParams;
+  query: string;
+}
+
+LSP_WorkspaceSymbolResult :: struct {
+  _: Any; @_LSP_SymbolInformations @_LSP_WorkspaceSymbols @$Null
+}
+
+LSP_WorkspaceSymbolPartialResult :: struct {
+  _: Any; @_LSP_SymbolInformations @_LSP_WorkspaceSymbols
+}
+
+// Workspace Symbol Resolve (workspaceSymbol/resolve)
+
+LSP_WorkspaceSymbolResolveParams :: LSP_WorkspaceSymbol;
+
+LSP_WorkspaceSymbolResolveResult :: LSP_WorkspaceSymbol;
+
+// Get Configuration (workspace/configuration)
+
+LSP_ConfigurationItem :: struct {
+  scopeUri: LSP_URI; @?
+  section: string; @?
+}
+
+LSP_ConfigurationParams :: struct {
+  items: [] LSP_ConfigurationItem;
+}
+
+LSP_ConfigurationResult :: struct {
+  _: [] Any;
+}
+
+// Did Change Configuration (workspace/didChangeConfiguration)
+
+LSP_DidChangeConfigurationClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+}
+
+LSP_DidChangeConfigurationParams :: struct {
+  settings: Any;
+}
+
+// Workspace Folders (workspace/workspaceFolders)
+
+_LSP_WorkspaceFolders :: [] LSP_WorkspaceFolder;
+LSP_WorkspaceFolder :: struct {
+  uri: LSP_URI;
+  name: string;
+}
+
+LSP_WorkspaceFoldersServerCapabilities :: struct {
+  supported: bool; @?
+  changeNotifications: Any; @? @string @bool
+}
+
+LSP_WorkspaceFoldersResult :: struct {
+  _: Any; @_LSP_WorkspaceFodlers @$Null
+}
+
+// Did Change Workspace Folders (workspace/didChangeWorkspaceFolders)
+
+LSP_WorkspaceFoldersChangeEvent :: struct {
+  added: [] LSP_WorkspaceFolder;
+  removed: [] LSP_WorkspaceFolder;
+}
+
+LSP_DidChangeWorkspaceFoldersParams :: struct {
+  event: LSP_WorkspaceFoldersChangeEvent;
+}
+
+// Will Create Files (workspace/willCreateFiles)
+
+LSP_FileOperationRegistrationOptions :: struct {
+  filters: [] LSP_FileOperationFilter;
+}
+
+LSP_FileOperationPatternKind :: string;
+LSP_FileOperationPatternKind_File :: "file";
+LSP_FileOperationPatternKind_Folder :: "folder";
+
+LSP_FileOperationPatternOptions :: struct {
+  ignoreCase: bool; @?
+}
+
+LSP_FileOperationPattern :: struct {
+  glob: string;
+  matches: LSP_FileOperationPatternKind; @?
+  options: LSP_FileOperationPatternOptions; @?
+}
+
+LSP_FileOperationFilter :: struct {
+  scheme: string; @?
+  pattern: LSP_FileOperationPattern;
+}
+
+LSP_FileCreate :: struct {
+  uri: string;
+}
+
+LSP_CreateFilesParams :: struct {
+  files: [] LSP_FileCreate;
+} 
+
+LSP_CreateFilesResult :: struct {
+  _: Any; @LSP_WorkspaceEdit @$Null
+}
+
+//TODO: Check what happens if the results are just optional instead of Any w/ $Null
+
+// Did Create Files (workspace/didCreateFiles)
+
+LSP_DidCreateFilesParams :: LSP_CreateFilesParams;
+
+// Will Rename Files (workspace/willRenameFiles)
+
+LSP_FileRename :: struct {
+  oldUri: string;
+  newUri: string;
+}
+
+LSP_RenameFilesParams :: struct {
+  files: [] LSP_FileRename;
+}
+
+LSP_RenameFilesResult :: struct {
+  _: Any; @LSP_WorkspaceEdit @$Null
+}
+
+// Did Rename Files (workspace/didRenameFiles)
+
+LSP_DidRenameFilesParams :: LSP_RenameFilesParams;
+
+// Will Delete Files (workspace/willDeleteFiles)
+
+LSP_FileDelete :: struct {
+  uri: string;
+}
+
+LSP_DeleteFilesParams :: struct {
+  files: [] LSP_FileDelete;
+}
+
+LSP_DeleteFilesResult :: struct {
+  _: Any; @LSP_WorkspaceEdit @$Null
+}
+
+// Did Delete Files (workspace/didDeleteFiles)
+
+LSP_DidDeleteFilesParams :: LSP_DeleteFilesParams;
+
+// Did Change Watched Files
+
+LSP_DidChangeWatchedFilesClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+  relativePatternSupport: bool; @?
+}
+
+LSP_DidChangeWatchedFilesRegistrationOptions :: struct {
+  watchers: [] LSP_FileSystemWatcher;
+}
+
+LSP_Pattern :: string;
+
+LSP_RelativePattern :: struct {
+  baseUri: Any; @LSP_WorkspaceFolder @LSP_URI
+  pattern: LSP_Pattern;
+}
+
+LSP_GlobPattern :: struct {
+  _: Any; @LSP_Pattern @LSP_RelativePattern
+}
+
+LSP_FileSystemWatcher :: struct {
+  globPattern: LSP_GlobPattern;
+  kind := LSP_WatchKind.Create; @?
+}
+
+LSP_WatchKind :: enum u32 {
+  Create :: 1;
+  Change :: 2;
+  Delete :: 4;
+}
+
+LSP_FileEvent :: struct {
+  uri: LSP_DocumentUri;
+  type: LSP_FileChangeType;
+}
+
+LSP_FileChangeType :: enum u32 {
+  Created :: 1;
+  Changed :: 2;
+  Deleted :: 3;
+}
+
+LSP_DidChangeWatchedFilesParams :: struct {
+  changes: [] LSP_FileEvent;
+}
+
+// Execute Command (workspace/executeCommand)
+
+LSP_ExecuteCommandClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+}
+
+LSP_ExecuteCommandOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+  commands: [] string;
+}
+
+LSP_ExecuteCommandRegistrationOptions :: struct {
+  #as using _: LSP_ExecuteCommandOptions;
+}
+
+LSP_ExecuteCommandParams :: struct {
+  #as using _: LSP_WorkDoneProgressParams;
+  command: string;
+  arguments: [] Any; @?
+}
+
+LSP_ExecuteCommandResult :: struct {
+  _: Any;
+}
+
+// Apply Edit (workspace/applyEdit)
+
+LSP_ApplyWorkspaceEditParams :: struct {
+  label: string; @?
+  edit: LSP_WorkspaceEdit;
+}
+
+LSP_ApplyWorkspaceEditResult :: struct {
+  applied: bool;
+  failureReason: string; @?
+  failedChange: u32; @?
+}
+
+//
+// Window Features
+//
+
+// Show Message Notification (window/showMessage)
+
+LSP_MessageType :: enum {
+  Error :: 1;
+  Warning :: 2;
+  Info :: 3;
+  Log :: 4;
+  Debug :: 5;
+}
+
+LSP_ShowMessageParams :: struct {
+  type: LSP_MessageType;
+  message: string;
+}
+
+// Show Message Request
+
+LSP_ShowMessageRequestClientCapabilities :: struct {
+  messageActionItem: struct {
+    additionalPropertiesSupport: bool; @?
+  }; @?
+}
+
+LSP_MessageActionItem :: struct {
+  title: string;
+}
+
+LSP_ShowMessageRequestParams :: struct {
+  type: LSP_MessageType;
+  message: string;
+  actions: [] LSP_MessageActionItem; @?
+}
+
+LSP_ShowMessageRequestResult :: struct {
+  _: Any; @LSP_MessageActionItem @$Null
+}
+
+// Log Message (window/logMessage)
+
+LSP_LogMessageParams :: struct {
+  type: LSP_MessageType;
+  message: string;
+}
+
+// Show Document Request (window/showDocument)
+
+LSP_ShowDocumentClientCapabilities :: struct {
+  support: bool;
+}
+
+LSP_ShowDocumentParams :: struct {
+  uri: LSP_URI;
+  external: bool; @?
+  takeFocus: bool; @?
+  selection: LSP_Range; @?
+}
+
+LSP_ShowDocumentResult :: struct {
+  success: bool;
+}
+
+// Create Work Done Progress (window/workDoneProgress/create)
+
+LSP_WorkDoneProgressCreateParams :: struct {
+  token: LSP_ProgressToken;
+}
+
+// Cancel a Work Done Progress (window/workDoneProgress/cancel)
+
+LSP_WorkDoneProgressCancelParams :: struct {
+  token: LSP_ProgressToken;
+}
+
+// Sent Telemetry (telemetry/event)
+
+LSP_SentTelemetryParams :: struct {
+  _: Any; @$Object @$Array
 }
 
 #scope_module

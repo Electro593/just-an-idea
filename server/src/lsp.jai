@@ -18,19 +18,16 @@ lsp_initialize :: (data: *Data, params: *LSP_InitializeParams) -> LSP_Initialize
   
   result.serverInfo.name = copy_string(SERVER_VERSION);
   result.serverInfo.version = copy_string(SERVER_NAME);
+  if params.capabilities.textDocument.synchronization
+    alloc_any(LSP_TextDocumentSyncOptions.{
+      openClose = true,
+      change = .Incremental,
+      save = ifx params.capabilities.textDocument.synchronization.didSave
+        then alloc_any(LSP_SaveOptions.{ includeText = false })
+        else alloc_any(false)
+    });
   result.capabilities.declarationProvider = alloc_any(!!params.capabilities.textDocument.declaration);
   result.capabilities.definitionProvider = alloc_any(!!params.capabilities.textDocument.definition);
-  result.capabilities.textDocumentSync = alloc_any(LSP_TextDocumentSyncOptions.{
-    openClose = true,
-    change = .Incremental,
-    willSave = false,
-    willSaveUntilWait = false,
-    save = alloc_any(false),
-  });
-  result.capabilities.workspace.workspaceFolders = .{
-    supported = false,
-    changeNotifications = alloc_any(false),
-  };
   
   data.capabilities = copy_casted_json(params.capabilities);
   
@@ -41,18 +38,6 @@ lsp_initialize :: (data: *Data, params: *LSP_InitializeParams) -> LSP_Initialize
 lsp_initialized :: (data: *Data, params: *LSP_InitializedParams) {
   assert_running();
 }
-
-// lsp_client_registerCapability :: (data: *Data, result: _LSP_Client_RegisterCapability_Result) {
-//   assert_running();
-// }
-
-// lsp_client_registerCapability_error :: (data: *Data, code: JSON_RPC_Error_Code, message: string, error_data: _LSP_Client_RegisterCapability_Error) {
-//   assert_running();
-// }
-
-// lsp_client_unregisterCapability :: (data: *Data, params: *LSP_UnregistrationParams) {
-//   assert_running();
-// }
 
 lsp_setTrace :: (data: *Data, params: *LSP_SetTraceParams) {
   assert_running();
@@ -79,14 +64,6 @@ lsp_exit :: (data: *Data) {
   exit(1);
 }
 
-// lsp_cancel :: (data: *Data, params: LSP_CancelParams) {
-//   assert_running();
-// }
-
-// lsp_progress :: (data: *Data) {
-//   assert_running();
-// }
-
 lsp_textDocument_didOpen :: (data: *Data, params: *LSP_DidOpenTextDocumentParams) {
   assert_running();
   decode_uri(*params.textDocument.uri);
@@ -97,22 +74,12 @@ lsp_textDocument_didOpen :: (data: *Data, params: *LSP_DidOpenTextDocumentParams
 lsp_textDocument_didChange :: (data: *Data, params: *LSP_DidChangeTextDocumentParams) {
   assert_running();
   decode_uri(*params.textDocument.uri);
-  //TODO: Handle this
   // apply_document_changes(data, params.textDocument.uri, params.contentChanges);
-  launch_compiler(data, params.textDocument.uri);
-}
-
-lsp_textDocument_willSave :: (data: *Data, params: *LSP_WillSaveTextDocumentParams) {
-  assert_running();
-}
-
-lsp_textDocument_willSaveWaitUntil :: (data: *Data, params: *LSP_WillSaveDocumentWaitUntilParams) -> LSP_WillSaveDocumentWaitUntilResult {
-  assert_running();
-  return .{make_null_any()};
 }
 
 lsp_textDocument_didSave :: (data: *Data, params: *LSP_DidSaveTextDocumentParams) {
   assert_running();
+  launch_compiler(data, params.textDocument.uri);
 }
 
 lsp_textDocument_didClose :: (data: *Data, params: *LSP_DidCloseTextDocumentParams) {
