@@ -97,6 +97,23 @@ Result_Set :: struct {
   compiler_end_intercept(workspace);
   
   print_tables();
+  
+  header, success := lock_and_open_record_file(null, true);
+  assert(success);
+  file_close(*header.file);
+  file_delete("database/index");
+  header.file = file_open("database/index", true, false, true);
+  builder: String_Builder;
+  init_string_builder(*builder);
+  for result_sets {
+    print_to_builder(*builder, "file:///%,%:%-%:%;file:///%,%:%-%:%\n",
+      it_index.enclosing_load.fully_pathed_filename,
+      it_index.l0, it_index.c0, it_index.l1, it_index.c1,
+      it.declaration.enclosing_load.fully_pathed_filename,
+      it.declaration.l0, it.declaration.c0, it.declaration.l1, it.declaration.c1);
+  }
+  file_write(*header.file, builder_to_string(*builder));
+  close_and_unlock_record_file(*header);
 }
 
 #scope_file
@@ -448,6 +465,35 @@ parse_typechecked :: (message: Message_Typechecked) {
   for message.all
     parse_code_node(it.expression);
 }
+
+// write_declaration :: (from: Code_Node.Location, to: Code_Node.Location) {
+//   header, success := lock_and_open_record_file(null, true);
+//   if !success return;
+  
+//   from_document, found := find_or_add_document(*header, tprint("file:///%", from.fully_pathed_filename));
+//   if !found return;
+//   to_document, found= := find_or_add_document(*header, tprint("file:///%", to.fully_pathed_filename));
+//   if !found return;
+  
+//   from_range, found= := find_or_add_range(*header, from_document, .{.{from.l0, from.c0}, .{from.l1, from.c1}});
+//   if !found return;
+//   to_range, found= := find_or_add_range(*header, to_document, .{.{to.l0, to.c0}, .{to.l1, to.c1}});
+//   if !found return;
+  
+//   result_set, found= := find_or_add_result_set(*header, from_range);
+//   if !found return;
+  
+//   declaration, found= := find_or_add_declaration(*header, result_set);
+//   if !found return;
+  
+//   item, found= := find_or_add_item(*header, to_document, declaration);
+//   if !found return;
+  
+//   item_range, found= := find_or_add_item_range(*header, item, to_range);
+//   if !found return;
+  
+//   close_and_unlock_record_file(*header);
+// }
 
 #import "Basic";
 #import "Compiler";

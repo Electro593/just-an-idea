@@ -27,6 +27,10 @@ lsp_initialize :: (data: *Data, params: *LSP_InitializeParams) -> LSP_Initialize
     willSaveUntilWait = false,
     save = alloc_any(false),
   });
+  result.capabilities.workspace.workspaceFolders = .{
+    supported = false,
+    changeNotifications = alloc_any(false),
+  };
   
   data.capabilities = copy_casted_json(params.capabilities);
   
@@ -121,14 +125,50 @@ lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) ->
   header, success := lock_and_open_record_file(null, false);
   assert(success, "Could not open the index");
   
-  links, found := find_declaration_links(*header, params.textDocument.uri, params.position);
-  close_and_unlock_record_file(*header);
-  if !found return .{make_null_any()};
+  index := read_entire_file(header.file);
+  defer free(index);
+  lines := split(index, cast(u8) #char "\n");
+  for lines {
+    _, from, to := split_from_left(it, #char ";");
+    
+    _, from_file, from_loc := split_from_right(from, #char ",");
+    _, to_file, to_loc := split_from_right(to, #char ",");
+    if params.textDocument.uri != from_file continue;
+    
+    _, from_start, from_end := split_from_left(from_loc, #char "-");
+    _, to_start, to_end := split_from_left(to_loc, #char "-");
+    
+    _, from_l0, from_c0 := split_from_left(from_start, #char ":");
+    _, from_l1, from_c1 := split_from_left(from_end, #char ":");
+    _, to_l0, to_c0 := split_from_left(to_start, #char ":");
+    _, to_l1, to_c1 := split_from_left(to_end, #char ":");
+    
+    from_range := LSP_Range.{
+      .{xx string_to_int(from_l0), xx string_to_int(from_c0)},
+      .{xx string_to_int(from_l1), xx string_to_int(from_c1)}
+    };
+    
+    to_range := LSP_Range.{
+      .{xx string_to_int(to_l0), xx string_to_int(to_c0)},
+      .{xx string_to_int(to_l1), xx string_to_int(to_c1)}
+    };
+    
+    if params.position.line != from_range.start.line continue;
+    if params.position.character != from_range.start.character continue;
+    
+    close_and_unlock_record_file(*header);
+    return .{alloc_any(LSP_Location.{uri = copy_string(to_file), range = to_range})};
+  }
   
-  if data.capabilities.textDocument.declaration.linkSupport
-    return .{alloc_any(links)};
-  locations := location_links_to_locations(links);
-  return .{alloc_any(locations)};
+  // links, found := find_declaration_links(*header, params.textDocument.uri, params.position);
+  close_and_unlock_record_file(*header);
+  return .{make_null_any()};
+  // if !found return .{make_null_any()};
+  
+  // if data.capabilities.textDocument.declaration.linkSupport
+  //   return .{alloc_any(links)};
+  // locations := location_links_to_locations(links);
+  // return .{alloc_any(locations)};
 }
 
 lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> LSP_DefinitionResult {
@@ -204,10 +244,10 @@ launch_compiler :: (data: *Data, document: LSP_DocumentUri) {
   // Wait for, or kill, the compiler
   header, success := lock_and_open_record_file(*data.compiler, false);
   assert(success, "Could not open the index");
-  close_and_unlock_record_file(*header);
   
-  success = create_process(*data.compiler, "jai", document, "file", "--", "meta", "Parse", working_directory = SERVER_FOLDER);
-  assert(success, "Failed to launch compiler: 'jai % file -- meta Parse' in '${extensionDirectory}/%'", document, SERVER_FOLDER);
+  success = create_process(*data.compiler, "jai", document, "file", "--", "meta", "Parse");
+  close_and_unlock_record_file(*header);
+  assert(success, "Failed to launch compiler: 'jai % file -- import_dir server/src/modules meta Parse' in extension directory", document);
 }
 
 location_links_to_locations :: (links: [] LSP_LocationLink) -> [] LSP_Location {
