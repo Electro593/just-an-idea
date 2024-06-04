@@ -342,6 +342,7 @@ cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: s
   optional := array_find(notes, "?");
   if !value return null;
   
+  #if SHOULD_LOG log("Casting % with notes %: %", get_type_name(type,, temp), notes, Any.{type = type, value_pointer = value});
   if #complete type.type == {
     case .INTEGER;
       //TODO Serialize as integer instead of float

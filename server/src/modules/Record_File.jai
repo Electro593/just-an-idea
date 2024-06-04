@@ -106,6 +106,7 @@ lock_and_open_record_file :: (terminate: *Process, for_writing: bool) -> header:
   
   if terminate {
     kill_process(terminate);
+    deinit(terminate);
   }
   
   record_file_name := tprint("%/%", RECORD_FILE_FOLDER, RECORD_FILE_NAME);

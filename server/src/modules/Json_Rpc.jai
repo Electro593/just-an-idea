@@ -189,17 +189,17 @@ send_all_requests :: () {
   
   rpc_debug_log("Queueing requests to send");
   batch: JSON_RPC_Batch_Request = .{Any.{type_info(JSON_RPC_Requests), *state.requests_to_send}, 0};
-  // json := cast_json(batch,, temp);
-  // for * state.requests_to_send {
-  //   free_casted_json(it);
-  //   remove it;
-  // }
-  // message := print_json(json,, temp);
-  // rpc_debug_log("Sending requests:\n%", message);
+  json := cast_json(batch, log = rpc_debug_log,, temp);
+  for * state.requests_to_send {
+    free_casted_json(it);
+    remove it;
+  }
+  message := print_json(json,, temp);
+  rpc_debug_log("Sending requests:\n%", message);
   
-  // lock(*state.mutex);
-  // state.send_message(*state.data, message);
-  // unlock(*state.mutex);
+  lock(*state.mutex);
+  state.send_message(*state.data, message);
+  unlock(*state.mutex);
 }
 
 rpc_debug_log :: (format_string: string, args: ..Any, to_standard_error := false) -> bytes_printed: s64 {
@@ -719,7 +719,7 @@ assert_rpc :: (loc: Source_Code_Location, message: string) -> bool {
 }
 
 #import "Basic";
-#import "Cast_Json" (SHOULD_LOG = false);
+#import "Cast_Json" (SHOULD_LOG = true);
 #import "Hash_Table";
 #import "Json";
 #import "Thread";

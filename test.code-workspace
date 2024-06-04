@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../../../Programs/jai"
+		}
+	],
+	"settings": {
+		"typescript.tsc.autoDetect": "off"
+	}
+}

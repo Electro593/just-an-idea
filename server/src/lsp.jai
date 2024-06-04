@@ -138,8 +138,7 @@ lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) ->
       targetRange = to_range,
       targetSelectionRange = to_range
     };
-    add_request_to_batch("$/progress", LSP_ProgressParams([]LSP_LocationLink).{token = copy_casted_json(params.partialResultToken), value = links}, true);
-    return .{make_null_any()};
+    return .{alloc_any(links)};
   }
   
   // links, found := find_declaration_links(*header, params.textDocument.uri, params.position);
@@ -231,7 +230,7 @@ launch_compiler :: (data: *Data, document: LSP_DocumentUri) {
   header, success := lock_and_open_record_file(*data.compiler, false);
   assert(success, "Could not open the index");
   
-  success = create_process(*data.compiler, "jai", document, "file", "--", "import_dir", "server/src/modules", "meta", "Parse", capture_and_return_output = false);
+  success = create_process(*data.compiler, "jai", document, "file", "--", "import_dir", "server/src/modules", "meta", "Parse", capture_and_return_output = true);
   close_and_unlock_record_file(*header);
   assert(success, "Failed to launch compiler: 'jai % file -- import_dir server/src/modules meta Parse' in extension directory", document);
 }
