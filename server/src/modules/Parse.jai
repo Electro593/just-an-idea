@@ -33,7 +33,7 @@ Result_Set :: struct {
   
   initialize_record_file();
   
-	workspace := compiler_create_workspace("Target");
+	workspace := compiler_create_workspace("just-an-idea:parse");
 	
 	options := get_build_options(workspace);
 	options.output_type = .NO_OUTPUT;
@@ -52,7 +52,6 @@ Result_Set :: struct {
   
 	compiler_begin_intercept(workspace);
   
-  add_build_string("BUILDING_FOR_JUST_AN_IDEA :: true;", workspace);
   if file_type == "module" {
     builder: String_Builder;
     init_string_builder(*builder,, temp);

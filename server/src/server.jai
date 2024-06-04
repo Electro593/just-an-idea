@@ -5,7 +5,7 @@ SERVER_FOLDER :: "server/src";
 SERVER_VERSION :: "0.0.1";
 
 #run {
-  #if BUILDING_FOR_JUST_AN_IDEA return;
+  if get_name(get_current_workspace()) == "just-an-idea:parse" return;
   
   make_directory_if_it_does_not_exist("../out");
   delete_directory(tprint("../../%", LOG_FOLDER));
