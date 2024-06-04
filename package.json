@@ -28,6 +28,10 @@
         "aliases": [
           "Jai"
         ],
+        "icon": {
+          "light": "./icons/jai-light.png",
+          "dark": "./icons/jai-dark.png"
+        },
         "configuration": "./syntaxes/language-configuration.json"
       }
     ],
@@ -63,12 +67,6 @@
     "package": "vsce package"
   },
   "devDependencies": {
-    "@types/node": "^20.12.7",
-    "@types/vscode": "^1.88.0",
-    "@vscode/vsce": "^2.24.0",
-    "typescript": "^5.4.5"
-  },
-  "dependencies": {
-    "vscode-languageclient": "^9.0.1"
+    "@vscode/vsce": "^2.27.0"
   }
 }
