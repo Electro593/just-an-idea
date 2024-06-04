@@ -4,15 +4,17 @@ SERVER_NAME :: "Jai Language Server";
 SERVER_FOLDER :: "server/src";
 SERVER_VERSION :: "0.0.1";
 
+OUTPUT_FOLDER :: "../../out";
+
 #run {
   if get_name(get_current_workspace()) == "just-an-idea:parse" return;
   
-  make_directory_if_it_does_not_exist("../out");
+  make_directory_if_it_does_not_exist(OUTPUT_FOLDER);
   delete_directory(tprint("../../%", LOG_FOLDER));
   
   set_build_options_dc(.{
     output_executable_name = "server",
-    output_path = "../out"
+    output_path = OUTPUT_FOLDER
   });
 }
 

@@ -11,12 +11,12 @@
   },
   "license": "UNLICENSED",
   "engines": {
-    "vscode": "^1.81.0"
+    "vscode": "^1.89.0"
   },
   "categories": [
     "Programming Languages"
   ],
-  "main": "./client/out/extension.js",
+  "main": "./out/extension.js",
   "activationEvents": [],
   "contributes": {
     "languages": [
@@ -62,11 +62,29 @@
       }
     ]
   },
+  "files": [
+    "icons/**",
+    "syntaxes/**",
+    "server/src/modules/**",
+    "out/extension.js",
+    "out/server.exe",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md",
+    "package.json"
+  ],
   "scripts": {
-    "compile": "cd client && yarn run compile && cd ../server && jai src/server.jai && cd ..",
-    "package": "vsce package"
+    "esbuild": "esbuild ./client/src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --minify",
+    "compile": "yarn esbuild && jai server/src/server.jai",
+    "package": "yarn compile && vsce package"
   },
   "devDependencies": {
-    "@vscode/vsce": "^2.27.0"
+    "@types/node": "^20.14.1",
+    "@types/vscode": "^1.89.0",
+    "@vscode/vsce": "^2.24.0",
+    "esbuild": "^0.21.4"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
   }
 }

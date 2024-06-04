@@ -12,7 +12,7 @@ let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
   const serverProcess = context.asAbsolutePath(
-    path.join('server', 'out', 'server.exe')
+    path.join('out', 'server.exe')
   );
   
   let serverOptions: ServerOptions = {
