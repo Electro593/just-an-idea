@@ -18,13 +18,19 @@ Result_Set :: struct {
   
   assert(meta_options.compile_time_command_line.count >= 2, "Expected 'jai target file|module ..args -- meta Parse' but the args were %", meta_options.compile_time_command_line);
   
-	full_file_path := get_absolute_path(meta_options.compile_time_command_line[0]);
   file_type := meta_options.compile_time_command_line[1];
   assert(file_type == "file" || file_type == "module", "Invalid file type %; should be 'file' or 'module'", file_type);
+  
+  file_uri := meta_options.compile_time_command_line[0];
+  found, file_domain, file_path := split_from_left(file_uri, ":///");
+  if !found file_domain, file_path = "", file_uri;
+	full_file_path := get_absolute_path(file_path);
   _, file_directory, file_name := split_from_right_by_any(full_file_path, "/\\");
-  found, file_module_name, file_extension := split_from_right(file_name, #char ".");
+  found=, file_module_name, file_extension := split_from_right(file_name, #char ".");
   if !found file_module_name, file_extension = file_name, ".jai";
 	
+  print("We're starting!\n");
+  
   initialize_record_file();
   
 	workspace := compiler_create_workspace("Target");
@@ -67,6 +73,8 @@ Result_Set :: struct {
 		message := compiler_wait_for_message();
 		if message.workspace != workspace continue;
     
+    print("Working...\n");
+    
 		if message.kind == {
       case .ERROR;
         //TODO: Ignore the error
@@ -108,9 +116,9 @@ Result_Set :: struct {
   for result_sets {
     print_to_builder(*builder, "file:///%,%:%-%:%;file:///%,%:%-%:%\n",
       it_index.enclosing_load.fully_pathed_filename,
-      it_index.l0, it_index.c0, it_index.l1, it_index.c1,
+      it_index.l0 - 1, it_index.c0 - 1, it_index.l1 - 1, it_index.c1 - 1,
       it.declaration.enclosing_load.fully_pathed_filename,
-      it.declaration.l0, it.declaration.c0, it.declaration.l1, it.declaration.c1);
+      it.declaration.l0 - 1, it.declaration.c0 - 1, it.declaration.l1 - 1, it.declaration.c1 - 1);
   }
   file_write(*header.file, builder_to_string(*builder));
   close_and_unlock_record_file(*header);

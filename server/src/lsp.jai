@@ -19,7 +19,7 @@ lsp_initialize :: (data: *Data, params: *LSP_InitializeParams) -> LSP_Initialize
   result.serverInfo.name = copy_string(SERVER_VERSION);
   result.serverInfo.version = copy_string(SERVER_NAME);
   if params.capabilities.textDocument.synchronization
-    alloc_any(LSP_TextDocumentSyncOptions.{
+    result.capabilities.textDocumentSync = alloc_any(LSP_TextDocumentSyncOptions.{
       openClose = true,
       change = .Incremental,
       save = ifx params.capabilities.textDocument.synchronization.didSave
@@ -79,6 +79,7 @@ lsp_textDocument_didChange :: (data: *Data, params: *LSP_DidChangeTextDocumentPa
 
 lsp_textDocument_didSave :: (data: *Data, params: *LSP_DidSaveTextDocumentParams) {
   assert_running();
+  decode_uri(*params.textDocument.uri);
   launch_compiler(data, params.textDocument.uri);
 }
 
@@ -88,9 +89,12 @@ lsp_textDocument_didClose :: (data: *Data, params: *LSP_DidCloseTextDocumentPara
 
 lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) -> LSP_DeclarationResult {
   assert_running();
+  decode_uri(*params.textDocument.uri);
   
   header, success := lock_and_open_record_file(null, false);
   assert(success, "Could not open the index");
+  
+  rpc_debug_log("Looking for %,%:%", params.textDocument.uri, params.position.line, params.position.character);
   
   index := read_entire_file(header.file);
   defer free(index);
@@ -120,11 +124,20 @@ lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) ->
       .{xx string_to_int(to_l1), xx string_to_int(to_c1)}
     };
     
-    if params.position.line != from_range.start.line continue;
-    if params.position.character != from_range.start.character continue;
+    if params.position.line < from_range.start.line continue;
+    if params.position.line > from_range.end.line continue;
+    if params.position.character < from_range.start.character continue;
+    if params.position.character >= from_range.end.character continue;
     
     close_and_unlock_record_file(*header);
-    return .{alloc_any(LSP_Location.{uri = copy_string(to_file), range = to_range})};
+    links: [] LSP_LocationLink = .{1, alloc(size_of(LSP_LocationLink))};
+    links[0] = .{
+      originSelectionRange = from_range,
+      targetUri = copy_string(to_file),
+      targetRange = to_range,
+      targetSelectionRange = to_range
+    };
+    return .{alloc_any(links)};
   }
   
   // links, found := find_declaration_links(*header, params.textDocument.uri, params.position);
@@ -152,6 +165,10 @@ lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> L
     return .{alloc_any(links)};
   locations := location_links_to_locations(links);
   return .{alloc_any(locations)};
+}
+
+lsp_workspace_didChangeWatchedFiles :: (data: *Data, params: *LSP_DidChangeWatchedFilesParams) {
+  assert_running();
 }
 
 #scope_file
@@ -212,7 +229,7 @@ launch_compiler :: (data: *Data, document: LSP_DocumentUri) {
   header, success := lock_and_open_record_file(*data.compiler, false);
   assert(success, "Could not open the index");
   
-  success = create_process(*data.compiler, "jai", document, "file", "--", "meta", "Parse");
+  success = create_process(*data.compiler, "jai", document, "file", "--", "import_dir", "server/src/modules", "meta", "Parse", capture_and_return_output = false);
   close_and_unlock_record_file(*header);
   assert(success, "Failed to launch compiler: 'jai % file -- import_dir server/src/modules meta Parse' in extension directory", document);
 }
