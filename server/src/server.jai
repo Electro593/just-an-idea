@@ -5,6 +5,8 @@ SERVER_FOLDER :: "server/src";
 SERVER_VERSION :: "0.0.1";
 
 #run {
+  #if BUILDING_FOR_JUST_AN_IDEA return;
+  
   make_directory_if_it_does_not_exist("../out");
   delete_directory(tprint("../../%", LOG_FOLDER));
   

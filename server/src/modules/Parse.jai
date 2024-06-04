@@ -52,6 +52,7 @@ Result_Set :: struct {
   
 	compiler_begin_intercept(workspace);
   
+  add_build_string("BUILDING_FOR_JUST_AN_IDEA :: true;", workspace);
   if file_type == "module" {
     builder: String_Builder;
     init_string_builder(*builder,, temp);

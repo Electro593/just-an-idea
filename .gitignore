@@ -9,3 +9,4 @@ database/
 *.vsix
 *.out
 *.vsix
+*.log
