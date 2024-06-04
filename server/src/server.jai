@@ -40,7 +40,12 @@ main :: () {
   data: Data;
   
   make_directory_if_it_does_not_exist(LOG_FOLDER);
-  data.buffer_filename = sprint("%/%.log", LOG_FOLDER, current_time_monotonic().low);
+  loglog := file_open(tprint("%/log.log", LOG_FOLDER), true, true);
+  loglog_data := read_entire_file(loglog);
+  lines := split(loglog_data, "\n");
+  file_write(*loglog, tprint("(%): %.log\n", current_time_monotonic().low, lines.count - 1));
+  file_close(*loglog);
+  data.buffer_filename = sprint("%/%.log", LOG_FOLDER, lines.count - 1);
   
   initialize_record_file();
   

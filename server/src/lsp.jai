@@ -130,6 +130,7 @@ lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) ->
     if params.position.character >= from_range.end.character continue;
     
     close_and_unlock_record_file(*header);
+    
     links: [] LSP_LocationLink = .{1, alloc(size_of(LSP_LocationLink))};
     links[0] = .{
       originSelectionRange = from_range,
@@ -137,7 +138,8 @@ lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) ->
       targetRange = to_range,
       targetSelectionRange = to_range
     };
-    return .{alloc_any(links)};
+    add_request_to_batch("$/progress", LSP_ProgressParams([]LSP_LocationLink).{token = copy_casted_json(params.partialResultToken), value = links}, true);
+    return .{make_null_any()};
   }
   
   // links, found := find_declaration_links(*header, params.textDocument.uri, params.position);
