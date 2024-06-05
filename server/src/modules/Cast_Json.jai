@@ -145,6 +145,11 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
           print_to_builder(*builder, "  }\n");
         } else {
           for t.members {
+            name := it.name;
+            for notes {
+              found, left, right := split_from_left(it, "$Name$");
+              if found && !left then name = right;
+            }
             if it.flags & .CONSTANT continue;
             if array_find(it.notes, "$Ignore") continue; // Ignore it here to not trigger the assert after the '_' case
             if it.flags & .USING || it.name == "_" {
@@ -152,7 +157,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
             } else {
               print_to_builder(*builder, "  assert_cast_json(json.kind == .OBJECT || json.kind == .ARRAY, \"Expected an array or object because '%' is a struct, but got %%\", print_json(json,, temp));\n", type_name);
               print_to_builder(*builder, "  if json.kind == .OBJECT {\n");
-              print_to_builder(*builder, "    success = cast_json(get_element(as_object(json), \"%\"), *value.%, .%, .%, should_assert, log, scope);\n", it.name, it.name, it.notes, blacklist);
+              print_to_builder(*builder, "    success = cast_json(get_element(as_object(json), \"%\"), *value.%, .%, .%, should_assert, log, scope);\n", name, it.name, it.notes, blacklist);
               print_to_builder(*builder, "  } else {\n");
               print_to_builder(*builder, "    success = cast_json(get_element(as_array(json), %), *value.%, .%, .%, should_assert, log, scope);\n", it_index, it.name, it.notes, blacklist);
               print_to_builder(*builder, "  }\n");
@@ -453,6 +458,11 @@ cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: s
         for t.members {
           member_data := data + it.offset_in_bytes;
           notes := it.notes;
+          name := it.name;
+          for notes {
+            found, left, right := split_from_left(it, "$Name$");
+            if found && !left then name = right;
+          }
           if optional && !array_find(notes, "?") {
             notes = .{it.notes.count + 1, alloc((it.notes.count + 1) * size_of(string))};
             memcpy(notes.data, it.notes.data, it.notes.count * size_of(string));
@@ -461,14 +471,14 @@ cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: s
           member := cast_json(member_data, it.type, notes, log);
           if notes.count != it.notes.count
             array_free(notes);
-          if ((it.flags & .USING) || it.name == "_") && member.kind == .OBJECT {
+          if ((it.flags & .USING) || it.name == "_") && member && member.kind == .OBJECT {
             for as_object(member).value
               set_element(object, copy_string(it_index), it);
           } else if it.name == "_" {
             free_json(object);
             return member;
           } else {
-            set_element(object, copy_string(it.name), member);
+            set_element(object, copy_string(name), member);
           }
         }
         if optional && object.value.count == 0 {
@@ -899,6 +909,8 @@ json_log :: (format: string, args: ..Any) -> s64 #expand {
   else return 0;
 }
 
-#import "Json";
 #import "Basic";
 #import "Hash_Table";
+#import "String";
+
+#import "Json";

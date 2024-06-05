@@ -18,10 +18,16 @@ export function activate(context: ExtensionContext) {
   let serverOptions: ServerOptions = {
     run: {
       command: serverProcess,
+      options: {
+        cwd: context.extensionPath
+      },
       transport: TransportKind.stdio
     },
     debug: {
       command: serverProcess,
+      options: {
+        cwd: context.extensionPath
+      },
       transport: TransportKind.stdio
     }
   };
