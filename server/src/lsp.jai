@@ -94,56 +94,54 @@ lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) ->
   header, success := lock_and_open_record_file(null, false);
   assert(success, "Could not open the index");
   
-  rpc_debug_log("Looking for %,%:%", params.textDocument.uri, params.position.line, params.position.character);
-  
-  index := read_entire_file(header.file);
-  defer free(index);
-  lines := split(index, cast(u8) #char "\n");
+  declarations := read_entire_file("database/declarations");
+  defer free(declarations);
+  lines := split(declarations, cast(u8) #char "\n");
+  links: [..] LSP_LocationLink;
   for lines {
-    _, from, to := split_from_left(it, #char ";");
+    _, ref, decl := split_from_left(it, #char ";");
     
-    _, from_file, from_loc := split_from_right(from, #char ",");
-    _, to_file, to_loc := split_from_right(to, #char ",");
-    if params.textDocument.uri != from_file continue;
+    _, ref_file, ref_loc := split_from_right(ref, #char ",");
+    _, decl_file, decl_loc := split_from_right(decl, #char ",");
+    if params.textDocument.uri != ref_file continue;
     
-    _, from_start, from_end := split_from_left(from_loc, #char "-");
-    _, to_start, to_end := split_from_left(to_loc, #char "-");
+    _, ref_start, ref_end := split_from_left(ref_loc, #char "-");
+    _, decl_start, decl_end := split_from_left(decl_loc, #char "-");
     
-    _, from_l0, from_c0 := split_from_left(from_start, #char ":");
-    _, from_l1, from_c1 := split_from_left(from_end, #char ":");
-    _, to_l0, to_c0 := split_from_left(to_start, #char ":");
-    _, to_l1, to_c1 := split_from_left(to_end, #char ":");
+    _, ref_l0, ref_c0 := split_from_left(ref_start, #char ":");
+    _, ref_l1, ref_c1 := split_from_left(ref_end, #char ":");
+    _, decl_l0, decl_c0 := split_from_left(decl_start, #char ":");
+    _, decl_l1, decl_c1 := split_from_left(decl_end, #char ":");
     
-    from_range := LSP_Range.{
-      .{xx string_to_int(from_l0), xx string_to_int(from_c0)},
-      .{xx string_to_int(from_l1), xx string_to_int(from_c1)}
+    ref_range := LSP_Range.{
+      .{xx string_to_int(ref_l0), xx string_to_int(ref_c0)},
+      .{xx string_to_int(ref_l1), xx string_to_int(ref_c1)}
     };
     
-    to_range := LSP_Range.{
-      .{xx string_to_int(to_l0), xx string_to_int(to_c0)},
-      .{xx string_to_int(to_l1), xx string_to_int(to_c1)}
+    decl_range := LSP_Range.{
+      .{xx string_to_int(decl_l0), xx string_to_int(decl_c0)},
+      .{xx string_to_int(decl_l1), xx string_to_int(decl_c1)}
     };
     
-    if params.position.line < from_range.start.line continue;
-    if params.position.line > from_range.end.line continue;
-    if params.position.character < from_range.start.character continue;
-    if params.position.character >= from_range.end.character continue;
+    if params.position.line < ref_range.start.line continue;
+    if params.position.line > ref_range.end.line continue;
+    if params.position.character < ref_range.start.character continue;
+    if params.position.character >= ref_range.end.character continue;
     
-    close_and_unlock_record_file(*header);
-    
-    links: [] LSP_LocationLink = .{1, alloc(size_of(LSP_LocationLink))};
-    links[0] = .{
-      originSelectionRange = from_range,
-      targetUri = copy_string(to_file),
-      targetRange = to_range,
-      targetSelectionRange = to_range
-    };
-    return .{alloc_any(links)};
+    array_add(*links, .{
+      originSelectionRange = ref_range,
+      targetUri = copy_string(decl_file),
+      targetRange = decl_range,
+      targetSelectionRange = decl_range
+    });
   }
   
-  // links, found := find_declaration_links(*header, params.textDocument.uri, params.position);
   close_and_unlock_record_file(*header);
-  return .{make_null_any()};
+  return .{alloc_any(links)};
+  
+  // links, found := find_declaration_links(*header, params.textDocument.uri, params.position);
+  // close_and_unlock_record_file(*header);
+  // return .{make_null_any()};
   // if !found return .{make_null_any()};
   
   // if data.capabilities.textDocument.declaration.linkSupport

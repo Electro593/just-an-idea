@@ -56,6 +56,7 @@ Record_File_Range :: struct {
 }
 
 Record_File_Result_set :: struct {
+  next_index: u64;
   declaration_index: u64;
   definition_index: u64;
 }
@@ -119,34 +120,34 @@ lock_and_open_record_file :: (terminate: *Process, for_writing: bool) -> header:
   header: Record_File;
   success=, bytes_read := file_read(file, *header, size_of(Record_File));
   
-  // if !success || bytes_read != size_of(Record_File) {
-  //   file_close(*file);
-  //   file, success = file_open(record_file_name, true);
-  //   if !success {
-  //     file_close(*lockfile);
-  //     return .{}, false;
-  //   }
+  if !success || bytes_read != size_of(Record_File) {
+    file_close(*file);
+    file, success = file_open(record_file_name, true);
+    if !success {
+      file_close(*lockfile);
+      return .{}, false;
+    }
     
-  //   value := 0;
-  //   header = .{};
-  //   header.block_size_exponent = 12; // 4096-byte (page-sized) blocks
-  //   header.block_count = 1;
-  //   header.file_size = header.block_count << header.block_size_exponent;
-  //   if !file_write(*file, *header, size_of(Record_File))
-  //     || !file_seek(file, xx header.file_size - 1, .START)
-  //     || !file_write(*file, *value, 1) {
-  //     file_close(*file);
-  //     file_close(*lockfile);
-  //     return .{}, false;
-  //   }
+    value := 0;
+    header = .{};
+    header.block_size_exponent = 12; // 4096-byte (page-sized) blocks
+    header.block_count = 1;
+    header.file_size = header.block_count << header.block_size_exponent;
+    if !file_write(*file, *header, size_of(Record_File))
+      || !file_seek(file, xx header.file_size - 1, .START)
+      || !file_write(*file, *value, 1) {
+      file_close(*file);
+      file_close(*lockfile);
+      return .{}, false;
+    }
     
-  //   file_close(*file);
-  //   file, success = file_open(record_file_name, for_writing, true);
-  //   if !success {
-  //     file_close(*lockfile);
-  //     return .{}, false;
-  //   }
-  // }
+    file_close(*file);
+    file, success = file_open(record_file_name, for_writing, true);
+    if !success {
+      file_close(*lockfile);
+      return .{}, false;
+    }
+  }
   
   header.hash_table.allocator = context.allocator;
   header.hash_table.entries = .[];
@@ -301,4 +302,5 @@ find_definition_links :: (using header: *Record_File, uri: LSP_DocumentUri, posi
 #import "Hash_Table";
 #import "Process";
 
+#import "Binary_Search";
 #import "Lsp_Types";
