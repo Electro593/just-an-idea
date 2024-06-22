@@ -1553,6 +1553,7 @@ LSP_SemanticTokensLegend :: struct {
   tokenModifiers: [] LSP_SemanticTokenModifier;
 }
 
+//TODO: Give a better error if a type is undefined
 _LSP_SemanticTokens_Range :: struct { }
 _LSP_SemanticTokens_Full :: struct {
   delta: bool; @?
@@ -1560,11 +1561,11 @@ _LSP_SemanticTokens_Full :: struct {
 LSP_SemanticTokensClientCapabilities :: struct {
   dynamicRegistration: bool; @?
   requests: struct {
-    range: Any; @bool @_LSP_SemanticTokens_RequestsRange @?
-    full: Any; @bool @_LSP_SemanticTokens_RequestsFull @?
+    range: Any; @bool @_LSP_SemanticTokens_Range @?
+    full: Any; @bool @_LSP_SemanticTokens_Full @?
   };
   tokenTypes: [] LSP_SemanticTokenType;
-  tokenModifiers: [] LSP_SemanticTokenModifiers;
+  tokenModifiers: [] LSP_SemanticTokenModifier;
   formats: [] LSP_TokenFormat;
   overlappingTokenSupport: bool; @?
   multilinetTokenSupport: bool; @?
@@ -1581,8 +1582,8 @@ LSP_SemanticTokensOptions :: struct {
 
 LSP_SemanticTokensRegistrationOptions :: struct {
   #as using _0: LSP_TextDocumentRegistrationOptions;
-  #as using _1: LSP_SemanticTokenOptions;
-  #as using _2: lSP_StaticRegistrationOptions;
+  #as using _1: LSP_SemanticTokensOptions;
+  #as using _2: LSP_StaticRegistrationOptions;
 }
 
 // Semantic Tokens Full
@@ -1630,11 +1631,11 @@ LSP_SemanticTokensDeltaParams :: struct {
   previousResultId: string;
 }
 
-LSP_SemanticTokensResult :: struct {
+LSP_SemanticTokensDeltaResult :: struct {
   _: Any; @LSP_SemanticTokens @LSP_SemanticTokensDelta @$Null
 }
 
-LSP_SemanticTokensPartialResult :: struct {
+LSP_SemanticTokensDeltaPartialResult :: struct {
   edits: [] LSP_SemanticTokensEdit;
 }
 
