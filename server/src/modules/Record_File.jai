@@ -295,6 +295,64 @@ find_definition_links :: (using header: *Record_File, uri: LSP_DocumentUri, posi
   return links, success;
 }
 
+parse_location_pairs :: (file: string) -> [] [2] LSP_Location {
+  #import "String";
+
+  header, success := lock_and_open_record_file(null, false);
+  assert(success, "Could not open the index");
+  
+  text := read_entire_file(file);
+  defer free(text);
+  lines := split(text, cast(u8) #char "\n");
+  locs: [..] [2] LSP_Location;
+  for lines {
+    _, left, right := split_from_left(it, #char ";");
+    
+    _, left_file, left_loc := split_from_right(left, #char ",");
+    _, right_file, right_loc := split_from_right(right, #char ",");
+    
+    _, left_start, left_end := split_from_left(left_loc, #char "-");
+    _, right_start, right_end := split_from_left(right_loc, #char "-");
+    
+    _, left_l0, left_c0 := split_from_left(left_start, #char ":");
+    _, left_l1, left_c1 := split_from_left(left_end, #char ":");
+    _, right_l0, right_c0 := split_from_left(right_start, #char ":");
+    _, right_l1, right_c1 := split_from_left(right_end, #char ":");
+    
+    array_add(*locs, .[
+      .{
+        uri = left_file,
+        range = .{
+          start = .{
+            line = xx string_to_int(left_l0),
+            character = xx string_to_int(left_c0)
+          },
+          end = .{
+            line = xx string_to_int(left_l1),
+            character = xx string_to_int(left_c1)
+          }
+        }
+      },
+      .{
+        uri = right_file,
+        range = .{
+          start = .{
+            line = xx string_to_int(right_l0),
+            character = xx string_to_int(right_c0)
+          },
+          end = .{
+            line = xx string_to_int(right_l1),
+            character = xx string_to_int(right_c1)
+          }
+        }
+      }
+    ]);
+  }
+  
+  close_and_unlock_record_file(*header);
+  return locs;
+}
+
 #scope_module
 
 #import "Basic";

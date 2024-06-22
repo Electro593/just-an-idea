@@ -16,7 +16,7 @@ Result_Set :: struct {
 	});
 	meta_options := get_build_options();
   
-  assert(meta_options.compile_time_command_line.count >= 2, "Expected 'jai target file|module ..args -- meta Parse' but the args were %", meta_options.compile_time_command_line);
+  assert(meta_options.compile_time_command_line.count >= 2, "Expected 'jai target file|module ..args -- import_dir server/src/modules meta Parse' but the args were %", meta_options.compile_time_command_line);
   
   file_type := meta_options.compile_time_command_line[1];
   assert(file_type == "file" || file_type == "module", "Invalid file type %; should be 'file' or 'module'", file_type);
@@ -112,12 +112,20 @@ Result_Set :: struct {
   declarations_builder: String_Builder;
   init_string_builder(*declarations_builder);
   for result_sets {
-    if it.declaration
+    if !it_index.enclosing_load continue;
+    if it.declaration && it.declaration.enclosing_load && it.declaration.l0 > 0 {
       print_to_builder(*declarations_builder, "file:///%,%:%-%:%;file:///%,%:%-%:%\n",
         it_index.enclosing_load.fully_pathed_filename,
-        it_index.l0 - 1, it_index.c0 - 1, it_index.l1 - 1, it_index.c1 - 1,
+        it_index.l0 - 1,
+        it_index.c0 - 1,
+        it_index.l1 - 1,
+        it_index.c1 - 1,
         it.declaration.enclosing_load.fully_pathed_filename,
-        it.declaration.l0 - 1, it.declaration.c0 - 1, it.declaration.l1 - 1, it.declaration.c1 - 1);
+        it.declaration.l0 - 1,
+        it.declaration.c0 - 1,
+        ifx it.declaration.l1 < 0 then it.declaration.l0 - 1 else it.declaration.l1 - 1,
+        ifx it.declaration.c1 < 0 then it.declaration.c0 else it.declaration.c1 - 1);
+    }
   }
   file_write(*declarations_file, builder_to_string(*declarations_builder));
   close_and_unlock_record_file(*header);
@@ -215,6 +223,7 @@ parse_typechecked :: (message: Message_Typechecked) {
       case .IDENT;
         using node: *Code_Ident = xx code;
         parse_code_node(resolved_declaration);
+        if resolved_declaration add_declaration(node, resolved_declaration);
       
       case .UNARY_OPERATOR;
         using node: *Code_Unary_Operator = xx code;
@@ -353,8 +362,8 @@ parse_typechecked :: (message: Message_Typechecked) {
         parse_code_node(expression);
         parse_code_node(alignment_expression);
         for notes parse_code_node(it);
-        // table_set(*result_sets, node, .{id = result_sets.count, declaration = node});
-        write_declaration(node, node);
+        // add_declaration(node, node);
+        // write_declaration(node, node);
       
       case .CAST;
         using node: *Code_Cast = xx code;
@@ -472,26 +481,30 @@ parse_typechecked :: (message: Message_Typechecked) {
     parse_code_node(it.expression);
 }
 
-write_declaration :: (ref: *Code_Node, decl: *Code_Node) {
-  header, success := lock_and_open_record_file(null, true);
-  if !success return;
-  
-  ref_document := find_or_add_document(*header, tprint("file:///%", ref.fully_pathed_filename));
-  decl_document := find_or_add_document(*header, tprint("file:///%", decl.fully_pathed_filename));
-  
-  ref_range := find_or_add_range(*header, ref_document, .{.{ref.l0, ref.c0}, .{ref.l1, ref.c1}});
-  decl_range := find_or_add_range(*header, decl_document, .{.{decl.l0, decl.c0}, .{decl.l1, decl.c1}});
-  
-  ref_result_set := find_or_add_result_set(*header, ref_range);
-  decl_result_set := find_or_add_result_set(*header, decl_range);
-  link_result_sets(*header, ref_result_set, decl_result_set);
-  
-  declaration := find_or_add_declaration(*header, decl_result_set);
-  item := find_or_add_item(*header, decl_document, declaration);
-  item_range := find_or_add_item_range(*header, item, decl_range);
-  
-  close_and_unlock_record_file(*header);
+add_declaration :: inline (ref: *Code_Node, decl: *Code_Declaration) {
+  table_set(*result_sets, ref, .{id = result_sets.count, declaration = decl});
 }
+
+// write_declaration :: (ref: *Code_Node, decl: *Code_Node) {
+//   header, success := lock_and_open_record_file(null, true);
+//   if !success return;
+  
+//   ref_document := find_or_add_document(*header, tprint("file:///%", ref.fully_pathed_filename));
+//   decl_document := find_or_add_document(*header, tprint("file:///%", decl.fully_pathed_filename));
+  
+//   ref_range := find_or_add_range(*header, ref_document, .{.{ref.l0, ref.c0}, .{ref.l1, ref.c1}});
+//   decl_range := find_or_add_range(*header, decl_document, .{.{decl.l0, decl.c0}, .{decl.l1, decl.c1}});
+  
+//   ref_result_set := find_or_add_result_set(*header, ref_range);
+//   decl_result_set := find_or_add_result_set(*header, decl_range);
+//   link_result_sets(*header, ref_result_set, decl_result_set);
+  
+//   declaration := find_or_add_declaration(*header, decl_result_set);
+//   item := find_or_add_item(*header, decl_document, declaration);
+//   item_range := find_or_add_item_range(*header, item, decl_range);
+  
+//   close_and_unlock_record_file(*header);
+// }
 
 #import "Basic";
 #import "Compiler";

@@ -91,52 +91,29 @@ lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) ->
   assert_running();
   decode_uri(*params.textDocument.uri);
   
-  header, success := lock_and_open_record_file(null, false);
-  assert(success, "Could not open the index");
+  locs := parse_location_pairs("database/declarations");
+  defer array_free(locs);
   
-  declarations := read_entire_file("database/declarations");
-  defer free(declarations);
-  lines := split(declarations, cast(u8) #char "\n");
+  rpc_debug_log("Locs: %", locs);
+  
   links: [..] LSP_LocationLink;
-  for lines {
-    _, ref, decl := split_from_left(it, #char ";");
+  for locs {
+    left, right := it[0], it[1];
     
-    _, ref_file, ref_loc := split_from_right(ref, #char ",");
-    _, decl_file, decl_loc := split_from_right(decl, #char ",");
-    if params.textDocument.uri != ref_file continue;
-    
-    _, ref_start, ref_end := split_from_left(ref_loc, #char "-");
-    _, decl_start, decl_end := split_from_left(decl_loc, #char "-");
-    
-    _, ref_l0, ref_c0 := split_from_left(ref_start, #char ":");
-    _, ref_l1, ref_c1 := split_from_left(ref_end, #char ":");
-    _, decl_l0, decl_c0 := split_from_left(decl_start, #char ":");
-    _, decl_l1, decl_c1 := split_from_left(decl_end, #char ":");
-    
-    ref_range := LSP_Range.{
-      .{xx string_to_int(ref_l0), xx string_to_int(ref_c0)},
-      .{xx string_to_int(ref_l1), xx string_to_int(ref_c1)}
-    };
-    
-    decl_range := LSP_Range.{
-      .{xx string_to_int(decl_l0), xx string_to_int(decl_c0)},
-      .{xx string_to_int(decl_l1), xx string_to_int(decl_c1)}
-    };
-    
-    if params.position.line < ref_range.start.line continue;
-    if params.position.line > ref_range.end.line continue;
-    if params.position.character < ref_range.start.character continue;
-    if params.position.character >= ref_range.end.character continue;
+    if params.textDocument.uri != left.uri continue;
+    if params.position.line < left.range.start.line continue;
+    if params.position.line > left.range.end.line continue;
+    if params.position.character < left.range.start.character continue;
+    if params.position.character >= left.range.end.character continue;
     
     array_add(*links, .{
-      originSelectionRange = ref_range,
-      targetUri = copy_string(decl_file),
-      targetRange = decl_range,
-      targetSelectionRange = decl_range
+      originSelectionRange = left.range,
+      targetUri = copy_string(right.uri),
+      targetRange = right.range,
+      targetSelectionRange = right.range
     });
   }
   
-  close_and_unlock_record_file(*header);
   return .{alloc_any(links)};
   
   // links, found := find_declaration_links(*header, params.textDocument.uri, params.position);
@@ -153,17 +130,19 @@ lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) ->
 lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> LSP_DefinitionResult {
   assert_running();
   
-  header, success := lock_and_open_record_file(null, false);
-  assert(success, "Could not open the index");
+  // header, success := lock_and_open_record_file(null, false);
+  // assert(success, "Could not open the index");
   
-  links, found := find_definition_links(*header, params.textDocument.uri, params.position);
-  close_and_unlock_record_file(*header);
-  if !found return .{make_null_any()};
+  // links, found := find_definition_links(*header, params.textDocument.uri, params.position);
+  // close_and_unlock_record_file(*header);
+  // if !found return .{make_null_any()};
   
-  if data.capabilities.textDocument.definition.linkSupport
-    return .{alloc_any(links)};
-  locations := location_links_to_locations(links);
-  return .{alloc_any(locations)};
+  // if data.capabilities.textDocument.definition.linkSupport
+  //   return .{alloc_any(links)};
+  // locations := location_links_to_locations(links);
+  // return .{alloc_any(locations)};
+  
+  return .{make_null_any()};
 }
 
 lsp_workspace_didChangeWatchedFiles :: (data: *Data, params: *LSP_DidChangeWatchedFilesParams) {
