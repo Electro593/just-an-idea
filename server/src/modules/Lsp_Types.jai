@@ -379,11 +379,11 @@ LSP_TextDocumentClientCapabilities :: struct {
   selectionRange:     *LSP_SelectionRangeClientCapabilities;           @?
   linkedEditingRange: *LSP_LinkedEditingRangeClientCapabilities;       @?
   callHierarchy:      *LSP_CallHierarchyClientCapabilities;            @?
-  // semanticTokens:     *LSP_SemanticTokensClientCapabilities;           @?
-  // moniker:            *LSP_MonikerClientCapabilities;                  @?
+  semanticTokens:     *LSP_SemanticTokensClientCapabilities;           @?
+  moniker:            *LSP_MonikerClientCapabilities;                  @?
   typeHierarchy:      *LSP_TypeHierarchyClientCapabilities;            @?
-  // inlineValue:        *LSP_InlineValueClientCapabilities;              @?
-  // inlayHint:          *LSP_InlayHintClientCapabilities;                @?
+  inlineValue:        *LSP_InlineValueClientCapabilities;              @?
+  inlayHint:          *LSP_InlayHintClientCapabilities;                @?
   diagnostic:         *LSP_DiagnosticClientCapabilities;               @?
 }
 
@@ -401,7 +401,7 @@ LSP_ClientCapabilities :: struct {
     executeCommand: LSP_ExecuteCommandClientCapabilities; @?
     workspaceFolders: bool; @?
     configuration: bool; @?
-    // semanticTokens: LSP_SemanticTokensWorkspaceClientCapabilities; @?
+    semanticTokens: LSP_SemanticTokensWorkspaceClientCapabilities; @?
     codeLens: LSP_CodeLensWorkspaceClientCapabilities; @?
     fileOperations: struct {
       dynamicRegistration: bool; @?
@@ -412,8 +412,8 @@ LSP_ClientCapabilities :: struct {
       didDelete: bool; @?
       willDelete: bool; @?
     }; @?
-    // inlineValue: LSP_InlineValueWorkspaceClientCapabilities; @?
-    // inlayHint: LSP_InlayHintWorkspaceClientCapabilities; @?
+    inlineValue: LSP_InlineValueWorkspaceClientCapabilities; @?
+    inlayHint: LSP_InlayHintWorkspaceClientCapabilities; @?
     diagnostics: LSP_DiagnosticWorkspaceClientCapabilities; @?
   }; @?
   textDocument: LSP_TextDocumentClientCapabilities; @?
@@ -455,18 +455,18 @@ LSP_ServerCapabilities :: struct {
   colorProvider:                    Any; @? @bool @LSP_DocumentColorOptions           @LSP_DocumentColorRegistrationOptions
   documentFormattingProvider:       Any; @? @bool @LSP_DocumentFormattingOptions
   documentRangeFormattingProvider:  Any; @? @bool @LSP_DocumentRangeFormattingOptions
-  // documentOnTypeFormattingProvider: LSP_DocumentOnTypeFormattingOptions; @?
+  documentOnTypeFormattingProvider: LSP_DocumentOnTypeFormattingOptions; @?
   renameProvider:                   Any; @? @bool @LSP_RenameOptions
   foldingRangeProvider:             Any; @? @bool @LSP_FoldingRangeOptions            @LSP_FoldingRangeRegistrationOptions
-  // executeCommandProvider:           LSP_ExecuteCommandOptions; @?
+  executeCommandProvider:           LSP_ExecuteCommandOptions; @?
   selectionRangeProvider:           Any; @? @bool @LSP_SelectionRangeOptions          @LSP_SelectionRangeRegistrationOptions
   linkedEditingRangeProvider:       Any; @? @bool @LSP_LinkedEditingRangeOptions      @LSP_LinkedEditingRangeRegistrationOptions
   callHierarchyProvider:            Any; @? @bool @LSP_CallHierarchyOptions           @LSP_CallHierarchyRegistrationOptions
-  // semanticTokensProvider:           Any; @?       @LSP_SemanticTokensOptions          @LSP_SemanticTokensRegistrationOptions
-  // monikerProvider:                  Any; @? @bool @LSP_MonikerOptions                 @LSP_MonikerRegistrationOptions
+  semanticTokensProvider:           Any; @?       @LSP_SemanticTokensOptions          @LSP_SemanticTokensRegistrationOptions
+  monikerProvider:                  Any; @? @bool @LSP_MonikerOptions                 @LSP_MonikerRegistrationOptions
   typeHierarchyProvider:            Any; @? @bool @LSP_TypeHierarchyOptions           @LSP_TypeHierarchyRegistrationOptions
-  // inlineValueProvider:              Any; @? @bool @LSP_InlineValueOptions             @LSP_InlineValueRegistrationOptions
-  // inlayHintProvider:                Any; @? @bool @LSP_InlayHintOptions               @LSP_InlayHintRegistrationOptions
+  inlineValueProvider:              Any; @? @bool @LSP_InlineValueOptions             @LSP_InlineValueRegistrationOptions
+  inlayHintProvider:                Any; @? @bool @LSP_InlayHintOptions               @LSP_InlayHintRegistrationOptions
   diagnosticProvider:               Any; @?       @LSP_DiagnosticOptions              @LSP_DiagnosticRegistrationOptions
   workspaceSymbolProvider:          Any; @? @bool @LSP_WorkspaceSymbolOptions
   workspace: struct {
@@ -1504,7 +1504,350 @@ LSP_DocumentSymbolPartialResult :: struct {
   _: Any; @_LSP_DocumentSymbols @_LSP_SymbolInformations
 }
 
-//TODO: More
+// Semantic Tokens
+
+LSP_REQUEST_SEMANTIC_TOKENS :: "textDocument/semanticTokens";
+
+LSP_SemanticTokenType :: string;
+LSP_SemanticTokenType_namespace     : LSP_SemanticTokenType : "namespace";
+LSP_SemanticTokenType_type          : LSP_SemanticTokenType : "type";
+LSP_SemanticTokenType_class         : LSP_SemanticTokenType : "class";
+LSP_SemanticTokenType_enum          : LSP_SemanticTokenType : "enum";
+LSP_SemanticTokenType_interface     : LSP_SemanticTokenType : "interface";
+LSP_SemanticTokenType_struct        : LSP_SemanticTokenType : "struct";
+LSP_SemanticTokenType_typeParameter : LSP_SemanticTokenType : "typeParameter";
+LSP_SemanticTokenType_parameter     : LSP_SemanticTokenType : "parameter";
+LSP_SemanticTokenType_variable      : LSP_SemanticTokenType : "variable";
+LSP_SemanticTokenType_property      : LSP_SemanticTokenType : "property";
+LSP_SemanticTokenType_enumMember    : LSP_SemanticTokenType : "enumMember";
+LSP_SemanticTokenType_event         : LSP_SemanticTokenType : "event";
+LSP_SemanticTokenType_function      : LSP_SemanticTokenType : "function";
+LSP_SemanticTokenType_method        : LSP_SemanticTokenType : "method";
+LSP_SemanticTokenType_macro         : LSP_SemanticTokenType : "macro";
+LSP_SemanticTokenType_keyword       : LSP_SemanticTokenType : "keyword";
+LSP_SemanticTokenType_modifier      : LSP_SemanticTokenType : "modifier";
+LSP_SemanticTokenType_comment       : LSP_SemanticTokenType : "comment";
+LSP_SemanticTokenType_string        : LSP_SemanticTokenType : "string";
+LSP_SemanticTokenType_number        : LSP_SemanticTokenType : "number";
+LSP_SemanticTokenType_regexp        : LSP_SemanticTokenType : "regexp";
+LSP_SemanticTokenType_operator      : LSP_SemanticTokenType : "operator";
+LSP_SemanticTokenType_decorator     : LSP_SemanticTokenType : "decorator";
+
+LSP_SemanticTokenModifier :: string;
+LSP_SemanticTokenModifier_declaration    : LSP_SemanticTokenModifier : "declaration";
+LSP_SemanticTokenModifier_definition     : LSP_SemanticTokenModifier : "definition";
+LSP_SemanticTokenModifier_readonly       : LSP_SemanticTokenModifier : "readonly";
+LSP_SemanticTokenModifier_static         : LSP_SemanticTokenModifier : "static";
+LSP_SemanticTokenModifier_deprecated     : LSP_SemanticTokenModifier : "deprecated";
+LSP_SemanticTokenModifier_abstract       : LSP_SemanticTokenModifier : "abstract";
+LSP_SemanticTokenModifier_async          : LSP_SemanticTokenModifier : "async";
+LSP_SemanticTokenModifier_modification   : LSP_SemanticTokenModifier : "modification";
+LSP_SemanticTokenModifier_documentation  : LSP_SemanticTokenModifier : "documentation";
+LSP_SemanticTokenModifier_defaultLibrary : LSP_SemanticTokenModifier : "defaultLibrary";
+
+LSP_TokenFormat :: string;
+LSP_TokenFormat_Relative : LSP_TokenFormat : "relative";
+
+LSP_SemanticTokensLegend :: struct {
+  tokenTypes: [] LSP_SemanticTokenType;
+  tokenModifiers: [] LSP_SemanticTokenModifier;
+}
+
+_LSP_SemanticTokens_Range :: struct { }
+_LSP_SemanticTokens_Full :: struct {
+  delta: bool; @?
+}
+LSP_SemanticTokensClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+  requests: struct {
+    range: Any; @bool @_LSP_SemanticTokens_RequestsRange @?
+    full: Any; @bool @_LSP_SemanticTokens_RequestsFull @?
+  };
+  tokenTypes: [] LSP_SemanticTokenType;
+  tokenModifiers: [] LSP_SemanticTokenModifiers;
+  formats: [] LSP_TokenFormat;
+  overlappingTokenSupport: bool; @?
+  multilinetTokenSupport: bool; @?
+  serverCancelSupport: bool; @?
+  augmentsSyntaxTokens: bool; @?
+}
+
+LSP_SemanticTokensOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+  legend: LSP_SemanticTokensLegend;
+  range: Any; @bool @_LSP_SemanticTokens_Range;
+  full: Any; @bool @_LSP_SemanticTokens_Full;
+}
+
+LSP_SemanticTokensRegistrationOptions :: struct {
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_SemanticTokenOptions;
+  #as using _2: lSP_StaticRegistrationOptions;
+}
+
+// Semantic Tokens Full
+
+LSP_REQUEST_SEMANTIC_TOKENS_FULL :: "textDocument/semanticTokens/full";
+
+LSP_SemanticTokens :: struct {
+  resultId: string; @?
+  data: [] u32;
+}
+
+LSP_SemanticTokensParams :: struct {
+  #as using _0: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_PartialResultParams;
+  textDocument: LSP_TextDocumentIdentifier;
+}
+
+LSP_SemanticTokensResult :: struct {
+  _: Any; @LSP_SemanticTokens @$Null
+}
+
+LSP_SemanticTokensPartialResult :: struct {
+  data: [] u32;
+}
+
+// Semantic Tokens Full Delta
+
+LSP_REQUEST_SEMANTIC_TOKENS_FULL_DELTA :: "textDocument/semanticTokens/full/delta";
+
+LSP_SemanticTokensDelta :: struct {
+  resultId: string; @?
+  edits: [] LSP_SemanticTokensEdit;
+}
+
+LSP_SemanticTokensEdit :: struct {
+  start: u32;
+  deleteCount: u32;
+  data: [] u32; @?
+}
+
+LSP_SemanticTokensDeltaParams :: struct {
+  #as using _0: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_PartialResultParams;
+  textDocument: LSP_TextDocumentIdentifier;
+  previousResultId: string;
+}
+
+LSP_SemanticTokensResult :: struct {
+  _: Any; @LSP_SemanticTokens @LSP_SemanticTokensDelta @$Null
+}
+
+LSP_SemanticTokensPartialResult :: struct {
+  edits: [] LSP_SemanticTokensEdit;
+}
+
+// Semantic Tokens Range
+
+LSP_REQUEST_SEMANTIC_TOKENS_RANGE :: "textDocument/semanticTokens/range";
+
+LSP_SemanticTokensRangeParams :: struct {
+  #as using _0: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_PartialResultParams;
+  textDocument: LSP_TextDocumentIdentifier;
+  range: LSP_Range;
+}
+
+LSP_SemanticTokensRangeResult :: struct {
+  _: Any; @LSP_SemanticTokens @$Null
+}
+
+LSP_SemanticTokensRangePartialResult :: struct {
+  data: [] u32;
+}
+
+// Semantic Tokens Refresh
+
+LSP_REQUEST_SEMANTIC_TOKENS_REFRESH :: "workspace/semanticTokens/refresh";
+
+LSP_SemanticTokensWorkspaceClientCapabilities :: struct {
+  refreshSupport: bool; @?
+}
+
+// Inline Value
+
+LSP_REQUEST_INLINE_VALUE :: "textDocument/inlineValue";
+
+LSP_InlineValueClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+}
+
+LSP_InlineValueOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+}
+
+LSP_InlineValueRegistrationOptions :: struct {
+  #as using _0: LSP_InlineValueOptions;
+  #as using _1: LSP_TextDocumentRegistrationOptions;
+  #as using _2: LSP_StaticRegistrationOptions;
+}
+
+LSP_InlineValueContext :: struct {
+  frameId: s32;
+  stoppedLocation: LSP_Range;
+}
+
+LSP_InlineValueText :: struct {
+  range: LSP_Range;
+  text: string;
+}
+
+LSP_InlineValueVariableLookup :: struct {
+  range: LSP_Range;
+  variableName: string; @?
+  caseSensitiveLookup: bool;
+}
+
+LSP_InlineValueEvaluatableExpression :: struct {
+  range: LSP_Range;
+  expression: string; @?
+}
+
+_LSP_InlineValues :: [] LSP_InlineValue;
+LSP_InlineValue :: struct {
+  _: Any; @LSP_InlineValueText @LSP_InlineValueVariableLookup @LSP_InlineValueEvaluatableExpression
+}
+
+LSP_InlineValueParams :: struct {
+  #as using _: LSP_WorkDoneProgressParams;
+  textDocument: LSP_TextDocumentIdentifier;
+  range: LSP_Range;
+  inlineValueContext: LSP_InlineValueContext; @$Name$context
+}
+
+LSP_InlineValueResult :: struct {
+  _: Any; @_LSP_InlineValues @$Null
+}
+
+// Inline Value Refresh
+
+LSP_REQUEST_INLINE_VALUE_REFRESH :: "workspace/inlineValue/refresh";
+
+LSP_InlineValueWorkspaceClientCapabilities :: struct {
+  refreshSupport: bool; @?
+}
+
+// Inlay Hint
+
+LSP_REQUEST_INLAY_HINT :: "textDocument/inlayHint";
+
+LSP_InlayHintClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+  resolveSupport: struct {
+    properties: [] string;
+  }; @?
+}
+
+LSP_InlayHintOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+  resolveProvider: bool; @?
+}
+
+LSP_InlayHintRegistrationOptions :: struct {
+  #as using _0: LSP_InlayHintOptions;
+  #as using _1: LSP_TextDocumentRegistrationOptions;
+  #as using _2: LSP_StaticRegistrationOptions;
+}
+
+_LSP_InlayHints :: [] LSP_InlayHint;
+LSP_InlayHint :: struct {
+  position: LSP_Position;
+  label: Any; @string @_LSP_InlayHintLabelParts
+  kind: LSP_InlayHintKind; @?
+  textEdits: [] LSP_TextEdit; @?
+  tooltip: Any; @string @LSP_MarkupContent @?
+  paddingLeft: bool; @?
+  paddingRight: bool; @?
+  data: Any; @?
+}
+
+_LSP_InlayHintLabelParts :: [] LSP_InlayHintLabelPart;
+LSP_InlayHintLabelPart :: struct {
+  value: string;
+  tooltip: Any; @string @LSP_MarkupContent @?
+  location: LSP_Location; @?
+  command: LSP_Command; @?
+}
+
+LSP_InlayHintKind :: enum {
+  Type      :: 1;
+  Parameter :: 2;
+}
+
+LSP_InlayHintParams :: struct {
+  #as using _: LSP_WorkDoneProgressParams;
+  textDocument: LSP_TextDocumentIdentifier;
+  range: LSP_Range;
+}
+
+LSP_InlayHintResult :: struct {
+  _: Any; @_LSP_InlayHints @$Null
+}
+
+// Inlay Hint Resolve
+
+LSP_REQUEST_INLAY_HINT_RESOLVE :: "inlayHint/resolve";
+
+LSP_InlayHintResolveParams :: LSP_InlayHint;
+
+LSP_InlayHintResolveResult :: LSP_InlayHint;
+
+// Inlay Hint Refresh
+
+LSP_REQUEST_INLAY_HINT_REFRESH :: "workspace/inlayHint/refresh";
+
+LSP_InlayHintWorkspaceClientCapabilities :: struct {
+  refreshSupport: bool; @?
+}
+
+// Monikers
+
+LSP_REQUEST_MONIKER :: "textDocument/moniker";
+
+LSP_MonikerClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+}
+
+LSP_MonikerOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+}
+
+LSP_MonikerRegistrationOptions :: struct {
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_MonikerOptions;
+}
+
+LSP_UniquenessLevel :: string;
+LSP_UniquenessLevel_document : LSP_UniquenessLevel : "document";
+LSP_UniquenessLevel_project  : LSP_UniquenessLevel : "project";
+LSP_UniquenessLevel_group    : LSP_UniquenessLevel : "group";
+LSP_UniquenessLevel_scheme   : LSP_UniquenessLevel : "scheme";
+LSP_UniquenessLevel_global   : LSP_UniquenessLevel : "global";
+
+LSP_MonikerKind :: string;
+LSP_MonikerKind_import : LSP_MonikerKind : "import";
+LSP_MonikerKind_export : LSP_MonikerKind : "export";
+LSP_MonikerKind_local  : LSP_MonikerKind : "local";
+
+LSP_Moniker :: struct {
+  scheme: string;
+  identifier: string;
+  unique: LSP_UniquenessLevel;
+  kind: LSP_MonikerKind; @?
+}
+
+LSP_MonikerParams :: struct {
+  #as using _0: LSP_TextDocumentPositionParams;
+  #as using _1: LSP_WorkDoneProgressParams;
+  #as using _2: LSP_PartialResultParams;
+}
+
+LSP_MonikerResult :: struct {
+  _: Any; @_LSP_Monikers @$Null
+}
+
+LSP_MonikerPartialResult :: [] LSP_Moniker;
 
 // Completion
 
@@ -1884,6 +2227,7 @@ LSP_SignatureInformation :: struct {
   activeParameter: u32; @?
 }
 
+//TODO: Static arrays
 _LSP_ParameterInformation_Range :: [2] u32;
 LSP_ParameterInformation :: struct {
   label: Any; @string @_LSP_ParameterInformation_Range
@@ -2005,7 +2349,7 @@ LSP_DocumentColorOptions :: struct {
 }
 
 LSP_DocumentColorRegistrationOptions :: struct {
-  #as using _0: LSP_WorkDoneProgressOptions;
+  #as using _0: LSP_TextDocumentRegistrationOptions;
   #as using _1: LSP_StaticRegistrationOptions;
   #as using _2: LSP_DocumentColorOptions;
 }
@@ -2016,10 +2360,10 @@ LSP_ColorInformation :: struct {
 }
 
 LSP_Color :: struct {
-  red: r32;
-  green: r32;
-  blue: r32;
-  alpha: r32;
+  red: float;
+  green: float;
+  blue: float;
+  alpha: float;
 }
 
 LSP_DocumentColorParams :: struct {
@@ -2061,7 +2405,7 @@ LSP_DocumentFormattingClientCapabilities :: struct {
 }
 
 LSP_DocumentFormattingOptions :: struct {
-  #as using _: lSP_WorkDoneProgressOptions;
+  #as using _: LSP_WorkDoneProgressOptions;
 }
 
 LSP_DocumentFormattingRegistrationOptions :: struct {
@@ -2069,7 +2413,7 @@ LSP_DocumentFormattingRegistrationOptions :: struct {
   #as using _1: LSP_DocumentFormattingOptions;
 }
 
-_LSP_FormattingOptions_FutherProperties :: struct {
+_LSP_FormattingOptions_FurtherProperties :: struct {
   _: Any; @bool @s32 @string
 }
 LSP_FormattingOptions :: struct {
