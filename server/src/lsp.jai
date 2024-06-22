@@ -91,14 +91,18 @@ lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) ->
   assert_running();
   decode_uri(*params.textDocument.uri);
   
-  locs := parse_location_pairs("database/declarations");
+  header, success := lock_and_open_record_file(null, false);
+  assert(success, "Could not open the index");
+  defer close_and_unlock_record_file(*header);
+  
+  text := read_entire_file("database/declarations");
+  defer free(text);
+  locs := parse_location_pairs(text);
   defer array_free(locs);
   
-  rpc_debug_log("Locs: %", locs);
-  
   links: [..] LSP_LocationLink;
-  for locs {
-    left, right := it[0], it[1];
+  for 0 .. locs.count / 2 - 1 {
+    left, right := locs[it], locs[it+1];
     
     if params.textDocument.uri != left.uri continue;
     if params.position.line < left.range.start.line continue;
@@ -129,6 +133,36 @@ lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) ->
 
 lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> LSP_DefinitionResult {
   assert_running();
+  decode_uri(*params.textDocument.uri);
+  
+  header, success := lock_and_open_record_file(null, false);
+  assert(success, "Could not open the index");
+  defer close_and_unlock_record_file(*header);
+  
+  text := read_entire_file("database/definitions");
+  defer free(text);
+  locs := parse_location_pairs(text);
+  defer array_free(locs);
+  
+  links: [..] LSP_LocationLink;
+  for 0 .. locs.count / 2 - 1 {
+    left, right := locs[it], locs[it+1];
+    
+    if params.textDocument.uri != left.uri continue;
+    if params.position.line < left.range.start.line continue;
+    if params.position.line > left.range.end.line continue;
+    if params.position.character < left.range.start.character continue;
+    if params.position.character >= left.range.end.character continue;
+    
+    array_add(*links, .{
+      originSelectionRange = left.range,
+      targetUri = copy_string(right.uri),
+      targetRange = right.range,
+      targetSelectionRange = right.range
+    });
+  }
+  
+  return .{alloc_any(links)};
   
   // header, success := lock_and_open_record_file(null, false);
   // assert(success, "Could not open the index");
@@ -141,8 +175,6 @@ lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> L
   //   return .{alloc_any(links)};
   // locations := location_links_to_locations(links);
   // return .{alloc_any(locations)};
-  
-  return .{make_null_any()};
 }
 
 lsp_workspace_didChangeWatchedFiles :: (data: *Data, params: *LSP_DidChangeWatchedFilesParams) {
@@ -250,6 +282,12 @@ decode_uri :: (uri: *string) {
   }
   
   uri.count = j;
+  
+  // Make the drive letter uppercase for consistency
+  //TODO: Implement the URI spec
+  drive_position := "file:///".count;
+  if uri.*[drive_position + 1] == #char ":"
+    uri.*[drive_position] = xx to_upper(xx uri.*[drive_position]);
 }
 
 apply_document_change :: (lines: *[..] string, text: string, start_line: s64, start_column: s64, end_line: s64, end_column: s64) {

@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../../../../Programs/jai"
+		},
+		{
+			"path": "../../../Programs/jai"
 		}
 	],
 	"settings": {

@@ -5,7 +5,7 @@ result_sets: Table(*Code_Node, Result_Set);
 Result_Set :: struct {
   id: int;
   next: *Result_Set;
-  declaration: *Code_Declaration;
+  declaration: *Code_Node;
   definition: *Code_Node;
 }
 
@@ -105,29 +105,30 @@ Result_Set :: struct {
   
   print_tables();
   
+  append_location_pair :: (builder: *String_Builder, left: *Code_Node, right: *Code_Node) {
+    print_to_builder(builder, "file:///%,%:%-%:%;file:///%,%:%-%:%\n",
+    left.enclosing_load.fully_pathed_filename,
+    left.l0 - 1, left.c0 - 1, left.l1 - 1, left.c1 - 1,
+    right.enclosing_load.fully_pathed_filename,
+    right.l0 - 1, right.c0 - 1, right.l1 - 1, right.c1 - 1);
+  }
+  
   header, success := lock_and_open_record_file(null, true);
   assert(success);
   file_close(*header.file);
-  declarations_file := file_open("database/declarations", true, false, true);
-  declarations_builder: String_Builder;
+  declarations_builder, definitions_builder: String_Builder;
   init_string_builder(*declarations_builder);
+  init_string_builder(*definitions_builder);
+  declarations_file := file_open("database/declarations", true, false, true);
+  definitions_file := file_open("database/definitions", true, false, true);
   for result_sets {
-    if !it_index.enclosing_load continue;
-    if it.declaration && it.declaration.enclosing_load && it.declaration.l0 > 0 {
-      print_to_builder(*declarations_builder, "file:///%,%:%-%:%;file:///%,%:%-%:%\n",
-        it_index.enclosing_load.fully_pathed_filename,
-        it_index.l0 - 1,
-        it_index.c0 - 1,
-        it_index.l1 - 1,
-        it_index.c1 - 1,
-        it.declaration.enclosing_load.fully_pathed_filename,
-        it.declaration.l0 - 1,
-        it.declaration.c0 - 1,
-        ifx it.declaration.l1 < 0 then it.declaration.l0 - 1 else it.declaration.l1 - 1,
-        ifx it.declaration.c1 < 0 then it.declaration.c0 else it.declaration.c1 - 1);
-    }
+    if it.declaration
+      append_location_pair(*declarations_builder, it_index, it.declaration);
+    if it.definition
+      append_location_pair(*definitions_builder, it_index, it.definition);
   }
   file_write(*declarations_file, builder_to_string(*declarations_builder));
+  file_write(*definitions_file, builder_to_string(*definitions_builder));
   close_and_unlock_record_file(*header);
 }
 
@@ -223,7 +224,8 @@ parse_typechecked :: (message: Message_Typechecked) {
       case .IDENT;
         using node: *Code_Ident = xx code;
         parse_code_node(resolved_declaration);
-        if resolved_declaration add_declaration(node, resolved_declaration);
+        add_declaration(node, resolved_declaration);
+        add_definition(node, resolved_declaration);
       
       case .UNARY_OPERATOR;
         using node: *Code_Unary_Operator = xx code;
@@ -481,8 +483,24 @@ parse_typechecked :: (message: Message_Typechecked) {
     parse_code_node(it.expression);
 }
 
-add_declaration :: inline (ref: *Code_Node, decl: *Code_Declaration) {
-  table_set(*result_sets, ref, .{id = result_sets.count, declaration = decl});
+validate_pair :: inline (left: *Code_Node, right: *Code_Node) -> bool {
+  if !left || !left.enclosing_load || left.l0 < 1 || left.c0 < 1 return false;
+  if !right || !right.enclosing_load || right.l0 < 1 || right.c0 < 1 return false;
+  if left.l1 < 0 left.l1 = left.l0;
+  if left.c1 < 0 left.c1 = left.c0;
+  if right.l1 < 0 right.l1 = right.l0;
+  if right.c1 < 0 right.c1 = right.c0;
+  return true;
+}
+
+add_declaration :: inline (ref: *Code_Node, decl: *Code_Node) {
+  if validate_pair(ref, decl)
+    table_set(*result_sets, ref, .{id = result_sets.count, declaration = decl});
+}
+
+add_definition :: inline (ref: *Code_Node, decl: *Code_Node) {
+  if validate_pair(ref, decl)
+    table_set(*result_sets, ref, .{id = result_sets.count, definition = decl});
 }
 
 // write_declaration :: (ref: *Code_Node, decl: *Code_Node) {

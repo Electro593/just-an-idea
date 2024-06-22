@@ -295,16 +295,11 @@ find_definition_links :: (using header: *Record_File, uri: LSP_DocumentUri, posi
   return links, success;
 }
 
-parse_location_pairs :: (file: string) -> [] [2] LSP_Location {
+parse_location_pairs :: (text: string) -> [] LSP_Location {
   #import "String";
 
-  header, success := lock_and_open_record_file(null, false);
-  assert(success, "Could not open the index");
-  
-  text := read_entire_file(file);
-  defer free(text);
   lines := split(text, cast(u8) #char "\n");
-  locs: [..] [2] LSP_Location;
+  locs: [..] LSP_Location;
   for lines {
     _, left, right := split_from_left(it, #char ";");
     
@@ -319,7 +314,7 @@ parse_location_pairs :: (file: string) -> [] [2] LSP_Location {
     _, right_l0, right_c0 := split_from_left(right_start, #char ":");
     _, right_l1, right_c1 := split_from_left(right_end, #char ":");
     
-    array_add(*locs, .[
+    array_add(*locs,
       .{
         uri = left_file,
         range = .{
@@ -346,10 +341,9 @@ parse_location_pairs :: (file: string) -> [] [2] LSP_Location {
           }
         }
       }
-    ]);
+    );
   }
   
-  close_and_unlock_record_file(*header);
   return locs;
 }
 
