@@ -367,7 +367,7 @@ LSP_TextDocumentClientCapabilities :: struct {
   documentHighlight:  *LSP_DocumentHighlightClientCapabilities;        @?
   documentSymbol:     *LSP_DocumentSymbolClientCapabilities;           @?
   // codeAction:         *LSP_CodeActionClientCapabilities;               @?
-  // codeLens:           *LSP_CodeLensClientCapabilities;                 @?
+  codeLens:           *LSP_CodeLensClientCapabilities;                 @?
   documentLink:       *LSP_DocumentLinkClientCapabilities;             @?
   // colorProvider:      *LSP_DocumentColorClientCapabilities;            @?
   // formatting:         *LSP_DocumentFormattingClientCapabilities;       @?
@@ -375,8 +375,8 @@ LSP_TextDocumentClientCapabilities :: struct {
   // onTypeFormatting:   *LSP_DocumentOnTypeFormattingClientCapabilities; @?
   // rename:             *LSP_RenameClientCapabilities;                   @?
   // publishDiagnostics: *LSP_PublishDiagnosticsClientCapabilities;       @?
-  // foldingRange:       *LSP_FoldingRangeClientCapabilities;             @?
-  // selectionRange:     *LSP_SelectionRangeClientCapabilities;           @?
+  foldingRange:       *LSP_FoldingRangeClientCapabilities;             @?
+  selectionRange:     *LSP_SelectionRangeClientCapabilities;           @?
   // linkedEditingRange: *LSP_LinkedEditingRangeClientCapabilities;       @?
   callHierarchy:      *LSP_CallHierarchyClientCapabilities;            @?
   // semanticTokens:     *LSP_SemanticTokensClientCapabilities;           @?
@@ -402,7 +402,7 @@ LSP_ClientCapabilities :: struct {
     workspaceFolders: bool; @?
     configuration: bool; @?
     // semanticTokens: LSP_SemanticTokensWorkspaceClientCapabilities; @?
-    // codeLens: LSP_CodeLensWorkspaceClientCapabilities; @?
+    codeLens: LSP_CodeLensWorkspaceClientCapabilities; @?
     fileOperations: struct {
       dynamicRegistration: bool; @?
       didCreate: bool; @?
@@ -450,16 +450,16 @@ LSP_ServerCapabilities :: struct {
   documentHighlightProvider:        Any; @? @bool @LSP_DocumentHighlightOptions
   documentSymbolProvider:           Any; @? @bool @LSP_DocumentSymbolOptions
   // codeActionProvider:               Any; @? @bool @LSP_CodeActionOptions
-  // codeLensProvider:                 LSP_CodeLensOptions; @?
+  codeLensProvider:                 LSP_CodeLensOptions; @?
   documentLinkProvider:             LSP_DocumentLinkOptions; @?
   // colorProvider:                    Any; @? @bool @LSP_DocumentColorOptions           @LSP_DocumentColorRegistrationOptions
   // documentFormattingProvider:       Any; @? @bool @LSP_DocumentFormattingOptions
   // documentRangeFormattingProvider:  Any; @? @bool @LSP_DocumentRangeFormattingOptions
   // documentOnTypeFormattingProvider: LSP_DocumentOnTypeFormattingOptions; @?
   // renameProvider:                   Any; @? @bool @LSP_RenameOptions
-  // foldingRangeProvider:             Any; @? @bool @LSP_FoldingRangeOptions            @LSP_FoldingRangeRegistrationOptions
+  foldingRangeProvider:             Any; @? @bool @LSP_FoldingRangeOptions            @LSP_FoldingRangeRegistrationOptions
   // executeCommandProvider:           LSP_ExecuteCommandOptions; @?
-  // selectionRangeProvider:           Any; @? @bool @LSP_SelectionRangeOptions          @LSP_SelectionRangeRegistrationOptions
+  selectionRangeProvider:           Any; @? @bool @LSP_SelectionRangeOptions          @LSP_SelectionRangeRegistrationOptions
   // linkedEditingRangeProvider:       Any; @? @bool @LSP_LinkedEditingRangeOptions      @LSP_LinkedEditingRangeRegistrationOptions
   callHierarchyProvider:            Any; @? @bool @LSP_CallHierarchyOptions           @LSP_CallHierarchyRegistrationOptions
   // semanticTokensProvider:           Any; @?       @LSP_SemanticTokensOptions          @LSP_SemanticTokensRegistrationOptions
@@ -982,9 +982,7 @@ LSP_ReferenceResult :: struct {
   _: Any; @_LSP_Locations @$Null
 }
 
-LSP_ReferencePartialResult :: struct {
-  _: [] LSP_Location;
-}
+LSP_ReferencePartialResult :: [] LSP_Location;
 
 // Prepare Call Hierarchy
 
@@ -1045,9 +1043,7 @@ LSP_CallHierarchyIncomingCallsResult :: struct {
   _: Any; @_LSP_CallHierarchyIncomingCalls @$Null
 }
 
-LSP_CallHierarchyIncomingCallsPartialResult :: struct {
-  _: [] LSP_CallHierarchyIncomingCall;
-}
+LSP_CallHierarchyIncomingCallsPartialResult :: [] LSP_CallHierarchyIncomingCall;
 
 // Call Hierarchy Outgoing Calls
 
@@ -1069,9 +1065,7 @@ LSP_CallHierarchyOutgoingCallsResult :: struct {
   _: Any; @_LSP_CallHierarchyOutgoingCalls @$Null
 }
 
-LSP_CallHierarchyOutgoingCallsPartialResult :: struct {
-  _: [] LSP_CallHierarchyOutgoingCall;
-}
+LSP_CallHierarchyOutgoingCallsPartialResult :: [] LSP_CallHierarchyOutgoingCall;
 
 // Prepare Type Hierarchy
 
@@ -1126,9 +1120,7 @@ LSP_TypeHierarchySupertypesResult :: struct {
   _: Any; @_LSP_TypeHierarchyItems @$Null
 }
 
-LSP_TypeHierarchySupertypesPartialResult :: struct {
-  _: [] LSP_TypeHierarchyItem;
-}
+LSP_TypeHierarchySupertypesPartialResult :: [] LSP_TypeHierarchyItem;
 
 // Type Hierarchy Subtypes
 
@@ -1144,9 +1136,7 @@ LSP_TypeHierarchySubtypesResult :: struct {
   _: Any; @_LSP_TypeHierarchyItems @$Null
 }
 
-LSP_TypeHierarchySubtypesPartialResult :: struct {
-  _: [] LSP_TypeHierarchyItem;
-}
+LSP_TypeHierarchySubtypesPartialResult :: [] LSP_TypeHierarchyItem;
 
 // Document Highlight
 
@@ -1187,9 +1177,7 @@ LSP_DocumentHighlightResult :: struct {
   _: Any; @_LSP_DocumentHighlights @$Null
 }
 
-LSP_DocumentHighlightPartialResult :: struct {
-  _: [] LSP_DocumentHighlight;
-}
+LSP_DocumentHighlightPartialResult :: [] LSP_DocumentHighlight;
 
 // Document Link
 
@@ -1228,9 +1216,7 @@ LSP_DocumentLinkResult :: struct {
   _: Any; @_LSP_DocumentLinks @$Null
 }
 
-LSP_DocumentLinkPartialResult :: struct {
-  _: [] LSP_DocumentLink;
-}
+LSP_DocumentLinkPartialResult :: [] LSP_DocumentLink;
 
 // Document Link Resolve
 
@@ -1281,7 +1267,148 @@ LSP_HoverResult :: struct {
   _: Any; @LSP_Hover @$Null
 }
 
-//TODO: More
+// Code Lens
+
+LSP_REQUEST_CODE_LENS :: "textDocument/codeLens";
+
+LSP_CodeLensClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+}
+
+LSP_CodeLensOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+  resolveProvider: bool; @?
+}
+
+LSP_CodeLensRegistrationOptions :: struct {
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_CodeLensOptions;
+}
+
+_LSP_CodeLenses :: [] LSP_CodeLens;
+LSP_CodeLens :: struct {
+  range: LSP_Range;
+  command: LSP_Command; @?
+  data: Any; @?
+}
+
+LSP_CodeLensParams :: struct {
+  #as using _0: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_PartialResultParams;
+  textDocument: LSP_TextDocumentIdentifier;
+}
+
+LSP_CodeLensResult :: struct {
+  _: Any; @_LSP_CodeLenses @$Null
+}
+
+LSP_CodeLensPartialResult :: [] LSP_CodeLens;
+
+// Code Lens Resolve
+
+LSP_REQUEST_RESOLVE_CODE_LENS :: "codeLens/resolve";
+
+LSP_CodeLensResolveParams :: LSP_CodeLens;
+
+LSP_CodeLensResolveResult :: LSP_CodeLens;
+
+// Code Lens Refresh
+
+LSP_REQUEST_REFRESH_CODE_LENS :: "workspace/codeLens/refresh";
+
+LSP_CodeLensWorkspaceClientCapabilities :: struct {
+  refreshSupport: bool; @?
+}
+
+// Folding Range
+
+LSP_REQUEST_FOLDING_RANGE :: "textDocument/foldingRange";
+
+LSP_FoldingRangeClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+  rangeLimit: u32; @?
+  lineFoldingOnly: bool; @?
+  foldingRangeKind: struct {
+    valueSet: [] LSP_FoldingRangeKind; @?
+  }; @?
+  foldingRange: struct {
+    collapsedText: bool; @?
+  }; @?
+}
+
+LSP_FoldingRangeOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+}
+
+LSP_FoldingRangeRegistrationOptions :: struct {
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_FoldingRangeOptions;
+  #as using _2: LSP_StaticRegistrationOptions;
+}
+
+LSP_FoldingRangeKind :: string;
+LSP_FoldingRangeKind_Comment :: "comment";
+LSP_FoldingRangeKind_Imports :: "imports";
+LSP_FoldingRangeKind_Region  :: "region";
+
+_LSP_FoldingRanges :: [] LSP_FoldingRange;
+LSP_FoldingRange :: struct {
+  startLine: u32;
+  startCharacter: u32; @?
+  endLine: u32;
+  endCharacter: u32; @?
+  kind: LSP_FoldingRangeKind; @?
+  collapsedText: string; @?
+}
+
+LSP_FoldingRangeParams :: struct {
+  #as using _0: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_PartialResultParams;
+  textDocument: LSP_TextDocumentIdentifier;
+}
+
+LSP_FoldingRangeResult :: struct {
+  _: Any; @_LSP_FoldingRanges @$Null
+}
+
+LSP_FoldingRangePartialResult :: [] LSP_FoldingRange;
+
+// Selection Range
+
+LSP_REQUEST_SELECTION_RANGE :: "textDocument/selectionRange";
+
+LSP_SelectionRangeClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+}
+
+LSP_SelectionRangeOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+}
+
+LSP_SelectionRangeRegistrationOptions :: struct {
+  #as using _1: LSP_SelectionRangeOptions;
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _2: LSP_StaticRegistrationOptions;
+}
+
+_LSP_SelectionRanges :: [] LSP_SelectionRange;
+LSP_SelectionRange :: struct {
+  range: LSP_Range;
+  parent: *LSP_SelectionRange; @?
+}
+
+LSP_SelectionRangeParams :: struct {
+  #as using _0: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_PartialResultParams;
+  textDocument: LSP_TextDocumentIdentifier;
+  positions: [] LSP_Position;
+}
+
+LSP_SelectionRangeResult :: struct {
+  _: Any; @_LSP_SelectionRanges @$Null
+}
+
+LSP_SelectionRangePartialResult :: [] LSP_SelectionRange;
 
 // Document Symbols
 
