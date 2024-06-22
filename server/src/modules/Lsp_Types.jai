@@ -19,7 +19,7 @@ LSP_Position :: struct {
 }
 
 LSP_PositionEncodingKind :: string;
-LSP_PositionEncodingKind_UTF8 : LSP_PositionEncodingKind : "utf-8";
+LSP_PositionEncodingKind_UTF8  : LSP_PositionEncodingKind : "utf-8";
 LSP_PositionEncodingKind_UTF16 : LSP_PositionEncodingKind : "utf-16";
 LSP_PositionEncodingKind_UTF32 : LSP_PositionEncodingKind : "utf-32";
 
@@ -36,63 +36,63 @@ LSP_TextDocumentItem :: struct {
 }
 
 LSP_LanguageId :: string;
-LSP_LanguageId_ABAP            :: "abap";
-LSP_LanguageId_BAT             :: "bat";
-LSP_LanguageId_BIBTEX          :: "bibtex";
-LSP_LanguageId_CLOJURE         :: "clojure";
-LSP_LanguageId_COFFEESCRIPT    :: "coffeescript";
-LSP_LanguageId_C               :: "c";
-LSP_LanguageId_CPP             :: "cpp";
-LSP_LanguageId_CSHARP          :: "csharp";
-LSP_LanguageId_CSS             :: "css";
-LSP_LanguageId_DIFF            :: "diff";
-LSP_LanguageId_DART            :: "dart";
-LSP_LanguageId_DOCKERFILE      :: "dockerfile";
-LSP_LanguageId_ELIXIR          :: "elixir";
-LSP_LanguageId_ERLANG          :: "erlang";
-LSP_LanguageId_FSHARP          :: "fsharp";
-LSP_LanguageId_GIT_COMMIT      :: "git-commit";
-LSP_LanguageId_GIT_REBASE      :: "git-rebase";
-LSP_LanguageId_GO              :: "go";
-LSP_LanguageId_GROOVY          :: "groovy";
-LSP_LanguageId_HANDLEBARS      :: "handlebars";
-LSP_LanguageId_HTML            :: "html";
-LSP_LanguageId_INI             :: "ini";
-LSP_LanguageId_JAVA            :: "java";
-LSP_LanguageId_JAVASCRIPT      :: "javascript";
-LSP_LanguageId_JAVASCRIPTREACT :: "javascriptreact";
-LSP_LanguageId_JSON            :: "json";
-LSP_LanguageId_LATEX           :: "latex";
-LSP_LanguageId_LESS            :: "less";
-LSP_LanguageId_LUA             :: "lua";
-LSP_LanguageId_MAKEFILE        :: "makefile";
-LSP_LanguageId_MARKDOWN        :: "markdown";
-LSP_LanguageId_OBJECTIVE_C     :: "objective-c";
-LSP_LanguageId_OBJECTIVE_CPP   :: "objective-cpp";
-LSP_LanguageId_PERL            :: "perl";
-LSP_LanguageId_PERL6           :: "perl6";
-LSP_LanguageId_PHP             :: "php";
-LSP_LanguageId_POWERSHELL      :: "powershell";
-LSP_LanguageId_PUG             :: "jade";
-LSP_LanguageId_PYTHON          :: "python";
-LSP_LanguageId_R               :: "r";
-LSP_LanguageId_RAZOR           :: "razor";
-LSP_LanguageId_RUBY            :: "ruby";
-LSP_LanguageId_RUST            :: "rust";
-LSP_LanguageId_SCSS            :: "scss";
-LSP_LanguageId_SASS            :: "sass";
-LSP_LanguageId_SCALA           :: "scala";
-LSP_LanguageId_SHADERLAB       :: "shaderlab";
-LSP_LanguageId_SHELLSCRIPT     :: "shellscript";
-LSP_LanguageId_SQL             :: "sql";
-LSP_LanguageId_SWIFT           :: "swift";
-LSP_LanguageId_TYPESCRIPT      :: "typescript";
-LSP_LanguageId_TYPESCRIPTREACT :: "typescriptreact";
-LSP_LanguageId_TEX             :: "tex";
-LSP_LanguageId_VB              :: "vb";
-LSP_LanguageId_XML             :: "xml";
-LSP_LanguageId_XSL             :: "xsl";
-LSP_LanguageId_YAML            :: "yaml";
+LSP_LanguageId_ABAP            : LSP_LanguageId : "abap";
+LSP_LanguageId_BAT             : LSP_LanguageId : "bat";
+LSP_LanguageId_BIBTEX          : LSP_LanguageId : "bibtex";
+LSP_LanguageId_CLOJURE         : LSP_LanguageId : "clojure";
+LSP_LanguageId_COFFEESCRIPT    : LSP_LanguageId : "coffeescript";
+LSP_LanguageId_C               : LSP_LanguageId : "c";
+LSP_LanguageId_CPP             : LSP_LanguageId : "cpp";
+LSP_LanguageId_CSHARP          : LSP_LanguageId : "csharp";
+LSP_LanguageId_CSS             : LSP_LanguageId : "css";
+LSP_LanguageId_DIFF            : LSP_LanguageId : "diff";
+LSP_LanguageId_DART            : LSP_LanguageId : "dart";
+LSP_LanguageId_DOCKERFILE      : LSP_LanguageId : "dockerfile";
+LSP_LanguageId_ELIXIR          : LSP_LanguageId : "elixir";
+LSP_LanguageId_ERLANG          : LSP_LanguageId : "erlang";
+LSP_LanguageId_FSHARP          : LSP_LanguageId : "fsharp";
+LSP_LanguageId_GIT_COMMIT      : LSP_LanguageId : "git-commit";
+LSP_LanguageId_GIT_REBASE      : LSP_LanguageId : "git-rebase";
+LSP_LanguageId_GO              : LSP_LanguageId : "go";
+LSP_LanguageId_GROOVY          : LSP_LanguageId : "groovy";
+LSP_LanguageId_HANDLEBARS      : LSP_LanguageId : "handlebars";
+LSP_LanguageId_HTML            : LSP_LanguageId : "html";
+LSP_LanguageId_INI             : LSP_LanguageId : "ini";
+LSP_LanguageId_JAVA            : LSP_LanguageId : "java";
+LSP_LanguageId_JAVASCRIPT      : LSP_LanguageId : "javascript";
+LSP_LanguageId_JAVASCRIPTREACT : LSP_LanguageId : "javascriptreact";
+LSP_LanguageId_JSON            : LSP_LanguageId : "json";
+LSP_LanguageId_LATEX           : LSP_LanguageId : "latex";
+LSP_LanguageId_LESS            : LSP_LanguageId : "less";
+LSP_LanguageId_LUA             : LSP_LanguageId : "lua";
+LSP_LanguageId_MAKEFILE        : LSP_LanguageId : "makefile";
+LSP_LanguageId_MARKDOWN        : LSP_LanguageId : "markdown";
+LSP_LanguageId_OBJECTIVE_C     : LSP_LanguageId : "objective-c";
+LSP_LanguageId_OBJECTIVE_CPP   : LSP_LanguageId : "objective-cpp";
+LSP_LanguageId_PERL            : LSP_LanguageId : "perl";
+LSP_LanguageId_PERL6           : LSP_LanguageId : "perl6";
+LSP_LanguageId_PHP             : LSP_LanguageId : "php";
+LSP_LanguageId_POWERSHELL      : LSP_LanguageId : "powershell";
+LSP_LanguageId_PUG             : LSP_LanguageId : "jade";
+LSP_LanguageId_PYTHON          : LSP_LanguageId : "python";
+LSP_LanguageId_R               : LSP_LanguageId : "r";
+LSP_LanguageId_RAZOR           : LSP_LanguageId : "razor";
+LSP_LanguageId_RUBY            : LSP_LanguageId : "ruby";
+LSP_LanguageId_RUST            : LSP_LanguageId : "rust";
+LSP_LanguageId_SCSS            : LSP_LanguageId : "scss";
+LSP_LanguageId_SASS            : LSP_LanguageId : "sass";
+LSP_LanguageId_SCALA           : LSP_LanguageId : "scala";
+LSP_LanguageId_SHADERLAB       : LSP_LanguageId : "shaderlab";
+LSP_LanguageId_SHELLSCRIPT     : LSP_LanguageId : "shellscript";
+LSP_LanguageId_SQL             : LSP_LanguageId : "sql";
+LSP_LanguageId_SWIFT           : LSP_LanguageId : "swift";
+LSP_LanguageId_TYPESCRIPT      : LSP_LanguageId : "typescript";
+LSP_LanguageId_TYPESCRIPTREACT : LSP_LanguageId : "typescriptreact";
+LSP_LanguageId_TEX             : LSP_LanguageId : "tex";
+LSP_LanguageId_VB              : LSP_LanguageId : "vb";
+LSP_LanguageId_XML             : LSP_LanguageId : "xml";
+LSP_LanguageId_XSL             : LSP_LanguageId : "xsl";
+LSP_LanguageId_YAML            : LSP_LanguageId : "yaml";
 
 LSP_TextDocumentIdentifier :: struct {
   uri: LSP_DocumentUri;
@@ -199,8 +199,8 @@ LSP_Command :: struct {
 }
 
 LSP_MarkupKind :: string;
-LSP_MarkupKind_PlainText :: "plaintext";
-LSP_MarkupKind_Markdown :: "markdown";
+LSP_MarkupKind_PlainText : LSP_MarkupKind : "plaintext";
+LSP_MarkupKind_Markdown  : LSP_MarkupKind : "markdown";
 
 LSP_MarkupContent :: struct {
   kind: LSP_MarkupKind;
@@ -269,20 +269,20 @@ LSP_WorkspaceEditClientCapabilities :: struct {
 }
 
 LSP_ResourceOperationKind :: string;
-LSP_ResourceOperationKind_Create :: "create";
-LSP_ResourceOperationKind_Rename :: "rename";
-LSP_ResourceOperationKind_Delete :: "delete";
+LSP_ResourceOperationKind_Create : LSP_ResourceOperationKind : "create";
+LSP_ResourceOperationKind_Rename : LSP_ResourceOperationKind : "rename";
+LSP_ResourceOperationKind_Delete : LSP_ResourceOperationKind : "delete";
 
 LSP_FailureHandlingKind :: string;
-LSP_FailureHandlingKind_Abort                 :: "abort";
-LSP_FailureHandlingKind_Transactional         :: "transactional";
-LSP_FailureHandlingKind_TextOnlyTransactional :: "textOnlyTransactional";
-LSP_FailureHandlingKind_Undo :: "undo";
+LSP_FailureHandlingKind_Abort                 : LSP_FailureHandlingKind : "abort";
+LSP_FailureHandlingKind_Transactional         : LSP_FailureHandlingKind : "transactional";
+LSP_FailureHandlingKind_TextOnlyTransactional : LSP_FailureHandlingKind : "textOnlyTransactional";
+LSP_FailureHandlingKind_Undo                  : LSP_FailureHandlingKind : "undo";
 
 LSP_WorkDoneProgressKind :: string;
-LSP_WorkDoneProgressKind_Begin  :: "begin";
-LSP_WorkDoneProgressKind_Report :: "report";
-LSP_WorkDoneProgressKind_End    :: "end";
+LSP_WorkDoneProgressKind_Begin  : LSP_WorkDoneProgressKind : "begin";
+LSP_WorkDoneProgressKind_Report : LSP_WorkDoneProgressKind : "report";
+LSP_WorkDoneProgressKind_End    : LSP_WorkDoneProgressKind : "end";
 
 LSP_WorkDoneProgressBegin :: struct {
   kind := LSP_WorkDoneProgressKind_Begin;
@@ -309,9 +309,9 @@ LSP_WorkDoneProgressOptions :: struct {
 }
 
 LSP_TraceValue :: string;
-LSP_TraceValue_Off      :: "off";
-LSP_TraceValue_Messages :: "messages";
-LSP_TraceValue_Verbose  :: "verbose";
+LSP_TraceValue_Off      : LSP_TraceValue : "off";
+LSP_TraceValue_Messages : LSP_TraceValue : "messages";
+LSP_TraceValue_Verbose  : LSP_TraceValue : "verbose";
 
 //
 // Base Protocol
@@ -356,9 +356,9 @@ LSP_REQUEST_INITIALIZE :: "initialize";
 
 LSP_TextDocumentClientCapabilities :: struct {
   synchronization:    *LSP_TextDocumentSyncClientCapabilities;         @?
-  // completion:         *LSP_CompletionClientCapabilities;               @?
+  completion:         *LSP_CompletionClientCapabilities;               @?
   hover:              *LSP_HoverClientCapabilities;                    @?
-  // signatureHelp:      *LSP_SignatureHelpClientCapabilities;            @?
+  signatureHelp:      *LSP_SignatureHelpClientCapabilities;            @?
   declaration:        *LSP_DeclarationClientCapabilities;              @?
   definition:         *LSP_DefinitionClientCapabilities;               @?
   typeDefinition:     *LSP_TypeDefinitionClientCapabilities;           @?
@@ -366,25 +366,25 @@ LSP_TextDocumentClientCapabilities :: struct {
   references:         *LSP_ReferenceClientCapabilities;                @?
   documentHighlight:  *LSP_DocumentHighlightClientCapabilities;        @?
   documentSymbol:     *LSP_DocumentSymbolClientCapabilities;           @?
-  // codeAction:         *LSP_CodeActionClientCapabilities;               @?
+  codeAction:         *LSP_CodeActionClientCapabilities;               @?
   codeLens:           *LSP_CodeLensClientCapabilities;                 @?
   documentLink:       *LSP_DocumentLinkClientCapabilities;             @?
-  // colorProvider:      *LSP_DocumentColorClientCapabilities;            @?
-  // formatting:         *LSP_DocumentFormattingClientCapabilities;       @?
-  // rangeFormatting:    *LSP_DocumentRangeFormattingClientCapabilities;  @?
-  // onTypeFormatting:   *LSP_DocumentOnTypeFormattingClientCapabilities; @?
-  // rename:             *LSP_RenameClientCapabilities;                   @?
-  // publishDiagnostics: *LSP_PublishDiagnosticsClientCapabilities;       @?
+  colorProvider:      *LSP_DocumentColorClientCapabilities;            @?
+  formatting:         *LSP_DocumentFormattingClientCapabilities;       @?
+  rangeFormatting:    *LSP_DocumentRangeFormattingClientCapabilities;  @?
+  onTypeFormatting:   *LSP_DocumentOnTypeFormattingClientCapabilities; @?
+  rename:             *LSP_RenameClientCapabilities;                   @?
+  publishDiagnostics: *LSP_PublishDiagnosticsClientCapabilities;       @?
   foldingRange:       *LSP_FoldingRangeClientCapabilities;             @?
   selectionRange:     *LSP_SelectionRangeClientCapabilities;           @?
-  // linkedEditingRange: *LSP_LinkedEditingRangeClientCapabilities;       @?
+  linkedEditingRange: *LSP_LinkedEditingRangeClientCapabilities;       @?
   callHierarchy:      *LSP_CallHierarchyClientCapabilities;            @?
   // semanticTokens:     *LSP_SemanticTokensClientCapabilities;           @?
   // moniker:            *LSP_MonikerClientCapabilities;                  @?
   typeHierarchy:      *LSP_TypeHierarchyClientCapabilities;            @?
   // inlineValue:        *LSP_InlineValueClientCapabilities;              @?
   // inlayHint:          *LSP_InlayHintClientCapabilities;                @?
-  // diagnostic:         *LSP_DiagnosticClientCapabilities;               @?
+  diagnostic:         *LSP_DiagnosticClientCapabilities;               @?
 }
 
 LSP_NotebookDocumentClientCapabilities :: struct {
@@ -414,7 +414,7 @@ LSP_ClientCapabilities :: struct {
     }; @?
     // inlineValue: LSP_InlineValueWorkspaceClientCapabilities; @?
     // inlayHint: LSP_InlayHintWorkspaceClientCapabilities; @?
-    // diagnostics: LSP_DiagnosticWorkspaceClientCapabilities; @?
+    diagnostics: LSP_DiagnosticWorkspaceClientCapabilities; @?
   }; @?
   textDocument: LSP_TextDocumentClientCapabilities; @?
   notebookDocument: LSP_NotebookDocumentClientCapabilities; @?
@@ -439,9 +439,9 @@ LSP_ServerCapabilities :: struct {
   positionEncoding:                 LSP_PositionEncodingKind; @?
   textDocumentSync:                 Any; @?       @LSP_TextDocumentSyncOptions        @LSP_TextDocumentSyncKind
   notebookDocumentSync:             Any; @?       @LSP_NotebookDocumentSyncOptions    @LSP_NotebookDocumentSyncRegistrationOptions
-  // completionProvider:               LSP_CompletionOptions; @?
+  completionProvider:               LSP_CompletionOptions; @?
   hoverProvider:                    Any; @? @bool @LSP_HoverOptions
-  // signatureHelpProvider:            LSP_SignatureHelpOptions; @?
+  signatureHelpProvider:            LSP_SignatureHelpOptions; @?
   declarationProvider:              Any; @? @bool @LSP_DeclarationOptions             @LSP_DeclarationRegistrationOptions
   definitionProvider:               Any; @? @bool @LSP_DefinitionOptions
   typeDefinitionProvider:           Any; @? @bool @LSP_TypeDefinitionOptions          @LSP_TypeDefinitionRegistrationOptions
@@ -449,25 +449,25 @@ LSP_ServerCapabilities :: struct {
   referencesProvider:               Any; @? @bool @LSP_ReferenceOptions
   documentHighlightProvider:        Any; @? @bool @LSP_DocumentHighlightOptions
   documentSymbolProvider:           Any; @? @bool @LSP_DocumentSymbolOptions
-  // codeActionProvider:               Any; @? @bool @LSP_CodeActionOptions
+  codeActionProvider:               Any; @? @bool @LSP_CodeActionOptions
   codeLensProvider:                 LSP_CodeLensOptions; @?
   documentLinkProvider:             LSP_DocumentLinkOptions; @?
-  // colorProvider:                    Any; @? @bool @LSP_DocumentColorOptions           @LSP_DocumentColorRegistrationOptions
-  // documentFormattingProvider:       Any; @? @bool @LSP_DocumentFormattingOptions
-  // documentRangeFormattingProvider:  Any; @? @bool @LSP_DocumentRangeFormattingOptions
+  colorProvider:                    Any; @? @bool @LSP_DocumentColorOptions           @LSP_DocumentColorRegistrationOptions
+  documentFormattingProvider:       Any; @? @bool @LSP_DocumentFormattingOptions
+  documentRangeFormattingProvider:  Any; @? @bool @LSP_DocumentRangeFormattingOptions
   // documentOnTypeFormattingProvider: LSP_DocumentOnTypeFormattingOptions; @?
-  // renameProvider:                   Any; @? @bool @LSP_RenameOptions
+  renameProvider:                   Any; @? @bool @LSP_RenameOptions
   foldingRangeProvider:             Any; @? @bool @LSP_FoldingRangeOptions            @LSP_FoldingRangeRegistrationOptions
   // executeCommandProvider:           LSP_ExecuteCommandOptions; @?
   selectionRangeProvider:           Any; @? @bool @LSP_SelectionRangeOptions          @LSP_SelectionRangeRegistrationOptions
-  // linkedEditingRangeProvider:       Any; @? @bool @LSP_LinkedEditingRangeOptions      @LSP_LinkedEditingRangeRegistrationOptions
+  linkedEditingRangeProvider:       Any; @? @bool @LSP_LinkedEditingRangeOptions      @LSP_LinkedEditingRangeRegistrationOptions
   callHierarchyProvider:            Any; @? @bool @LSP_CallHierarchyOptions           @LSP_CallHierarchyRegistrationOptions
   // semanticTokensProvider:           Any; @?       @LSP_SemanticTokensOptions          @LSP_SemanticTokensRegistrationOptions
   // monikerProvider:                  Any; @? @bool @LSP_MonikerOptions                 @LSP_MonikerRegistrationOptions
   typeHierarchyProvider:            Any; @? @bool @LSP_TypeHierarchyOptions           @LSP_TypeHierarchyRegistrationOptions
   // inlineValueProvider:              Any; @? @bool @LSP_InlineValueOptions             @LSP_InlineValueRegistrationOptions
   // inlayHintProvider:                Any; @? @bool @LSP_InlayHintOptions               @LSP_InlayHintRegistrationOptions
-  // diagnosticProvider:               Any; @?       @LSP_DiagnosticOptions              @LSP_DiagnosticRegistrationOptions
+  diagnosticProvider:               Any; @?       @LSP_DiagnosticOptions              @LSP_DiagnosticRegistrationOptions
   workspaceSymbolProvider:          Any; @? @bool @LSP_WorkspaceSymbolOptions
   workspace: struct {
     workspaceFolders: LSP_WorkspaceFoldersServerCapabilities; @?
@@ -824,8 +824,8 @@ LSP_DidCloseNotebookDocumentParams :: struct {
 LSP_REQUEST_GO_TO_DECLARATION :: "textDocument/declaration";
 
 LSP_DeclarationClientCapabilities :: struct {
-	dynamicRegistration: bool; @?
-	linkSupport: bool; @?
+  dynamicRegistration: bool; @?
+  linkSupport: bool; @?
 }
 
 LSP_DeclarationOptions :: struct {
@@ -834,13 +834,13 @@ LSP_DeclarationOptions :: struct {
 
 LSP_DeclarationRegistrationOptions :: struct {
   #as using _0: LSP_DeclarationOptions;
-	#as using _1: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_TextDocumentRegistrationOptions;
   #as using _2: LSP_StaticRegistrationOptions;
 }
 
 LSP_DeclarationParams :: struct {
   #as using _0: LSP_TextDocumentPositionParams;
-	#as using _1: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_WorkDoneProgressParams;
   #as using _2: LSP_PartialResultParams;
 }
 
@@ -857,8 +857,8 @@ LSP_DeclarationPartialResult :: struct {
 LSP_REQUEST_GO_TO_DEFINITION :: "textDocument/definition";
 
 LSP_DefinitionClientCapabilities :: struct {
-	dynamicRegistration: bool; @?
-	linkSupport: bool; @?
+  dynamicRegistration: bool; @?
+  linkSupport: bool; @?
 }
 
 LSP_DefinitionOptions :: struct {
@@ -867,12 +867,12 @@ LSP_DefinitionOptions :: struct {
 
 LSP_DefinitionRegistrationOptions :: struct {
   #as using _0: LSP_DefinitionOptions;
-	#as using _1: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_TextDocumentRegistrationOptions;
 }
 
 LSP_DefinitionParams :: struct {
   #as using _0: LSP_TextDocumentPositionParams;
-	#as using _1: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_WorkDoneProgressParams;
   #as using _2: LSP_PartialResultParams;
 }
 
@@ -1306,7 +1306,7 @@ LSP_CodeLensPartialResult :: [] LSP_CodeLens;
 
 // Code Lens Resolve
 
-LSP_REQUEST_RESOLVE_CODE_LENS :: "codeLens/resolve";
+LSP_REQUEST_CODE_LENS_RESOLVE :: "codeLens/resolve";
 
 LSP_CodeLensResolveParams :: LSP_CodeLens;
 
@@ -1347,9 +1347,9 @@ LSP_FoldingRangeRegistrationOptions :: struct {
 }
 
 LSP_FoldingRangeKind :: string;
-LSP_FoldingRangeKind_Comment :: "comment";
-LSP_FoldingRangeKind_Imports :: "imports";
-LSP_FoldingRangeKind_Region  :: "region";
+LSP_FoldingRangeKind_Comment : LSP_FoldingRangeKind : "comment";
+LSP_FoldingRangeKind_Imports : LSP_FoldingRangeKind : "imports";
+LSP_FoldingRangeKind_Region  : LSP_FoldingRangeKind : "region";
 
 _LSP_FoldingRanges :: [] LSP_FoldingRange;
 LSP_FoldingRange :: struct {
@@ -1386,8 +1386,8 @@ LSP_SelectionRangeOptions :: struct {
 }
 
 LSP_SelectionRangeRegistrationOptions :: struct {
-  #as using _1: LSP_SelectionRangeOptions;
-  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _0: LSP_SelectionRangeOptions;
+  #as using _1: LSP_TextDocumentRegistrationOptions;
   #as using _2: LSP_StaticRegistrationOptions;
 }
 
@@ -1437,32 +1437,32 @@ LSP_DocumentSymbolRegistrationOptions :: struct {
 }
 
 LSP_SymbolKind :: enum {
-	File :: 1;
-	Module :: 2;
-	Namespace :: 3;
-	Package :: 4;
-	Class :: 5;
-	Method :: 6;
-	Property :: 7;
-	Field :: 8;
-	Constructor :: 9;
-	Enum :: 10;
-	Interface :: 11;
-	Function :: 12;
-	Variable :: 13;
-	Constant :: 14;
-	String :: 15;
-	Number :: 16;
-	Boolean :: 17;
-	Array :: 18;
-	Object :: 19;
-	Key :: 20;
-	Null :: 21;
-	EnumMember :: 22;
-	Struct :: 23;
-	Event :: 24;
-	Operator :: 25;
-	TypeParameter :: 26;
+  File :: 1;
+  Module :: 2;
+  Namespace :: 3;
+  Package :: 4;
+  Class :: 5;
+  Method :: 6;
+  Property :: 7;
+  Field :: 8;
+  Constructor :: 9;
+  Enum :: 10;
+  Interface :: 11;
+  Function :: 12;
+  Variable :: 13;
+  Constant :: 14;
+  String :: 15;
+  Number :: 16;
+  Boolean :: 17;
+  Array :: 18;
+  Object :: 19;
+  Key :: 20;
+  Null :: 21;
+  EnumMember :: 22;
+  Struct :: 23;
+  Event :: 24;
+  Operator :: 25;
+  TypeParameter :: 26;
 }
 
 LSP_SymbolTag :: enum {
@@ -1505,6 +1505,737 @@ LSP_DocumentSymbolPartialResult :: struct {
 }
 
 //TODO: More
+
+// Completion
+
+LSP_REQUEST_COMPLETION :: "textDocument/completion";
+
+LSP_CompletionClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+  completionItem: struct {
+    snippetSupport: bool; @?
+    commitCharactersSupport: bool; @?
+    documentationFormat: [] LSP_MarkupKind; @?
+    deprecatedSupport: bool; @?
+    preselectSupport: bool; @?
+    tagSupport: struct {
+      valueSet: [] LSP_CompletionItemTag;
+    }; @?
+    insertReplaceSupport: bool; @?
+    resolveSupport: struct {
+      properties: [] string;
+    }; @?
+    insertTextModeSupport: struct {
+      valueSet: [] LSP_InsertTextMode;
+    }; @?
+    labelDetailsSupport: bool; @?
+  }; @?
+  completionItemKind: struct {
+    valueSet: [] LSP_CompletionItemKind; @?
+  }; @?
+  contextSupport: bool; @?
+  insertTextMode: LSP_InsertTextMode; @?
+  completionList: struct {
+    itemDefaults: [] string; @?
+  }; @?
+}
+
+LSP_CompletionOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+  triggerCharacters: [] string; @?
+  allCommitCharacters: [] string; @?
+  resolveProvider: bool; @?
+  completionItem: struct {
+    labelDetailsSupport: bool; @?
+  }; @?
+}
+
+LSP_CompletionRegistrationOptions :: struct {
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_CompletionOptions;
+}
+
+LSP_CompletionTriggerKind :: enum {
+  Invoked :: 1;
+  TriggerCharacters :: 2;
+  TriggerForIncompleteCompletions :: 3;
+}
+
+LSP_CompletionContext :: struct {
+  triggerKind: LSP_CompletionTriggerKind;
+  triggerCharacter: string; @?
+}
+
+_LSP_Completion_FullEditRange :: struct {
+  insert: LSP_Range;
+  replace: LSP_Range;
+}
+LSP_CompletionList :: struct {
+  isIncomplete: bool;
+  itemDefaults: struct {
+    commitCharacters: [] string; @?
+    editRange: Any; @LSP_Range @_LSP_Completion_FullEditRange @?
+    insertTextFormat: LSP_InsertTextFormat; @?
+    insertTextMode: LSP_InsertTextMode; @?
+    data: Any; @?
+  }; @?
+  items: [] LSP_CompletionItem;
+}
+
+LSP_InsertTextFormat :: enum {
+  PlainText :: 1;
+  Snippet :: 2;
+}
+
+LSP_CompletionItemTag :: enum {
+  Deprecated :: 1;
+}
+
+LSP_InsertReplaceEdit :: struct {
+  newText: string;
+  insert: LSP_Range;
+  replace: LSP_Range;
+}
+
+LSP_InsertTextMode :: enum {
+  asIs :: 1;
+  adjustIndentation :: 2;
+}
+
+LSP_CompletionItemLabelDetails :: struct {
+  detail: string; @?
+  description: string; @?
+}
+
+_LSP_CompletionItems :: [] LSP_CompletionItem;
+LSP_CompletionItem :: struct {
+  label: string;
+  labelDetails: LSP_CompletionItemLabelDetails; @?
+  kind: LSP_CompletionItemKind; @?
+  tags: [] LSP_CompletionItemTag; @?
+  detail: string; @?
+  documentation: Any; @string @LSP_MarkupContent
+  deprecated: bool; @?
+  preselect: bool; @?
+  sortText: string; @?
+  filterText: string; @?
+  insertText: string; @?
+  insertTextFormat: LSP_InsertTextFormat; @?
+  insertTextMode: LSP_InsertTextMode; @?
+  textEdit: Any; @LSP_TextEdit @LSP_InsertReplaceEdit @?
+  textEditText: string; @?
+  additionalTextEdits: [] LSP_TextEdit; @?
+  commitCharacters: [] string; @?
+  command: LSP_Command; @?
+  data: Any; @?
+}
+
+LSP_CompletionItemKind :: enum {
+  Text :: 1;
+  Method :: 2;
+  Function :: 3;
+  Constructor :: 4;
+  Field :: 5;
+  Variable :: 6;
+  Class :: 7;
+  Interface :: 8;
+  Module :: 9;
+  Property :: 10;
+  Unit :: 11;
+  Value :: 12;
+  Enum :: 13;
+  Keyword :: 14;
+  Snippet :: 15;
+  Color :: 16;
+  File :: 17;
+  Reference :: 18;
+  Folder :: 19;
+  EnumMember :: 20;
+  Constant :: 21;
+  Struct :: 22;
+  Event :: 23;
+  Operator :: 24;
+  TypeParameter :: 25;
+}
+
+LSP_CompletionParams :: struct {
+  #as using _0: LSP_TextDocumentPositionParams;
+  #as using _1: LSP_WorkDoneProgressParams;
+  #as using _2: LSP_PartialResultParams;
+  completionContext: LSP_CompletionContext; @? @$Name$context
+}
+
+LSP_CompletionResult :: struct {
+  _: Any; @_LSP_CompletionItems @LSP_CompletionList @$Null
+}
+
+LSP_CompletionPartialResult :: struct {
+  _: Any; @_LSP_CompletionItems @LSP_CompletionList
+}
+
+// Completion Item Resolve
+
+LSP_REQUEST_COMPLETION_ITEM_RESOLVE :: "completionItem/resolve";
+
+LSP_CompletionItemResolveParams :: LSP_CompletionItem;
+
+LSP_CompletionItemResolveResult :: LSP_CompletionItem;
+
+// Publish Diagnostics
+
+LSP_NOTIFICATION_PUBLISH_DIAGNOSTICS :: "textDocument/publishDiagnostics";
+
+LSP_PublishDiagnosticsClientCapabilities :: struct {
+  relatedInformation: bool; @?
+  tagSupport: struct {
+    valueSet: [] LSP_DiagnosticTag;
+  }; @?
+  versionSupport: bool; @?
+  codeDescriptionSupport: bool; @?
+  dataSupport: bool; @?
+}
+
+LSP_PublishDiagnosticsParams :: struct {
+  uri: LSP_DocumentUri;
+  version: s32; @?
+  diagnostics: [] LSP_Diagnostic;
+}
+
+// Document Diagnostics
+
+LSP_REQUEST_DOCUMENT_DIAGNOSTICS :: "textDocument/diagnostic";
+
+LSP_DiagnosticClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+  relatedDocumentSupport: bool; @?
+}
+
+LSP_DiagnosticOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+  identifier: string; @?
+  interFileDependencies: bool;
+  workspaceDiagnostics: bool;
+}
+
+LSP_DiagnosticRegistrationOptions :: struct {
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_DiagnosticOptions;
+  #as using _2: LSP_StaticRegistrationOptions;
+}
+
+LSP_DocumentDiagnosticReport :: struct {
+  _: Any; @LSP_RelatedFullDocumentDiagnosticReport @LSP_RelatedUnchangedDocumentDiagnosticReport
+}
+
+LSP_DocumentDiagnosticReportKind :: string;
+LSP_DocumentDiagnosticReportKind_Full      : LSP_DocumentDiagnosticReportKind : "full";
+LSP_DocumentDiagnosticReportKind_Unchanged : LSP_DocumentDiagnosticReportKind : "unchanged";
+
+_LSP_NonrelatedDocumentDiagnosticReport :: struct {
+  _: Any; @LSP_FullDocumentDiagnosticReport @LSP_UnchangedDocumentDiagnosticReport
+}
+
+//TODO: Match constant values and make these constant
+LSP_FullDocumentDiagnosticReport :: struct {
+  kind := LSP_DocumentDiagnosticReportKind_Full;
+  resultId: string; @?
+  items: [] LSP_Diagnostic;
+}
+
+LSP_UnchangedDocumentDiagnosticReport :: struct {
+  kind := LSP_DocumentDiagnosticReportKind_Unchanged;
+  resultId: string; @?
+}
+
+LSP_RelatedFullDocumentDiagnosticReport :: struct {
+  #as using _: LSP_FullDocumentDiagnosticReport;
+  relatedDocuments: struct {
+    _: Table(LSP_DocumentUri, _LSP_NonrelatedDocumentDiagnosticReport); @$Table
+  }; @?
+}
+
+LSP_RelatedUnchangedDocumentDiagnosticReport :: struct {
+  #as using _: LSP_UnchangedDocumentDiagnosticReport;
+  relatedDocuments: struct {
+    _: Table(LSP_DocumentUri, _LSP_NonrelatedDocumentDiagnosticReport); @$Table
+  }; @?
+}
+
+LSP_DocumentDiagnosticParams :: struct {
+  #as using _0: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_PartialResultParams;
+  textDocument: LSP_TextDocumentIdentifier;
+  identifier: string; @?
+  previousResultId: string; @?
+}
+
+LSP_DocumentDiagnosticResult :: LSP_DocumentDiagnosticReport;
+
+LSP_DocumentDiagnosticPartialResult :: struct {
+  relatedDocuments: struct {
+    _: Table(LSP_DocumentUri, _LSP_NonrelatedDocumentDiagnosticReport); @$Table
+  }; @?
+}
+
+LSP_DiagnosticServerCancellationData :: struct {
+  retriggerRequest := true;
+}
+
+// Workspace Diagnostics
+
+LSP_REQUEST_WORKSPACE_DIAGNOSTICS :: "workspace/diagnostic";
+
+LSP_PreviousResultId :: struct {
+  uri: LSP_DocumentUri;
+  value: string;
+}
+
+LSP_WorkspaceDiagnosticReport :: struct {
+  items: [] LSP_WorkspaceDocumentDiagnosticReport;
+}
+
+LSP_WorkspaceFullDocumentDiagnosticReport :: struct {
+  #as using _: LSP_FullDocumentDiagnosticReport;
+  uri: LSP_DocumentUri;
+  version: Any; @s32 @$Null
+}
+
+LSP_WorkspaceUnchangedDocumentDiagnosticReport :: struct {
+  #as using _: LSP_UnchangedDocumentDiagnosticReport;
+  uri: LSP_DocumentUri;
+  version: Any; @s32 @$Null
+}
+
+LSP_WorkspaceDocumentDiagnosticReport :: struct {
+  _: Any; @LSP_WorkspaceFullDocumentDiagnosticReport @LSP_WorkspaceUnchangedDocumentDiagnosticReport
+}
+
+LSP_WorkspaceDiagnosticParams :: struct {
+  #as using _0: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_PartialResultParams;
+  identifier: string; @?
+  previousResultIds: [] LSP_PreviousResultId; @?
+}
+
+LSP_WorkspaceDiagnosticResult :: LSP_WorkspaceDiagnosticReport;
+
+LSP_WorkspaceDiagnosticPartialResult :: struct {
+  items: [] LSP_WorkspaceDocumentDiagnosticReport;
+}
+
+// Diagnostics Refresh
+
+LSP_REQUEST_DIAGNOSTICS_REFRESH :: "workspace/diagnostic/refresh";
+
+LSP_DiagnosticWorkspaceClientCapabilities :: struct {
+  refreshSupport: bool; @?
+}
+
+// Signature Help
+
+LSP_REQUEST_SIGNATURE_HELP :: "textDocument/signatureHelp";
+
+LSP_SignatureHelpClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+  signatureInformation: struct {
+    documentationFormat: [] LSP_MarkupKind; @?
+    parameterInformation: struct {
+      labelOffsetSupport: bool; @?
+    }; @?
+    activeParameterSupport: bool; @?
+  }; @?
+  contextSupport: bool; @?
+}
+
+LSP_SignatureHelpOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+  triggerCharacters: [] string; @?
+  retriggerCharacters: [] string; @?
+}
+
+LSP_SignatureHelpRegistrationOptions :: struct {
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_SignatureHelpOptions;
+}
+
+LSP_SignatureHelpTriggerKind :: enum {
+  Invoked :: 1;
+  TriggerCharacter :: 2;
+  ContentChange :: 3;
+}
+
+LSP_SignatureHelpContext :: struct {
+  triggerKind: LSP_SignatureHelpTriggerKind;
+  triggerCharacter: string; @?
+  isRetrigger: bool;
+  activeSignatureHelp: LSP_SignatureHelp; @?
+}
+
+LSP_SignatureHelp :: struct {
+  signatures: [] LSP_SignatureInformation;
+  activeSignature: u32; @?
+  activeParameter: u32; @?
+}
+
+LSP_SignatureInformation :: struct {
+  label: string;
+  documentation: Any; @string @LSP_MarkupContent @?
+  parameters: [] LSP_ParameterInformation; @?
+  activeParameter: u32; @?
+}
+
+_LSP_ParameterInformation_Range :: [2] u32;
+LSP_ParameterInformation :: struct {
+  label: Any; @string @_LSP_ParameterInformation_Range
+  documentation: Any; @string @LSP_MarkupContent @?
+}
+
+LSP_SignatureHelpParams :: struct {
+  #as using _0: LSP_TextDocumentPositionParams;
+  #as using _1: LSP_WorkDoneProgressParams;
+  signatureHelpContext: LSP_SignatureHelpContext; @? @$Name$context
+}
+
+LSP_SignatureHelpResult :: struct {
+  _: Any; @LSP_SignatureHelp @$Null
+}
+
+// Code Action
+
+LSP_REQUEST_CODE_ACTION :: "textDocument/codeAction";
+
+LSP_CodeActionClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+  codeActionLiteralSupport: struct {
+    codeActionKind: struct {
+      valueSet: [] LSP_CodeActionKind;
+    };
+  }; @?
+  isPreferredSupport: bool; @?
+  disabledSupport: bool; @?
+  dataSupport: bool; @?
+  resolveSupport: struct {
+    properties: [] string;
+  }; @?
+  honorsChangeAnnotations: bool; @?
+}
+
+LSP_CodeActionOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+  codeActionKinds: [] LSP_CodeActionKind; @?
+  resolveProvider: bool; @?
+}
+
+LSP_CodeActionRegistrationOptions :: struct {
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_CodeActionOptions;
+}
+
+LSP_CodeActionKind :: string;
+LSP_CodeActionKind_Empty                 : LSP_CodeActionKind : "";
+LSP_CodeActionKind_QuickFix              : LSP_CodeActionKind : "quickfix";
+LSP_CodeActionKind_Refactor              : LSP_CodeActionKind : "refactor";
+LSP_CodeActionKind_RefactorExtract       : LSP_CodeActionKind : "refactor.extract";
+LSP_CodeActionKind_RefactorInline        : LSP_CodeActionKind : "refactor.inline";
+LSP_CodeActionKind_RefactorRewrite       : LSP_CodeActionKind : "refactor.rewrite";
+LSP_CodeActionKind_Source                : LSP_CodeActionKind : "source";
+LSP_CodeActionKind_SourceOrganizeImports : LSP_CodeActionKind : "source.organizeImports";
+LSP_CodeActionKind_SourceFixAll          : LSP_CodeActionKind : "source.fixAll";
+
+LSP_CodeActionContext :: struct {
+  diagnostics: [] LSP_Diagnostic;
+  only: [] LSP_CodeActionKind; @?
+  triggerKind: LSP_CodeActionTriggerKind; @?
+}
+
+LSP_CodeActionTriggerKind :: enum {
+  Invoked :: 1;
+  Automatic :: 2;
+}
+
+LSP_CodeAction :: struct {
+  title: string;
+  kind: LSP_CodeActionKind; @?
+  diagnostics: [] LSP_Diagnostic; @?
+  isPreferred: bool; @?
+  disabled: struct {
+    reason: string;
+  }; @?
+  edit: LSP_WorkspaceEdit; @?
+  command: LSP_Command; @?
+  data: Any; @?
+}
+
+LSP_CodeActionParams :: struct {
+  #as using _0: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_PartialResultParams;
+  textDocument: LSP_TextDocumentIdentifier;
+  range: LSP_Range;
+  codeActionContext: LSP_CodeActionContext; @$Name$context
+}
+
+_LSP_CodeActionResult :: struct {
+  _: Any; @LSP_Command @LSP_CodeAction
+}
+_LSP_CodeActionResults :: [] _LSP_CodeActionResult;
+LSP_CodeActionResult :: struct {
+  _: Any; @_LSP_CodeActionResults @$Null
+}
+
+LSP_CodeActionPartialResult :: [] _LSP_CodeActionResult;
+
+// Code Action Resolve
+
+LSP_REQUEST_CODE_ACTION_RESOLVE :: "codeAction/resolve";
+
+LSP_CodeActionResolveParams :: LSP_CodeAction;
+
+LSP_CodeActionResolveResult :: LSP_CodeAction;
+
+// Document Color
+
+LSP_REQUEST_DOCUMENT_COLOR :: "textDocument/documentColor";
+
+LSP_DocumentColorClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+}
+
+LSP_DocumentColorOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+}
+
+LSP_DocumentColorRegistrationOptions :: struct {
+  #as using _0: LSP_WorkDoneProgressOptions;
+  #as using _1: LSP_StaticRegistrationOptions;
+  #as using _2: LSP_DocumentColorOptions;
+}
+
+LSP_ColorInformation :: struct {
+  range: LSP_Range;
+  color: LSP_Color;
+}
+
+LSP_Color :: struct {
+  red: r32;
+  green: r32;
+  blue: r32;
+  alpha: r32;
+}
+
+LSP_DocumentColorParams :: struct {
+  #as using _0: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_PartialResultParams;
+  textDocument: LSP_TextDocumentIdentifier;
+}
+
+LSP_DocumentColorResult :: [] LSP_ColorInformation;
+
+LSP_DocumentColorPartialResult :: [] LSP_ColorInformation;
+
+// Color Presentation
+
+LSP_REQUEST_COLOR_PRESENTATION :: "textDocument/colorPresentation";
+
+LSP_ColorPresentation :: struct {
+  label: string;
+  textEdit: LSP_TextEdit; @?
+  additionalTextEdits: [] LSP_TextEdit; @?
+}
+
+LSP_ColorPresentationParams :: struct {
+  #as using _0: LSP_WorkDoneProgressParams;
+  #as using _1: LSP_PartialResultParams;
+  textDocument: LSP_TextDocumentIdentifier;
+  color: LSP_Color;
+  range: LSP_Range;
+}
+
+LSP_ColorPresentationResult :: [] LSP_ColorPresentation;
+
+// Document Formatting
+
+LSP_REQUEST_DOCUMENT_FORMATTING :: "textDocument/formatting";
+
+LSP_DocumentFormattingClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+}
+
+LSP_DocumentFormattingOptions :: struct {
+  #as using _: lSP_WorkDoneProgressOptions;
+}
+
+LSP_DocumentFormattingRegistrationOptions :: struct {
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_DocumentFormattingOptions;
+}
+
+_LSP_FormattingOptions_FutherProperties :: struct {
+  _: Any; @bool @s32 @string
+}
+LSP_FormattingOptions :: struct {
+  tabSize: u32;
+  insertSpaces: bool;
+  trimTrailingWhitespace: bool; @?
+  insertFinalNewline: bool; @?
+  trimFinalNewlines: bool; @?
+  _: Table(string, _LSP_FormattingOptions_FurtherProperties); @$Table
+}
+
+LSP_DocumentFormattingParams :: struct {
+  #as using _: LSP_WorkDoneProgressParams;
+  textDocument: LSP_TextDocumentIdentifier;
+  options: LSP_FormattingOptions;
+}
+
+LSP_DocumentFormattingResult :: struct {
+  _: Any; @_LSP_TextEdits @$Null
+}
+
+// Document Range Formatting
+
+LSP_REQUEST_DOCUMENT_RANGE_FORMATTING :: "textDocument/rangeFormatting";
+
+LSP_DocumentRangeFormattingClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+}
+
+LSP_DocumentRangeFormattingOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+}
+
+LSP_DocumentRangeFormattingRegistrationOptions :: struct {
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_DocumentRangeFormattingOptions;
+}
+
+LSP_DocumentRangeFormattingParams :: struct {
+  #as using _: LSP_WorkDoneProgressParams;
+  textDocument: LSP_TextDocumentIdentifier;
+  range: LSP_Range;
+  options: LSP_FormattingOptions;
+}
+
+LSP_DocumentRangeFormattingResult :: struct {
+  _: Any; @_LSP_TextEdits @$Null
+}
+
+// Document On Type Formatting
+
+LSP_REQUEST_DOCUMENT_ON_TYPE_FORMATTING :: "textDocument/onTypeFormatting";
+
+LSP_DocumentOnTypeFormattingClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+}
+
+LSP_DocumentOnTypeFormattingOptions :: struct {
+  firstTriggerCharacter: string;
+  moreTriggerCharacters: [] string; @?
+}
+
+LSP_DocumentOnTypeFormattingRegistrationOptions :: struct {
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_DocumentOnTypeFormattingOptions;
+}
+
+LSP_DocumentOnTypeFormattingParams :: struct {
+  textDocument: LSP_TextDocumentIdentifier;
+  position: LSP_Position;
+  ch: string;
+  options: LSP_FormattingOptions;
+}
+
+LSP_DocumentOnTypeFormattingResult :: struct {
+  _: Any; @_LSP_TextEdits @$Null
+}
+
+// Rename
+
+LSP_REQUEST_RENAME :: "textDocument/rename";
+
+LSP_PrepareSupportDefaultBehvaior :: enum {
+  Identifier :: 1;
+}
+
+LSP_RenameClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+  prepareSupport: bool; @?
+  prepareSupportDefaultBehavior: LSP_PrepareSupportDefaultBehvaior; @?
+  honorsChangeAnnotations: bool; @?
+}
+
+LSP_RenameOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+  prepareProvider: bool; @?
+}
+
+LSP_RenameRegistrationOptions :: struct {
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_RenameOptions;
+}
+
+LSP_RenameParams :: struct {
+  #as using _0: LSP_TextDocumentPositionParams;
+  #as using _1: LSP_WorkDoneProgressParams;
+  newName: string;
+}
+
+LSP_RenameResult :: struct {
+  _: Any; @LSP_WorkspaceEdit @$Null
+}
+
+// Prepare Rename
+
+LSP_REQUEST_PREPARE_RENAME :: "textDocument/prepareRename";
+
+_LSP_PrepareRename_PlaceholderRange :: struct {
+  range: LSP_Range;
+  placeholder: string;
+}
+
+_LSP_PrepareRename_DefaultBehavior :: struct {
+  defaultBehavior: bool;
+}
+
+LSP_PrepareRenameParams :: struct {
+  #as using _0: LSP_TextDocumentPositionParams;
+  #as using _1: LSP_WorkDoneProgressParams;
+}
+
+LSP_PrepareRenameResult :: struct {
+  _: Any; @LSP_Range @_LSP_PrepareRename_PlaceholderRange @_LSP_PrepareRename_DefaultBehavior @$Null
+}
+
+// Linked Editing Range
+
+LSP_REQUEST_LINKED_EDITING_RANGE :: "textDocument/linkedEditingRange";
+
+LSP_LinkedEditingRangeClientCapabilities :: struct {
+  dynamicRegistration: bool; @?
+}
+
+LSP_LinkedEditingRangeOptions :: struct {
+  #as using _: LSP_WorkDoneProgressOptions;
+}
+
+LSP_LinkedEditingRangeRegistrationOptions :: struct {
+  #as using _0: LSP_TextDocumentRegistrationOptions;
+  #as using _1: LSP_LinkedEditingRangeOptions;
+  #as using _2: LSP_StaticRegistrationOptions;
+}
+
+LSP_LinkedEditingRanges :: struct {
+  ranges: [] LSP_Range;
+  wordPattern: string; @?
+}
+
+LSP_LinkedEditingRangeParams :: struct {
+  #as using _0: LSP_TextDocumentPositionParams;
+  #as using _1: LSP_WorkDoneProgressParams;
+}
+
+LSP_LinkedEditingRangeResult :: struct {
+  _: Any; @LSP_LinkedEditingRanges @$Null
+}
 
 //
 // Workspace Features
@@ -1565,7 +2296,7 @@ LSP_WorkspaceSymbolPartialResult :: struct {
 
 // Workspace Symbol Resolve
 
-LSP_REQUEST_RESOLVE_WORKSPACE_SYMBOL :: "workspaceSymbol/resolve";
+LSP_REQUEST_WORKSPACE_SYMBOL_RESOLVE :: "workspaceSymbol/resolve";
 
 LSP_WorkspaceSymbolResolveParams :: LSP_WorkspaceSymbol;
 
@@ -1667,11 +2398,10 @@ LSP_CreateFilesParams :: struct {
   files: [] LSP_FileCreate;
 } 
 
+//TODO: Convert these to `_: LSP_WorkspaceEdit; @?`, etc.
 LSP_CreateFilesResult :: struct {
   _: Any; @LSP_WorkspaceEdit @$Null
 }
-
-//TODO: Check what happens if the results are just optional instead of Any w/ $Null
 
 // Did Create Files
 
