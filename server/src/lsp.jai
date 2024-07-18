@@ -26,7 +26,6 @@ lsp_initialize :: (data: *Data, params: *LSP_InitializeParams) -> LSP_Initialize
         then alloc_any(LSP_SaveOptions.{ includeText = false })
         else alloc_any(false)
     });
-  result.capabilities.declarationProvider = alloc_any(!!params.capabilities.textDocument.declaration);
   result.capabilities.definitionProvider = alloc_any(!!params.capabilities.textDocument.definition);
   
   data.capabilities = copy_casted_json(params.capabilities);
@@ -74,7 +73,6 @@ lsp_textDocument_didOpen :: (data: *Data, params: *LSP_DidOpenTextDocumentParams
 lsp_textDocument_didChange :: (data: *Data, params: *LSP_DidChangeTextDocumentParams) {
   assert_running();
   decode_uri(*params.textDocument.uri);
-  // apply_document_changes(data, params.textDocument.uri, params.contentChanges);
 }
 
 lsp_textDocument_didSave :: (data: *Data, params: *LSP_DidSaveTextDocumentParams) {
@@ -95,40 +93,9 @@ lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) ->
   assert(success, "Could not open the index");
   defer close_and_unlock_record_file(*header);
   
-  text := read_entire_file("database/declarations");
-  defer free(text);
-  locs := parse_location_pairs(text);
-  defer array_free(locs);
   
-  links: [..] LSP_LocationLink;
-  for 0 .. locs.count / 2 - 1 {
-    left, right := locs[it], locs[it+1];
-    
-    if params.textDocument.uri != left.uri continue;
-    if params.position.line < left.range.start.line continue;
-    if params.position.line > left.range.end.line continue;
-    if params.position.character < left.range.start.character continue;
-    if params.position.character >= left.range.end.character continue;
-    
-    array_add(*links, .{
-      originSelectionRange = left.range,
-      targetUri = copy_string(right.uri),
-      targetRange = right.range,
-      targetSelectionRange = right.range
-    });
-  }
   
-  return .{alloc_any(links)};
-  
-  // links, found := find_declaration_links(*header, params.textDocument.uri, params.position);
-  // close_and_unlock_record_file(*header);
-  // return .{make_null_any()};
-  // if !found return .{make_null_any()};
-  
-  // if data.capabilities.textDocument.declaration.linkSupport
-  //   return .{alloc_any(links)};
-  // locations := location_links_to_locations(links);
-  // return .{alloc_any(locations)};
+  return .{make_null_any()};
 }
 
 lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> LSP_DefinitionResult {
@@ -139,42 +106,39 @@ lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> L
   assert(success, "Could not open the index");
   defer close_and_unlock_record_file(*header);
   
-  text := read_entire_file("database/definitions");
-  defer free(text);
-  locs := parse_location_pairs(text);
-  defer array_free(locs);
-  
   links: [..] LSP_LocationLink;
-  for 0 .. locs.count / 2 - 1 {
-    left, right := locs[it], locs[it+1];
+  node := get_node_from_location(*header, params.textDocument.uri, params.position);
+  if node.kind == {
+    case .DIRECTIVE_IMPORT;
+      using n: *Code_Directive_Import = xx node;
     
-    if params.textDocument.uri != left.uri continue;
-    if params.position.line < left.range.start.line continue;
-    if params.position.line > left.range.end.line continue;
-    if params.position.character < left.range.start.character continue;
-    if params.position.character >= left.range.end.character continue;
     
-    array_add(*links, .{
-      originSelectionRange = left.range,
-      targetUri = copy_string(right.uri),
-      targetRange = right.range,
-      targetSelectionRange = right.range
-    });
+    case .DIRECTIVE_LOAD;
+      using n: *Code_Directive_Load = xx node;
+      targetUri: string;
+      if fully_pathed_filename {
+        targetUri = join("file:///", fully_pathed_filename);
+      } else if loaded_string {
+      } else if is_absolute_path(short_name) {
+        targetUri = join("file:///", short_name);
+        // Ensure drive casing
+        decode_uri(*targetUri);
+      } else {
+        _, dir, _ := split_from_right(params.textDocument.uri, #char "/");
+        targetUri = join("file:///", dir, short_name);
+        // Ensure slash direction
+        decode_uri(*targetUri);
+      }
+      
+      array_add(*links, .{
+        originSelectionRange = .{.{l0, c0}, .{l1, c1}},
+        targetUri = copy_string(targetUri),
+        targetRange = .{},
+        targetSelectionRange = .{}
+      });
   }
   
   return .{alloc_any(links)};
-  
-  // header, success := lock_and_open_record_file(null, false);
-  // assert(success, "Could not open the index");
-  
-  // links, found := find_definition_links(*header, params.textDocument.uri, params.position);
-  // close_and_unlock_record_file(*header);
-  // if !found return .{make_null_any()};
-  
-  // if data.capabilities.textDocument.definition.linkSupport
-  //   return .{alloc_any(links)};
-  // locations := location_links_to_locations(links);
-  // return .{alloc_any(locations)};
 }
 
 lsp_workspace_didChangeWatchedFiles :: (data: *Data, params: *LSP_DidChangeWatchedFilesParams) {
@@ -208,26 +172,6 @@ is_process_running :: (process: Process) -> bool {
     if process.pid == 0 return true;
     return kill(process.pid, 0) != -1;
   }
-}
-
-apply_document_changes :: (data: *Data, uri: LSP_DocumentUri, content_changes: [] LSP_TextDocumentContentChangeEvent) {
-  // header, success := lock_and_open_record_file(*data.compiler, true);
-  // assert(success, "Could not open the index");
-  
-  // //TODO: If we get an earlier version, something screwed up, so flush the database
-  
-  // for content_changes {
-  //   if is_any_of_type(it._, _LSP_TextDocumentContentChangeEvent_Full) {
-  //     success = remove_document(*header, uri);
-  //     assert(success, "Could not remove % from the index", uri);
-  //     break;
-  //   } else {
-  //     change := cast_any(it._, _LSP_TextDocumentContentChangeEvent_Range);
-  //     apply_document_change(*header, change.range);
-  //   }
-  // }
-  
-  // close_and_unlock_record_file(*header);
 }
 
 launch_compiler :: (data: *Data, document: LSP_DocumentUri) {
@@ -274,6 +218,9 @@ decode_uri :: (uri: *string) {
       value := (get_hex_value(uri.*[i+1]) << 4) | get_hex_value(uri.*[i+2]);
       uri.*[j] = value;
       i += 3;
+    } else if uri.*[i] == #char "\\" {
+      uri.*[j] = #char "/";
+      i += 1;
     } else {
       uri.*[j] = uri.*[i];
       i += 1;

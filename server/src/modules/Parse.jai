@@ -1,13 +1,5 @@
 duplication_checker: Table(*Code_Node, int);
 overall_count: Table(Code_Node.Kind, int);
-result_sets: Table(*Code_Node, Result_Set);
-
-Result_Set :: struct {
-  id: int;
-  next: *Result_Set;
-  declaration: *Code_Node;
-  definition: *Code_Node;
-}
 
 #run {
 	set_build_options_dc(.{
@@ -105,30 +97,9 @@ Result_Set :: struct {
   
   print_tables();
   
-  append_location_pair :: (builder: *String_Builder, left: *Code_Node, right: *Code_Node) {
-    print_to_builder(builder, "file:///%,%:%-%:%;file:///%,%:%-%:%\n",
-    left.enclosing_load.fully_pathed_filename,
-    left.l0 - 1, left.c0 - 1, left.l1 - 1, left.c1 - 1,
-    right.enclosing_load.fully_pathed_filename,
-    right.l0 - 1, right.c0 - 1, right.l1 - 1, right.c1 - 1);
-  }
-  
   header, success := lock_and_open_record_file(null, true);
   assert(success);
-  file_close(*header.file);
-  declarations_builder, definitions_builder: String_Builder;
-  init_string_builder(*declarations_builder);
-  init_string_builder(*definitions_builder);
-  declarations_file := file_open("database/declarations", true, false, true);
-  definitions_file := file_open("database/definitions", true, false, true);
-  for result_sets {
-    if it.declaration
-      append_location_pair(*declarations_builder, it_index, it.declaration);
-    if it.definition
-      append_location_pair(*definitions_builder, it_index, it.definition);
-  }
-  file_write(*declarations_file, builder_to_string(*declarations_builder));
-  file_write(*definitions_file, builder_to_string(*definitions_builder));
+  
   close_and_unlock_record_file(*header);
 }
 
@@ -503,15 +474,15 @@ add_definition :: inline (ref: *Code_Node, decl: *Code_Node) {
     table_set(*result_sets, ref, .{id = result_sets.count, definition = decl});
 }
 
-// write_declaration :: (ref: *Code_Node, decl: *Code_Node) {
-//   header, success := lock_and_open_record_file(null, true);
-//   if !success return;
+write_definition :: (ref: *Code_Node, def: *Code_Node) { 
+  header, success := lock_and_open_record_file(null, true);
+  if !success return;
   
-//   ref_document := find_or_add_document(*header, tprint("file:///%", ref.fully_pathed_filename));
-//   decl_document := find_or_add_document(*header, tprint("file:///%", decl.fully_pathed_filename));
+  ref_document := find_or_add_document(*header, tprint("file:///%", ref.fully_pathed_filename));
+  def_document := find_or_add_document(*header, tprint("file:///%", def.fully_pathed_filename));
   
-//   ref_range := find_or_add_range(*header, ref_document, .{.{ref.l0, ref.c0}, .{ref.l1, ref.c1}});
-//   decl_range := find_or_add_range(*header, decl_document, .{.{decl.l0, decl.c0}, .{decl.l1, decl.c1}});
+  ref_range := find_or_add_range(*header, ref_document, .{.{ref.l0, ref.c0}, .{ref.l1, ref.c1}});
+  decl_range := find_or_add_range(*header, decl_document, .{.{decl.l0, decl.c0}, .{decl.l1, decl.c1}});
   
 //   ref_result_set := find_or_add_result_set(*header, ref_range);
 //   decl_result_set := find_or_add_result_set(*header, decl_range);
@@ -521,8 +492,8 @@ add_definition :: inline (ref: *Code_Node, decl: *Code_Node) {
 //   item := find_or_add_item(*header, decl_document, declaration);
 //   item_range := find_or_add_item_range(*header, item, decl_range);
   
-//   close_and_unlock_record_file(*header);
-// }
+  close_and_unlock_record_file(*header);
+}
 
 #import "Basic";
 #import "Compiler";
