@@ -34,6 +34,8 @@ Data :: struct {
   is_initialized: bool;
   is_shutdown: bool;
   trace: LSP_TraceValue = LSP_TraceValue_Off;
+  
+  ast_state: AST_State;
 }
 
 main :: () {
@@ -52,7 +54,8 @@ main :: () {
   file_close(*loglog);
   data.buffer_filename = sprint("%/%.log", LOG_FOLDER, lines.count - 1);
   
-  initialize_record_file();
+  data.ast_state = initialize_ast_database_state();
+  initialize_ast_database(*data.ast_state);
   
   initialize_rpc(*data, read_message_from_stdin, send_message_to_stdout, debug_log);
   
@@ -93,7 +96,7 @@ main :: () {
 #import "Cast_Json";
 #import "Json_Rpc" (SCOPE = #code main);
 #import "Lsp_Types";
-#import "Record_File";
+#import "AST_Database";
 
 #load "io.jai";
 #load "lsp.jai";

@@ -437,6 +437,7 @@ process_utf_32 :: (json: *JSON, big_endian: bool) {
   }
 }
 
+//TODO: Make iterative
 parse_json :: (json: *JSON) -> *JSON_Element {
   assert_syntax(xx json.count, json, "Expected a json stream, but got EOF");
   

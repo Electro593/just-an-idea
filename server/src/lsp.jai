@@ -89,9 +89,9 @@ lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) ->
   assert_running();
   decode_uri(*params.textDocument.uri);
   
-  header, success := lock_and_open_record_file(null, false);
-  assert(success, "Could not open the index");
-  defer close_and_unlock_record_file(*header);
+  success := lock_and_open_record_file(*data.ast_state, null, false);
+  assert(success, "Could not open the ast database");
+  defer close_and_unlock_record_file(*data.ast_state);
   
   
   
@@ -102,43 +102,44 @@ lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> L
   assert_running();
   decode_uri(*params.textDocument.uri);
   
-  header, success := lock_and_open_record_file(null, false);
-  assert(success, "Could not open the index");
-  defer close_and_unlock_record_file(*header);
+  success := lock_and_open_record_file(*data.ast_state, null, false);
+  assert(success, "Could not open the ast database");
+  defer close_and_unlock_record_file(*data.ast_state);
   
-  links: [..] LSP_LocationLink;
-  node := get_node_from_location(*header, params.textDocument.uri, params.position);
-  if node.kind == {
-    case .DIRECTIVE_IMPORT;
-      using n: *Code_Directive_Import = xx node;
+  // links: [..] LSP_LocationLink;
+  // node := get_node_from_location(*header, params.textDocument.uri, params.position);
+  // if node.kind == {
+  //   case .DIRECTIVE_IMPORT;
+  //     using n: *Code_Directive_Import = xx node;
     
     
-    case .DIRECTIVE_LOAD;
-      using n: *Code_Directive_Load = xx node;
-      targetUri: string;
-      if fully_pathed_filename {
-        targetUri = join("file:///", fully_pathed_filename);
-      } else if loaded_string {
-      } else if is_absolute_path(short_name) {
-        targetUri = join("file:///", short_name);
-        // Ensure drive casing
-        decode_uri(*targetUri);
-      } else {
-        _, dir, _ := split_from_right(params.textDocument.uri, #char "/");
-        targetUri = join("file:///", dir, short_name);
-        // Ensure slash direction
-        decode_uri(*targetUri);
-      }
+  //   case .DIRECTIVE_LOAD;
+  //     using n: *Code_Directive_Load = xx node;
+  //     targetUri: string;
+  //     if fully_pathed_filename {
+  //       targetUri = join("file:///", fully_pathed_filename);
+  //     } else if loaded_string {
+  //     } else if is_absolute_path(short_name) {
+  //       targetUri = join("file:///", short_name);
+  //       // Ensure drive casing
+  //       decode_uri(*targetUri);
+  //     } else {
+  //       _, dir, _ := split_from_right(params.textDocument.uri, #char "/");
+  //       targetUri = join("file:///", dir, short_name);
+  //       // Ensure slash direction
+  //       decode_uri(*targetUri);
+  //     }
       
-      array_add(*links, .{
-        originSelectionRange = .{.{l0, c0}, .{l1, c1}},
-        targetUri = copy_string(targetUri),
-        targetRange = .{},
-        targetSelectionRange = .{}
-      });
-  }
+  //     array_add(*links, .{
+  //       originSelectionRange = .{.{l0, c0}, .{l1, c1}},
+  //       targetUri = copy_string(targetUri),
+  //       targetRange = .{},
+  //       targetSelectionRange = .{}
+  //     });
+  // }
   
-  return .{alloc_any(links)};
+  // return .{alloc_any(links)};
+  return .{};
 }
 
 lsp_workspace_didChangeWatchedFiles :: (data: *Data, params: *LSP_DidChangeWatchedFilesParams) {
@@ -180,11 +181,11 @@ launch_compiler :: (data: *Data, document: LSP_DocumentUri) {
   //TODO: Allow for user metaprograms and arguments for specific files
   
   // Wait for, or kill, the compiler
-  header, success := lock_and_open_record_file(*data.compiler, false);
+  success := lock_and_open_record_file(*data.ast_state, *data.compiler, false);
   assert(success, "Could not open the index");
+  defer close_and_unlock_record_file(*data.ast_state);
   
   success = create_process(*data.compiler, "jai", document, "file", "--", "import_dir", "server/src/modules", "meta", "Parse", capture_and_return_output = true);
-  close_and_unlock_record_file(*header);
   assert(success, "Failed to launch compiler: 'jai % file -- import_dir server/src/modules meta Parse' in extension directory", document);
 }
 

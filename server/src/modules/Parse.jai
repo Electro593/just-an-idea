@@ -23,7 +23,7 @@ overall_count: Table(Code_Node.Kind, int);
   found=, file_module_name, file_extension := split_from_right(file_name, #char ".");
   if !found file_module_name, file_extension = file_name, ".jai";
 	
-  initialize_record_file();
+  ast_state := initialize_ast_database_state();
   
 	workspace := compiler_create_workspace("just-an-idea:parse");
 	
