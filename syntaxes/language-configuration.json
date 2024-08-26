@@ -9,28 +9,33 @@
     [ "{", "}" ],
     [ "/*", "*/" ]
   ],
+  "autoClosingPairs": [
+    { "open": "{", "close": "}" },
+    { "open": "[", "close": "]" },
+    { "open": "(", "close": ")" },
+    { "open": "/*", "close": "*/", "notIn": ["string"] },
+    { "open": "\"", "close": "\"", "notIn": ["string", "comment"] }
+  ],
   "colorizedBracketPairs": [
     [ "(", ")" ],
     [ "[", "]" ],
     [ "{", "}" ]
   ],
-  "autoClosingPairs": [
-    { "open": "{", "close": "}" },
-    { "open": "[", "close": "]" },
-    { "open": "(", "close": ")" },
-    { "open": "\"", "close": "\"", "notIn": ["string", "comment"] },
-    { "open": "/*", "close": "*/", "notIn": ["string"] }
-  ],
   "autoCloseBefore": ";,}]) \n\t",
   "surroundingPairs": [
     ["{", "}"],
     ["[", "]"],
-    ["(", ")"]
+    ["(", ")"],
+    ["\"", "\""]
   ],
-  "wordPattern": "[a-zA-Z_](([a-zA-Z0-9_]|\\\\ *)*[a-zA-Z0-9_])?",
+  "folding": {
+    "offSide": false
+  },
+  "_wordPattern": "[a-zA-Z_](?:\\w|\\\\ *)*|[\\-+]?(?:\\.\\d[\\d_]*|0_*[xb][\\d_]*|\\d[\\d_]*\\.?[\\d_]*)|<<<=|>>>=|<<<|>>>|<<=|>>=|&&=|\\|\\|=|\\/\\*|\\*\\/|\\/\\/|\\[\\]|->|<<|>>|<=|>=|==|!=|&&|\\|\\||\\.\\*|\\+=|-=|\\*=|\\/=|%=|&=|\\|=|\\^=|[~`!@#%^&*()[\\]{}\\-+=|;:\"<>,.?\\/\\\\]",
   "indentationRules": {
-    "increaseIndentPattern": "[\\{\\[\\(]$",
-    "decreaseIndentPattern": "[\\}\\]\\)]$",
-    "indentNextLinePattern": "(if|for|while).*^[\\{\\[\\(;]$"
-  }
+    "increaseIndentPattern": "[{\\[(]$",
+    "decreaseIndentPattern": "^((?<!\\{[^}]*)\\}|(?<!\\[[^\\]]*)\\]|(?<!\\([^)]*)\\))$",
+    "indentNextLinePattern": "(if|for|while).*[^;]$"
+  },
+  "onEnterRules": []
 }

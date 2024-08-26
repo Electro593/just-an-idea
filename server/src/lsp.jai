@@ -102,9 +102,14 @@ lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> L
   assert_running();
   decode_uri(*params.textDocument.uri);
   
-  success := lock_and_open_record_file(*data.ast_state, null, false);
-  assert(success, "Could not open the ast database");
-  defer close_and_unlock_record_file(*data.ast_state);
+  decl := get_node_from_location(
+    *data.ast_state,
+    .DECLARATION,
+    params.textDocument.uri,
+    params.textDocumnt.position.line,
+    params.textDocument.position.character);
+  
+  if !decl return .{make_null_any()};
   
   // links: [..] LSP_LocationLink;
   // node := get_node_from_location(*header, params.textDocument.uri, params.position);
@@ -139,7 +144,6 @@ lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> L
   // }
   
   // return .{alloc_any(links)};
-  return .{};
 }
 
 lsp_workspace_didChangeWatchedFiles :: (data: *Data, params: *LSP_DidChangeWatchedFilesParams) {

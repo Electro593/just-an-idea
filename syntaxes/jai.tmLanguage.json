@@ -1,0 +1,766 @@
+{
+  "comment0": "Due to inherent technical limitations, certain language aspects (such as arbitrary whitespace)",
+  "comment1": "cannot be supported by this grammar. As such, the most accurate scoping will be obtained by",
+  "comment2": "keeping declarations, parameter lists, and such on one line.",
+  
+  "comment3": "For simplicity, jai comments won't be mentioned in these json comments. They're possible wherever",
+  "comment4": "whitespace occurs.",
+  
+  "comment5": "Common patterns:",
+  "comment6": "- Identifiers and keywords can be split, like 'i\\ f\\ \\ ' resolving to 'if'. This is the regex:",
+  "comment7": "  '\\bi(?:\\\\ *)*f\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*'",
+  
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "source.jai",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#notes" },
+    { "include": "#simple-directives" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#punctuation" },
+    { "include": "#primitives" },
+    { "include": "#literals" },
+    { "include": "#identifiers" },
+    
+    {
+      "match": "\\s"
+    },
+    { "include": "#invalid" }
+  ],
+  "repository": {
+    "enum": {
+      "disabled": 1,
+      "comment": "[ identifier '::' ] ( 'enum' | 'enum_flags' ) [ notes ] <integer-type> '{' ( ( enum-constant | run-directive ) ';' )... '}' [ notes ]",
+      "name": "meta.type.enum.jai",
+      "begin": "([a-zA-Z_](?:\\w|\\\\ *)*)\\s*(::)\\s*(?:(enum)|(enum_flags))((?:\\s*@[^;\\s]*)*)\\s*({)",
+      "beginCaptures": {
+        "1": { "name": "entity.name.type.enum.jai" },
+        "2": { "name": "keyword.operator.constant.jai" },
+        "3": { "name": "keyword.declaration.enum.jai" },
+        "4": { "name": "keyword.declaration.enum_flags.jai" },
+        "5": { "patterns": [ { "include": "#notes" } ] },
+        "6": { "name": "punctuation.scope.begin.jai" }
+      },
+      "patterns": [
+        { "include": "#enum-constant" },
+        { "include": "#run-directive" },
+        { "include": "#invalid" }
+      ],
+      "end": "(})\\s*((?:\\s*@[^;\\s]*)*)",
+      "endCaptures": {
+        "1": { "name": "punctuation.scope.end.jai" },
+        "2": { "patterns": [ { "include": "#notes" } ] }
+      }
+    },
+    "struct": {
+      "disabled": 1,
+      "comment": "[ identifier '::' ] 'struct' [ notes ] '{' ( constant | field | run-directive )... '}' [ notes ]",
+      "name": "meta.type.struct.jai",
+      "begin": "([a-zA-Z_](?:\\w|\\\\ *)*)\\s*(::)\\s*(struct)((?:\\s*@[^;\\s]*)*)\\s*({)",
+      "beginCaptures": {
+        "1": { "name": "entity.name.type.struct.jai" },
+        "2": { "name": "keyword.operator.constant.jai" },
+        "3": { "name": "keyword.declaration.struct.jai" },
+        "4": { "patterns": [ { "include": "#notes" } ] },
+        "5": { "name": "punctuation.scope.begin.jai" }
+      },
+      "patterns": [
+        { "include": "#enum" },
+        { "include": "#struct" },
+        { "include": "#declaration" },
+        { "include": "#run-directive" },
+        { "include": "#invalid" }
+      ],
+      "end": "(})\\s*((?:\\s*@[^;\\s]*)*)",
+      "endCaptures": {
+        "1": { "name": "punctuation.scope.end.jai" },
+        "2": { "patterns": [ { "include": "#notes" } ] }
+      }
+    },
+    
+    "here-strings": {
+      "disabled": 1,
+      "begin": "\\bs(?:\\\\ *)*t(?:\\\\ *)*r(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*g\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*",
+      "patterns": [
+        {
+          "name": "meta.herestring.jai",
+          "begin": "\\?\\b(?<!\\\\ *)([a-zA-Z_]\\w*)(?!\\w*\\\\)(.*)",
+          "beginCaptures": {
+            "1": { "name": "constant.other.delimeter.herestring.begin.jai" },
+            "2": {
+              "patterns": [
+                {
+                  "name": "invalid.illegal.herestring.jai",
+                  "match": "\\S"
+                }
+              ]
+            }
+          },
+          "contentName": "string.unquoted.jai",
+          "end": "^\\s*(\\1)\\b",
+          "endCaptures": {
+            "1": { "name": "constant.other.delimeter.herestring.end.jai" }
+          }
+        }
+      ],
+      "end": "(?=im)possible"
+    },
+    
+    "comments": {
+      "patterns": [
+        { "include": "#line-comments" },
+        { "include": "#block-comments" }
+      ]
+    },
+    "line-comments": {
+      "name": "comment.line.double-slash.jai",
+      "match": "\\/\\/.*"
+    },
+    "block-comments": {
+      "name": "comment.line.double-slash.jai",
+      "begin": "\\/\\*",
+      "patterns": [ { "include": "#block-comments" } ],
+      "end": "\\*\\/"
+    },
+    
+    "notes": {
+      "comment": "Notes are started by '@' and ended by whitespace or ';'. Empty notes are invalid.",
+      "name": "meta.note.jai",
+      "match": "(@)(?=[;\\s])|(@)([^;\\s]+)",
+      "captures": {
+        "1": { "name": "invalid.illegal.jai" },
+        "2": { "name": "punctuation.definition.comment.note.jai" },
+        "3": { "name": "comment.line.note.jai" }
+      }
+    },
+    
+    "simple-directives": {
+      "comment": "The names of the directives, without considering parameters or specifiers",
+      "begin": "#",
+      "beginCaptures": {
+        "0": { "name": "keyword.operator.directive.jai" }
+      },
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#empty-lines" }
+      ],
+      "end": "\\b([a-z](?:[a-z_]|\\\\ *)*)",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "name": "keyword.directive.add_context.jai",
+              "match": "\\ba(?:\\\\ *)*d(?:\\\\ *)*d(?:\\\\ *)*_(?:\\\\ *)*c(?:\\\\ *)*o(?:\\\\ *)*n(?:\\\\ *)*t(?:\\\\ *)*e(?:\\\\ *)*x(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.align.jai",
+              "match": "\\ba(?:\\\\ *)*l(?:\\\\ *)*i(?:\\\\ *)*g(?:\\\\ *)*n\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.as.jai",
+              "match": "\\ba(?:\\\\ *)*s\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.asm.jai",
+              "match": "\\ba(?:\\\\ *)*s(?:\\\\ *)*m\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.assert.jai",
+              "match": "\\ba(?:\\\\ *)*s(?:\\\\ *)*s(?:\\\\ *)*e(?:\\\\ *)*r(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.bake_arguments.jai",
+              "match": "\\bb(?:\\\\ *)*a(?:\\\\ *)*k(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*a(?:\\\\ *)*r(?:\\\\ *)*g(?:\\\\ *)*u(?:\\\\ *)*m(?:\\\\ *)*e(?:\\\\ *)*n(?:\\\\ *)*t(?:\\\\ *)*s\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.bake_constants.jai",
+              "match": "\\bb(?:\\\\ *)*a(?:\\\\ *)*k(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*c(?:\\\\ *)*o(?:\\\\ *)*n(?:\\\\ *)*s(?:\\\\ *)*t(?:\\\\ *)*a(?:\\\\ *)*n(?:\\\\ *)*t(?:\\\\ *)*s\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.bytes.jai",
+              "match": "\\bb(?:\\\\ *)*y(?:\\\\ *)*t(?:\\\\ *)*e(?:\\\\ *)*s\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.c_call.jai",
+              "match": "\\bc(?:\\\\ *)*_(?:\\\\ *)*c(?:\\\\ *)*a(?:\\\\ *)*l(?:\\\\ *)*l\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.caller_code.jai",
+              "match": "\\bc(?:\\\\ *)*a(?:\\\\ *)*l(?:\\\\ *)*l(?:\\\\ *)*e(?:\\\\ *)*r(?:\\\\ *)*_(?:\\\\ *)*c(?:\\\\ *)*o(?:\\\\ *)*d(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.caller_location.jai",
+              "match": "\\bc(?:\\\\ *)*a(?:\\\\ *)*l(?:\\\\ *)*l(?:\\\\ *)*e(?:\\\\ *)*r(?:\\\\ *)*_(?:\\\\ *)*l(?:\\\\ *)*o(?:\\\\ *)*c(?:\\\\ *)*a(?:\\\\ *)*t(?:\\\\ *)*i(?:\\\\ *)*o(?:\\\\ *)*n\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.char.jai",
+              "match": "\\bc(?:\\\\ *)*h(?:\\\\ *)*a(?:\\\\ *)*r\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.code.jai",
+              "match": "\\bc(?:\\\\ *)*o(?:\\\\ *)*d(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.compile_time.jai",
+              "match": "\\bc(?:\\\\ *)*o(?:\\\\ *)*m(?:\\\\ *)*p(?:\\\\ *)*i(?:\\\\ *)*l(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*t(?:\\\\ *)*i(?:\\\\ *)*m(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.compiler.jai",
+              "match": "\\bc(?:\\\\ *)*o(?:\\\\ *)*m(?:\\\\ *)*p(?:\\\\ *)*i(?:\\\\ *)*l(?:\\\\ *)*e(?:\\\\ *)*r\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.complete.jai",
+              "match": "\\bc(?:\\\\ *)*o(?:\\\\ *)*m(?:\\\\ *)*p(?:\\\\ *)*l(?:\\\\ *)*e(?:\\\\ *)*t(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.cpp_method.jai",
+              "match": "\\bc(?:\\\\ *)*p(?:\\\\ *)*p(?:\\\\ *)*_(?:\\\\ *)*m(?:\\\\ *)*e(?:\\\\ *)*t(?:\\\\ *)*h(?:\\\\ *)*o(?:\\\\ *)*d\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.cpp_return_type_is_non_pod.jai",
+              "match": "\\bc(?:\\\\ *)*p(?:\\\\ *)*p(?:\\\\ *)*_(?:\\\\ *)*r(?:\\\\ *)*e(?:\\\\ *)*t(?:\\\\ *)*u(?:\\\\ *)*r(?:\\\\ *)*n(?:\\\\ *)*_(?:\\\\ *)*t(?:\\\\ *)*y(?:\\\\ *)*p(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*i(?:\\\\ *)*s(?:\\\\ *)*_(?:\\\\ *)*n(?:\\\\ *)*o(?:\\\\ *)*n(?:\\\\ *)*_(?:\\\\ *)*p(?:\\\\ *)*o(?:\\\\ *)*d\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.discard.jai",
+              "match": "\\bd(?:\\\\ *)*i(?:\\\\ *)*s(?:\\\\ *)*c(?:\\\\ *)*a(?:\\\\ *)*r(?:\\\\ *)*d\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.dump.jai",
+              "match": "\\bd(?:\\\\ *)*u(?:\\\\ *)*m(?:\\\\ *)*p\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.dynamic_specialize.jai",
+              "match": "\\bd(?:\\\\ *)*y(?:\\\\ *)*n(?:\\\\ *)*a(?:\\\\ *)*m(?:\\\\ *)*i(?:\\\\ *)*c(?:\\\\ *)*_(?:\\\\ *)*s(?:\\\\ *)*p(?:\\\\ *)*e(?:\\\\ *)*c(?:\\\\ *)*i(?:\\\\ *)*a(?:\\\\ *)*l(?:\\\\ *)*i(?:\\\\ *)*z(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.elsewhere.jai",
+              "match": "\\be(?:\\\\ *)*l(?:\\\\ *)*s(?:\\\\ *)*e(?:\\\\ *)*w(?:\\\\ *)*h(?:\\\\ *)*e(?:\\\\ *)*r(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.entry_point.jai",
+              "match": "\\be(?:\\\\ *)*n(?:\\\\ *)*t(?:\\\\ *)*r(?:\\\\ *)*y(?:\\\\ *)*_(?:\\\\ *)*p(?:\\\\ *)*o(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.exists.jai",
+              "match": "\\be(?:\\\\ *)*x(?:\\\\ *)*i(?:\\\\ *)*s(?:\\\\ *)*t(?:\\\\ *)*s\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.expand.jai",
+              "match": "\\be(?:\\\\ *)*x(?:\\\\ *)*p(?:\\\\ *)*a(?:\\\\ *)*n(?:\\\\ *)*d\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.file.jai",
+              "match": "\\bf(?:\\\\ *)*i(?:\\\\ *)*l(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.filepath.jai",
+              "match": "\\bf(?:\\\\ *)*i(?:\\\\ *)*l(?:\\\\ *)*e(?:\\\\ *)*p(?:\\\\ *)*a(?:\\\\ *)*t(?:\\\\ *)*h\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.foreign.jai",
+              "match": "\\bf(?:\\\\ *)*o(?:\\\\ *)*r(?:\\\\ *)*e(?:\\\\ *)*i(?:\\\\ *)*g(?:\\\\ *)*n\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.if.jai",
+              "match": "\\bi(?:\\\\ *)*f\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.ifx.jai",
+              "match": "\\bi(?:\\\\ *)*f(?:\\\\ *)*x\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.import.jai",
+              "match": "\\bi(?:\\\\ *)*m(?:\\\\ *)*p(?:\\\\ *)*o(?:\\\\ *)*r(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.insert.jai",
+              "match": "\\bi(?:\\\\ *)*n(?:\\\\ *)*s(?:\\\\ *)*e(?:\\\\ *)*r(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.intrinsic.jai",
+              "match": "\\bi(?:\\\\ *)*n(?:\\\\ *)*t(?:\\\\ *)*r(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*s(?:\\\\ *)*i(?:\\\\ *)*c\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.library.jai",
+              "match": "\\bl(?:\\\\ *)*i(?:\\\\ *)*b(?:\\\\ *)*r(?:\\\\ *)*a(?:\\\\ *)*r(?:\\\\ *)*y\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.line.jai",
+              "match": "\\bl(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.load.jai",
+              "match": "\\bl(?:\\\\ *)*o(?:\\\\ *)*a(?:\\\\ *)*d\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.location.jai",
+              "match": "\\bl(?:\\\\ *)*o(?:\\\\ *)*c(?:\\\\ *)*a(?:\\\\ *)*t(?:\\\\ *)*i(?:\\\\ *)*o(?:\\\\ *)*n\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.modify.jai",
+              "match": "\\bm(?:\\\\ *)*o(?:\\\\ *)*d(?:\\\\ *)*i(?:\\\\ *)*f(?:\\\\ *)*y\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.module_parameters.jai",
+              "match": "\\bm(?:\\\\ *)*o(?:\\\\ *)*d(?:\\\\ *)*u(?:\\\\ *)*l(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*p(?:\\\\ *)*a(?:\\\\ *)*r(?:\\\\ *)*a(?:\\\\ *)*m(?:\\\\ *)*e(?:\\\\ *)*t(?:\\\\ *)*e(?:\\\\ *)*r(?:\\\\ *)*s\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.must.jai",
+              "match": "\\bm(?:\\\\ *)*u(?:\\\\ *)*s(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.no_abc.jai",
+              "match": "\\bn(?:\\\\ *)*o(?:\\\\ *)*_(?:\\\\ *)*a(?:\\\\ *)*b(?:\\\\ *)*c\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.no_alias.jai",
+              "match": "\\bn(?:\\\\ *)*o(?:\\\\ *)*_(?:\\\\ *)*a(?:\\\\ *)*l(?:\\\\ *)*i(?:\\\\ *)*a(?:\\\\ *)*s\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.no_aoc.jai",
+              "match": "\\bn(?:\\\\ *)*o(?:\\\\ *)*_(?:\\\\ *)*a(?:\\\\ *)*o(?:\\\\ *)*c\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.no_call.jai",
+              "match": "\\bn(?:\\\\ *)*o(?:\\\\ *)*_(?:\\\\ *)*c(?:\\\\ *)*a(?:\\\\ *)*l(?:\\\\ *)*l\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.no_context.jai",
+              "match": "\\bn(?:\\\\ *)*o(?:\\\\ *)*_(?:\\\\ *)*c(?:\\\\ *)*o(?:\\\\ *)*n(?:\\\\ *)*t(?:\\\\ *)*e(?:\\\\ *)*x(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.no_debug.jai",
+              "match": "\\bn(?:\\\\ *)*o(?:\\\\ *)*_(?:\\\\ *)*d(?:\\\\ *)*e(?:\\\\ *)*b(?:\\\\ *)*u(?:\\\\ *)*g\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.no_padding.jai",
+              "match": "\\bn(?:\\\\ *)*o(?:\\\\ *)*_(?:\\\\ *)*p(?:\\\\ *)*a(?:\\\\ *)*d(?:\\\\ *)*d(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*g\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.no_reset.jai",
+              "match": "\\bn(?:\\\\ *)*o(?:\\\\ *)*_(?:\\\\ *)*r(?:\\\\ *)*e(?:\\\\ *)*s(?:\\\\ *)*e(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.place.jai",
+              "match": "\\bp(?:\\\\ *)*l(?:\\\\ *)*a(?:\\\\ *)*c(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.placeholder.jai",
+              "match": "\\bp(?:\\\\ *)*l(?:\\\\ *)*a(?:\\\\ *)*c(?:\\\\ *)*e(?:\\\\ *)*h(?:\\\\ *)*o(?:\\\\ *)*l(?:\\\\ *)*d(?:\\\\ *)*e(?:\\\\ *)*r\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.poke_name.jai",
+              "match": "\\bp(?:\\\\ *)*o(?:\\\\ *)*k(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*n(?:\\\\ *)*a(?:\\\\ *)*m(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.procedure_name.jai",
+              "match": "\\bp(?:\\\\ *)*r(?:\\\\ *)*o(?:\\\\ *)*c(?:\\\\ *)*e(?:\\\\ *)*d(?:\\\\ *)*u(?:\\\\ *)*r(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*n(?:\\\\ *)*a(?:\\\\ *)*m(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.procedure_of_call.jai",
+              "match": "\\bp(?:\\\\ *)*r(?:\\\\ *)*o(?:\\\\ *)*c(?:\\\\ *)*e(?:\\\\ *)*d(?:\\\\ *)*u(?:\\\\ *)*r(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*o(?:\\\\ *)*f(?:\\\\ *)*_(?:\\\\ *)*c(?:\\\\ *)*a(?:\\\\ *)*l(?:\\\\ *)*l\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.program_export.jai",
+              "match": "\\bp(?:\\\\ *)*r(?:\\\\ *)*o(?:\\\\ *)*g(?:\\\\ *)*r(?:\\\\ *)*a(?:\\\\ *)*m(?:\\\\ *)*_(?:\\\\ *)*e(?:\\\\ *)*x(?:\\\\ *)*p(?:\\\\ *)*o(?:\\\\ *)*r(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.run.jai",
+              "match": "\\br(?:\\\\ *)*u(?:\\\\ *)*n\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.runtime_support.jai",
+              "match": "\\br(?:\\\\ *)*u(?:\\\\ *)*n(?:\\\\ *)*t(?:\\\\ *)*i(?:\\\\ *)*m(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*s(?:\\\\ *)*u(?:\\\\ *)*p(?:\\\\ *)*p(?:\\\\ *)*o(?:\\\\ *)*r(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.scope_export.jai",
+              "match": "\\bs(?:\\\\ *)*c(?:\\\\ *)*o(?:\\\\ *)*p(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*e(?:\\\\ *)*x(?:\\\\ *)*p(?:\\\\ *)*o(?:\\\\ *)*r(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.scope_file.jai",
+              "match": "\\bs(?:\\\\ *)*c(?:\\\\ *)*o(?:\\\\ *)*p(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*f(?:\\\\ *)*i(?:\\\\ *)*l(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.scope_module.jai",
+              "match": "\\bs(?:\\\\ *)*c(?:\\\\ *)*o(?:\\\\ *)*p(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*m(?:\\\\ *)*o(?:\\\\ *)*d(?:\\\\ *)*u(?:\\\\ *)*l(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.specified.jai",
+              "match": "\\bs(?:\\\\ *)*p(?:\\\\ *)*e(?:\\\\ *)*c(?:\\\\ *)*i(?:\\\\ *)*f(?:\\\\ *)*i(?:\\\\ *)*e(?:\\\\ *)*d\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.string.jai",
+              "match": "\\bs(?:\\\\ *)*t(?:\\\\ *)*r(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*g\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.symmetric.jai",
+              "match": "\\bs(?:\\\\ *)*y(?:\\\\ *)*m(?:\\\\ *)*m(?:\\\\ *)*e(?:\\\\ *)*t(?:\\\\ *)*r(?:\\\\ *)*i(?:\\\\ *)*c\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.system_library.jai",
+              "match": "\\bs(?:\\\\ *)*y(?:\\\\ *)*s(?:\\\\ *)*t(?:\\\\ *)*e(?:\\\\ *)*m(?:\\\\ *)*_(?:\\\\ *)*l(?:\\\\ *)*i(?:\\\\ *)*b(?:\\\\ *)*r(?:\\\\ *)*a(?:\\\\ *)*r(?:\\\\ *)*y\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.this.jai",
+              "match": "\\bt(?:\\\\ *)*h(?:\\\\ *)*i(?:\\\\ *)*s\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.through.jai",
+              "match": "\\bt(?:\\\\ *)*h(?:\\\\ *)*r(?:\\\\ *)*o(?:\\\\ *)*u(?:\\\\ *)*g(?:\\\\ *)*h\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.type.jai",
+              "match": "\\bt(?:\\\\ *)*y(?:\\\\ *)*p(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.type_info_no_size_complaint.jai",
+              "match": "\\bt(?:\\\\ *)*y(?:\\\\ *)*p(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*f(?:\\\\ *)*o(?:\\\\ *)*_(?:\\\\ *)*n(?:\\\\ *)*o(?:\\\\ *)*_(?:\\\\ *)*s(?:\\\\ *)*i(?:\\\\ *)*z(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*c(?:\\\\ *)*o(?:\\\\ *)*m(?:\\\\ *)*p(?:\\\\ *)*l(?:\\\\ *)*a(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.type_info_none.jai",
+              "match": "\\bt(?:\\\\ *)*y(?:\\\\ *)*p(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*f(?:\\\\ *)*o(?:\\\\ *)*_(?:\\\\ *)*n(?:\\\\ *)*o(?:\\\\ *)*n(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            {
+              "name": "keyword.directive.type_info_procedures_are_void_pointers.jai",
+              "match": "\\bt(?:\\\\ *)*y(?:\\\\ *)*p(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*f(?:\\\\ *)*o(?:\\\\ *)*_(?:\\\\ *)*p(?:\\\\ *)*r(?:\\\\ *)*o(?:\\\\ *)*c(?:\\\\ *)*e(?:\\\\ *)*d(?:\\\\ *)*u(?:\\\\ *)*r(?:\\\\ *)*e(?:\\\\ *)*s(?:\\\\ *)*_(?:\\\\ *)*a(?:\\\\ *)*r(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*v(?:\\\\ *)*o(?:\\\\ *)*i(?:\\\\ *)*d(?:\\\\ *)*_(?:\\\\ *)*p(?:\\\\ *)*o(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*t(?:\\\\ *)*e(?:\\\\ *)*r(?:\\\\ *)*s\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+            },
+            { "import": "#deprecated-directives" },
+            { "import": "#removed-directives" }
+          ]
+        }
+      }
+    },
+    "deprecated-directives": {
+      "patterns": [
+        {
+          "name": "invalid.deprecated.directive.foreign_library.jai",
+          "match": "\\bf(?:\\\\ *)*o(?:\\\\ *)*r(?:\\\\ *)*e(?:\\\\ *)*i(?:\\\\ *)*g(?:\\\\ *)*n(?:\\\\ *)*_(?:\\\\ *)*l(?:\\\\ *)*i(?:\\\\ *)*b(?:\\\\ *)*r(?:\\\\ *)*a(?:\\\\ *)*r(?:\\\\ *)*y\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "invalid.deprecated.directive.foreign_system_library.jai",
+          "match": "\\bf(?:\\\\ *)*o(?:\\\\ *)*r(?:\\\\ *)*e(?:\\\\ *)*i(?:\\\\ *)*g(?:\\\\ *)*n(?:\\\\ *)*_(?:\\\\ *)*s(?:\\\\ *)*y(?:\\\\ *)*s(?:\\\\ *)*t(?:\\\\ *)*e(?:\\\\ *)*m(?:\\\\ *)*_(?:\\\\ *)*l(?:\\\\ *)*i(?:\\\\ *)*b(?:\\\\ *)*r(?:\\\\ *)*a(?:\\\\ *)*r(?:\\\\ *)*y\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "invalid.deprecated.directive.insert_internal.jai",
+          "match": "\\bi(?:\\\\ *)*n(?:\\\\ *)*s(?:\\\\ *)*e(?:\\\\ *)*r(?:\\\\ *)*t(?:\\\\ *)*_(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*t(?:\\\\ *)*e(?:\\\\ *)*r(?:\\\\ *)*n(?:\\\\ *)*a(?:\\\\ *)*l\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        }
+      ]
+    },
+    "removed-directives": {
+      "disabled": 1,
+      "patterns": [
+        {
+          "name": "invalid.illegal.directive.bake.jai",
+          "match": "\\bb(?:\\\\ *)*a(?:\\\\ *)*k(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.directive.run_and_insert.jai",
+          "match": "\\br(?:\\\\ *)*u(?:\\\\ *)*n(?:\\\\ *)*_(?:\\\\ *)*a(?:\\\\ *)*n(?:\\\\ *)*d(?:\\\\ *)*_(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*s(?:\\\\ *)*e(?:\\\\ *)*r(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        }
+      ]
+    },
+    
+    "strings": {
+      "name": "string.quoted.double.jai",
+      "match": "(\")(.*?)(?:((?<!(?:\\\\\\\\)*\\\\)\")|\\n)",
+      "captures": {
+        "1": { "name": "punctuation.definition.string.begin.jai" },
+        "2": {
+          "patterns": [
+            {
+              "name": "constant.character.escape.jai",
+              "match": "\\\\(?:[enrt%\\\\\"]|d\\d{3}|u[\\da-fA-F]{4}|x[\\da-fA-F]{2})"
+            },
+            {
+              "name": "invalid.illegal.escape.jai",
+              "match": "\\\\(?:d.{0,3}|u.{0,4}|x.{0,2}|[\\s\\S])"
+            }
+          ]
+        },
+        "3": { "name": "punctuation.definition.string.end.jai" }
+      }
+    },
+    
+    "punctuation": {
+      "match": "({)|(})|(\\[)|(])|(\\()|(\\))|(,)|(;)|(->)|(\\.)|(`)",
+      "captures": {
+        "1": { "name": "punctuation.definition.block.begin.jai" },
+        "2": { "name": "punctuation.definition.block.end.jai" },
+        "3": { "name": "punctuation.definition.array.begin.jai" },
+        "4": { "name": "punctuation.definition.array.end.jai" },
+        "5": { "name": "punctuation.definition.parameters.begin.jai" },
+        "6": { "name": "punctuation.definition.parameters.end.jai" },
+        "7": { "name": "punctuation.separator.jai" },
+        "8": { "name": "punctuation.terminator.jai" },
+        "9": { "name": "punctuation.function.returns.jai" },
+        "10": { "name": "punctuation.accessor.jai" },
+        "11": { "name": "punctuation.backtick.jai" }
+      }
+    },
+    
+    "keywords": {
+      "patterns": [
+        { "include": "#control-keywords" },
+        { "include": "#declaration-keywords" },
+        { "include": "#operator-keywords" },
+        { "include": "#other-keywords" }
+      ]
+    },
+    "control-keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.break.jai",
+          "match": "\\bb(?:\\\\ *)*r(?:\\\\ *)*e(?:\\\\ *)*a(?:\\\\ *)*k\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.control.case.jai",
+          "match": "\\bc(?:\\\\ *)*a(?:\\\\ *)*s(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.control.continue.jai",
+          "match": "\\bc(?:\\\\ *)*o(?:\\\\ *)*n(?:\\\\ *)*t(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*u(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.control.defer.jai",
+          "match": "\\bd(?:\\\\ *)*e(?:\\\\ *)*f(?:\\\\ *)*e(?:\\\\ *)*r\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.control.else.jai",
+          "match": "\\be(?:\\\\ *)*l(?:\\\\ *)*s(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.control.for.jai",
+          "match": "\\bf(?:\\\\ *)*o(?:\\\\ *)*r\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.control.if.jai",
+          "match": "\\bi(?:\\\\ *)*f\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.control.ifx.jai",
+          "match": "\\bi(?:\\\\ *)*f(?:\\\\ *)*x\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.control.remove.jai",
+          "match": "\\br(?:\\\\ *)*e(?:\\\\ *)*m(?:\\\\ *)*o(?:\\\\ *)*v(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.control.return.jai",
+          "match": "\\br(?:\\\\ *)*e(?:\\\\ *)*t(?:\\\\ *)*u(?:\\\\ *)*r(?:\\\\ *)*n\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.control.then.jai",
+          "match": "\\bt(?:\\\\ *)*h(?:\\\\ *)*e(?:\\\\ *)*n\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.control.while.jai",
+          "match": "\\bw(?:\\\\ *)*h(?:\\\\ *)*i(?:\\\\ *)*l(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        }
+      ]
+    },
+    "declaration-keywords": {
+      "patterns": [
+        {
+          "name": "keyword.declaration.enum",
+          "match": "\\be(?:\\\\ *)*n(?:\\\\ *)*u(?:\\\\ *)*m\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.declaration.enum_flags",
+          "match": "\\be(?:\\\\ *)*n(?:\\\\ *)*u(?:\\\\ *)*m(?:\\\\ *)*_(?:\\\\ *)*f(?:\\\\ *)*l(?:\\\\ *)*a(?:\\\\ *)*g(?:\\\\ *)*s\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.declaration.inline",
+          "match": "\\bi(?:\\\\ *)*n(?:\\\\ *)*l(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.declaration.struct",
+          "match": "\\bs(?:\\\\ *)*t(?:\\\\ *)*r(?:\\\\ *)*u(?:\\\\ *)*c(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.other.using.jai",
+          "match": "\\bu(?:\\\\ *)*s(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*g\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        }
+      ]
+    },
+    "operator-keywords": {
+      "patterns": [
+        {
+          "match": "(<<<=)|(>>>=)|(<<<)|(>>>)|(<<=)|(>>=)|(&&=)|(\\|\\|=)|(<<)|(>>)|(<=)|(>=)|(==)|(!=)|(&&)|(\\|\\|)|(\\+=)|(-=)|(\\*=)|(\\/=)|(%=)|(&=)|(\\|=)|(\\^=)|(!)|(&)|(\\|)|(\\^)|(~)|(<)|(>)|(=)|(:)|(\\+)|(-)|(\\*)|(\\/)|(%)",
+          "captures": {
+            "1": { "name": "keyword.operator.assign.rotate.left.jai" },
+            "2": { "name": "keyword.operator.assign.rotate.right.jai" },
+            "3": { "name": "keyword.operator.rotate.left.jai" },
+            "4": { "name": "keyword.operator.rotate.right.jai" },
+            "5": { "name": "keyword.operator.assign.shift.left.jai" },
+            "6": { "name": "keyword.operator.assign.shift.right.jai" },
+            "7": { "name": "keyword.operator.assign.logical.and.jai" },
+            "8": { "name": "keyword.operator.assign.logical.or.jai" },
+            "9": { "name": "keyword.operator.shift.left.jai" },
+            "10": { "name": "keyword.operator.shift.right.jai" },
+            "11": { "name": "keyword.operator.compare.less-than-or-equal.jai" },
+            "12": { "name": "keyword.operator.compare.greater-than-or-equal.jai" },
+            "13": { "name": "keyword.operator.compare.equal.jai" },
+            "14": { "name": "keyword.operator.compare.not-equal.jai" },
+            "15": { "name": "keyword.operator.logical.and.jai" },
+            "16": { "name": "keyword.operator.logical.or.jai" },
+            "17": { "name": "keyword.operator.assign.arithmetic.add.jai" },
+            "18": { "name": "keyword.operator.assign.arithmetic.subtract.jai" },
+            "19": { "name": "keyword.operator.assign.arithmetic.multiply.jai" },
+            "20": { "name": "keyword.operator.assign.arithmetic.divide.jai" },
+            "21": { "name": "keyword.operator.assign.arithmetic.remainder.jai" },
+            "22": { "name": "keyword.operator.assign.bitwise.and.jai" },
+            "23": { "name": "keyword.operator.assign.bitwise.or.jai" },
+            "24": { "name": "keyword.operator.assign.bitwise.xor.jai" },
+            "25": { "name": "keyword.operator.logical.not.jai" },
+            "26": { "name": "keyword.operator.bitwise.and.jai" },
+            "27": { "name": "keyword.operator.bitwise.or.jai" },
+            "28": { "name": "keyword.operator.bitwise.xor.jai" },
+            "29": { "name": "keyword.operator.bitwise.not.jai" },
+            "30": { "name": "keyword.operator.compare.less-than.jai" },
+            "31": { "name": "keyword.operator.compare.greater-than.jai" },
+            "32": { "name": "keyword.operator.assign.jai" },
+            "33": { "name": "keyword.operator.declare.jai" },
+            "34": { "name": "keyword.operator.arithmetic.add.jai" },
+            "35": { "name": "keyword.operator.arithmetic.subtract.jai" },
+            "36": { "name": "keyword.operator.arithmetic.multiply.jai" },
+            "37": { "name": "keyword.operator.arithmetic.divide.jai" },
+            "38": { "name": "keyword.operator.arithmetic.remainder.jai" }
+          }
+        },
+        {
+          "name": "keyword.operator.cast.implicit.jai",
+          "match": "\\bx(?:\\\\ *)*x\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.operator.cast.explicit.jai",
+          "match": "\\bc(?:\\\\ *)*a(?:\\\\ *)*s(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.operator.type-of.jai",
+          "match": "\\bt(?:\\\\ *)*y(?:\\\\ *)*p(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*o(?:\\\\ *)*f\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.operator.size-of.jai",
+          "match": "\\bs(?:\\\\ *)*i(?:\\\\ *)*z(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*o(?:\\\\ *)*f\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.operator.type-info.jai",
+          "match": "\\bt(?:\\\\ *)*y(?:\\\\ *)*p(?:\\\\ *)*e(?:\\\\ *)*_(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*f(?:\\\\ *)*o\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        }
+      ]
+    },
+    "other-keywords": {
+      "patterns": [
+        {
+          "name": "keyword.other.context.jai",
+          "match": "\\bc(?:\\\\ *)*o(?:\\\\ *)*n(?:\\\\ *)*t(?:\\\\ *)*e(?:\\\\ *)*x(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.other.push_context.jai",
+          "match": "\\bp(?:\\\\ *)*u(?:\\\\ *)*s(?:\\\\ *)*h(?:\\\\ *)*_(?:\\\\ *)*c(?:\\\\ *)*o(?:\\\\ *)*n(?:\\\\ *)*t(?:\\\\ *)*e(?:\\\\ *)*x(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        }
+      ]
+    },
+    
+    "primitives": {
+      "patterns": [
+        {
+          "name": "storage.type.primitive.void.jai",
+          "match": "\\bv(?:\\\\ *)*o(?:\\\\ *)*i(?:\\\\ *)*d\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "storage.type.primitive.bool.jai",
+          "match": "\\bb(?:\\\\ *)*o(?:\\\\ *)*o(?:\\\\ *)*l\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "storage.type.primitive.int.jai",
+          "match": "\\bi(?:\\\\ *)*n(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "storage.type.primitive.int.s8.jai",
+          "match": "\\bs(?:\\\\ *)*8\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "storage.type.primitive.int.u8.jai",
+          "match": "\\bu(?:\\\\ *)*8\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "storage.type.primitive.int.s16.jai",
+          "match": "\\bs(?:\\\\ *)*1(?:\\\\ *)*6\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "storage.type.primitive.int.u16.jai",
+          "match": "\\bu(?:\\\\ *)*1(?:\\\\ *)*6\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "storage.type.primitive.int.s32.jai",
+          "match": "\\bs(?:\\\\ *)*3(?:\\\\ *)*2\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "storage.type.primitive.int.u32.jai",
+          "match": "\\bu(?:\\\\ *)*3(?:\\\\ *)*2\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "storage.type.primitive.int.s64.jai",
+          "match": "\\bs(?:\\\\ *)*6(?:\\\\ *)*4\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "storage.type.primitive.int.u64.jai",
+          "match": "\\bu(?:\\\\ *)*6(?:\\\\ *)*4\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "storage.type.primitive.float.jai",
+          "match": "\\bf(?:\\\\ *)*l(?:\\\\ *)*o(?:\\\\ *)*a(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "storage.type.primitive.float.float32.jai",
+          "match": "\\bf(?:\\\\ *)*l(?:\\\\ *)*o(?:\\\\ *)*a(?:\\\\ *)*t(?:\\\\ *)*3(?:\\\\ *)*2\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "storage.type.primitive.float.float64.jai",
+          "match": "\\bf(?:\\\\ *)*l(?:\\\\ *)*o(?:\\\\ *)*a(?:\\\\ *)*t(?:\\\\ *)*6(?:\\\\ *)*4\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        }
+      ]
+    },
+    
+    "literals": {
+      "patterns": [
+        {
+          "name": "constant.language.true.jai",
+          "match": "\\bt(?:\\\\ *)*r(?:\\\\ *)*u(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "constant.language.false.jai",
+          "match": "\\bf(?:\\\\ *)*a(?:\\\\ *)*l(?:\\\\ *)*s(?:\\\\ *)*e\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "constant.numeric.int.jai",
+          "match": "(?<!\\w)(?:0_*x[\\da-fA-F_]*|0_*b[01_]*|\\d[\\d_]*)(?=\\W)"
+        },
+        {
+          "name": "constant.numeric.float.jai",
+          "match": "(?<![\\w.])(?:\\d[\\d_]*\\.|\\.\\d)[\\d_]*(?=[^\\d_.])"
+        },
+        {
+          "name": "constant.language.null.jai",
+          "match": "\\bn(?:\\\\ *)*u(?:\\\\ *)*l(?:\\\\ *)*l\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        }
+      ]
+    },
+    
+    "identifiers": {
+      "name": "variable.other.identifier.jai",
+      "match": "\\b[a-zA-Z_](\\w|\\\\ *)*"
+    },
+    
+    "empty-lines": {
+      "match": "(^|\\G)\\s*($|\\n)"
+    },
+    
+    "invalid": {
+      "name": "invalid.illegal.jai",
+      "match": "."
+    }
+  }
+}

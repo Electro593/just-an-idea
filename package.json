@@ -47,18 +47,12 @@
         }
       }
     ],
-    "__grammars": [
-      {
-        "language": "jai",
-        "scopeName": "source.jai",
-        "path": "./syntaxes/jai.tmLanguage.json"
-      }
-    ],
     "grammars": [
       {
         "language": "jai",
         "scopeName": "source.jai",
-        "path": "./syntaxes/iain.tmLanguage.json"
+        "_path": "./syntaxes/iain.tmLanguage.json",
+        "path": "./syntaxes/jai.tmLanguage.json"
       }
     ]
   },
@@ -75,7 +69,7 @@
   ],
   "scripts": {
     "esbuild": "esbuild ./client/src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --minify",
-    "compile": "yarn esbuild && jai server/src/server.jai",
+    "compile": "yarn esbuild",
     "package": "yarn compile && vsce package"
   },
   "devDependencies": {
