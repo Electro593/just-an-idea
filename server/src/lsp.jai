@@ -85,65 +85,31 @@ lsp_textDocument_didClose :: (data: *Data, params: *LSP_DidCloseTextDocumentPara
   assert_running();
 }
 
-lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) -> LSP_DeclarationResult {
-  assert_running();
-  decode_uri(*params.textDocument.uri);
-  
-  success := lock_and_open_record_file(*data.ast_state, null, false);
-  assert(success, "Could not open the ast database");
-  defer close_and_unlock_record_file(*data.ast_state);
-  
-  
-  
-  return .{make_null_any()};
-}
-
 lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> LSP_DefinitionResult {
   assert_running();
   decode_uri(*params.textDocument.uri);
   
-  decl := get_node_from_location(
+  ident: *Code_Ident = xx get_node_from_location(
     *data.ast_state,
-    .DECLARATION,
+    .IDENT,
     params.textDocument.uri,
-    params.textDocumnt.position.line,
-    params.textDocument.position.character);
+    params.position.line,
+    params.position.character);
+  if !ident return .{make_null_any()};
   
-  if !decl return .{make_null_any()};
+  decl := ident.resolved_declaration;
+  if !decl || !decl.enclosing_load || decl.l0 < 0 || decl.l1 < 0 || decl.c0 < 0 || decl.c1 < 0
+    return .{make_null_any()};
   
-  // links: [..] LSP_LocationLink;
-  // node := get_node_from_location(*header, params.textDocument.uri, params.position);
-  // if node.kind == {
-  //   case .DIRECTIVE_IMPORT;
-  //     using n: *Code_Directive_Import = xx node;
-    
-    
-  //   case .DIRECTIVE_LOAD;
-  //     using n: *Code_Directive_Load = xx node;
-  //     targetUri: string;
-  //     if fully_pathed_filename {
-  //       targetUri = join("file:///", fully_pathed_filename);
-  //     } else if loaded_string {
-  //     } else if is_absolute_path(short_name) {
-  //       targetUri = join("file:///", short_name);
-  //       // Ensure drive casing
-  //       decode_uri(*targetUri);
-  //     } else {
-  //       _, dir, _ := split_from_right(params.textDocument.uri, #char "/");
-  //       targetUri = join("file:///", dir, short_name);
-  //       // Ensure slash direction
-  //       decode_uri(*targetUri);
-  //     }
-      
-  //     array_add(*links, .{
-  //       originSelectionRange = .{.{l0, c0}, .{l1, c1}},
-  //       targetUri = copy_string(targetUri),
-  //       targetRange = .{},
-  //       targetSelectionRange = .{}
-  //     });
-  // }
+  links: [..] LSP_LocationLink;
+  array_add(*links, .{
+    originSelectionRange = .{ .{ xx ident.l0, xx ident.c0 }, .{ xx ident.l1, xx ident.c1 } },
+    targetUri = sprint("file:///%", decl.enclosing_load.fully_pathed_filename),
+    targetRange = .{ .{ xx decl.l0, xx decl.c0 }, .{ xx decl.l1, xx decl.c1 } },
+    targetSelectionRange = .{ .{ xx decl.l0, xx decl.c0 }, .{ xx decl.l1, xx decl.c1 } }
+  });
   
-  // return .{alloc_any(links)};
+  return .{alloc_any(links)};
 }
 
 lsp_workspace_didChangeWatchedFiles :: (data: *Data, params: *LSP_DidChangeWatchedFilesParams) {

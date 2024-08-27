@@ -51,8 +51,8 @@
       {
         "language": "jai",
         "scopeName": "source.jai",
-        "_path": "./syntaxes/iain.tmLanguage.json",
-        "path": "./syntaxes/jai.tmLanguage.json"
+        "path": "./syntaxes/iain.tmLanguage.json",
+        "_path": "./syntaxes/jai.tmLanguage.json"
       }
     ]
   },
@@ -69,7 +69,7 @@
   ],
   "scripts": {
     "esbuild": "esbuild ./client/src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --minify",
-    "compile": "yarn esbuild",
+    "compile": "yarn esbuild && jai server/src/server.jai",
     "package": "yarn compile && vsce package"
   },
   "devDependencies": {

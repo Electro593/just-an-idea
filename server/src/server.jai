@@ -55,7 +55,6 @@ main :: () {
   data.buffer_filename = sprint("%/%.log", LOG_FOLDER, lines.count - 1);
   
   data.ast_state = initialize_ast_database_state();
-  initialize_ast_database(*data.ast_state);
   
   initialize_rpc(*data, read_message_from_stdin, send_message_to_stdout, debug_log);
   
@@ -64,7 +63,6 @@ main :: () {
   add_rpc_request_handler(LSP_REQUEST_INITIALIZE,                 lsp_initialize);
   add_rpc_request_handler(LSP_NOTIFICATION_INITIALIZED,           lsp_initialized);
   add_rpc_request_handler(LSP_REQUEST_SHUTDOWN,                   lsp_shutdown);
-  add_rpc_request_handler(LSP_REQUEST_GO_TO_DECLARATION,          lsp_textDocument_declaration);
   add_rpc_request_handler(LSP_REQUEST_GO_TO_DEFINITION,           lsp_textDocument_definition);
   add_rpc_request_handler(LSP_NOTIFICATION_DOCUMENT_CHANGED,      lsp_textDocument_didChange);
   add_rpc_request_handler(LSP_NOTIFICATION_DOCUMENT_CLOSED,       lsp_textDocument_didClose);
