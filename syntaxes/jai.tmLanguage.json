@@ -13,98 +13,23 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "scopeName": "source.jai",
   "patterns": [
+    { "include": "#here-strings" },
     { "include": "#comments" },
     { "include": "#notes" },
-    { "include": "#simple-directives" },
     { "include": "#strings" },
+    { "include": "#simple-directives" },
     { "include": "#keywords" },
     { "include": "#punctuation" },
     { "include": "#primitives" },
     { "include": "#literals" },
-    { "include": "#identifiers" },
-    
-    {
-      "match": "\\s"
-    },
-    { "include": "#invalid" }
+    { "include": "#identifiers" }
   ],
   "repository": {
-    "enum": {
-      "disabled": 1,
-      "comment": "[ identifier '::' ] ( 'enum' | 'enum_flags' ) [ notes ] <integer-type> '{' ( ( enum-constant | run-directive ) ';' )... '}' [ notes ]",
-      "name": "meta.type.enum.jai",
-      "begin": "([a-zA-Z_](?:\\w|\\\\ *)*)\\s*(::)\\s*(?:(enum)|(enum_flags))((?:\\s*@[^;\\s]*)*)\\s*({)",
-      "beginCaptures": {
-        "1": { "name": "entity.name.type.enum.jai" },
-        "2": { "name": "keyword.operator.constant.jai" },
-        "3": { "name": "keyword.declaration.enum.jai" },
-        "4": { "name": "keyword.declaration.enum_flags.jai" },
-        "5": { "patterns": [ { "include": "#notes" } ] },
-        "6": { "name": "punctuation.scope.begin.jai" }
-      },
-      "patterns": [
-        { "include": "#enum-constant" },
-        { "include": "#run-directive" },
-        { "include": "#invalid" }
-      ],
-      "end": "(})\\s*((?:\\s*@[^;\\s]*)*)",
-      "endCaptures": {
-        "1": { "name": "punctuation.scope.end.jai" },
-        "2": { "patterns": [ { "include": "#notes" } ] }
-      }
-    },
-    "struct": {
-      "disabled": 1,
-      "comment": "[ identifier '::' ] 'struct' [ notes ] '{' ( constant | field | run-directive )... '}' [ notes ]",
-      "name": "meta.type.struct.jai",
-      "begin": "([a-zA-Z_](?:\\w|\\\\ *)*)\\s*(::)\\s*(struct)((?:\\s*@[^;\\s]*)*)\\s*({)",
-      "beginCaptures": {
-        "1": { "name": "entity.name.type.struct.jai" },
-        "2": { "name": "keyword.operator.constant.jai" },
-        "3": { "name": "keyword.declaration.struct.jai" },
-        "4": { "patterns": [ { "include": "#notes" } ] },
-        "5": { "name": "punctuation.scope.begin.jai" }
-      },
-      "patterns": [
-        { "include": "#enum" },
-        { "include": "#struct" },
-        { "include": "#declaration" },
-        { "include": "#run-directive" },
-        { "include": "#invalid" }
-      ],
-      "end": "(})\\s*((?:\\s*@[^;\\s]*)*)",
-      "endCaptures": {
-        "1": { "name": "punctuation.scope.end.jai" },
-        "2": { "patterns": [ { "include": "#notes" } ] }
-      }
-    },
-    
-    "here-strings": {
-      "disabled": 1,
-      "begin": "\\bs(?:\\\\ *)*t(?:\\\\ *)*r(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*g\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*",
-      "patterns": [
-        {
-          "name": "meta.herestring.jai",
-          "begin": "\\?\\b(?<!\\\\ *)([a-zA-Z_]\\w*)(?!\\w*\\\\)(.*)",
-          "beginCaptures": {
-            "1": { "name": "constant.other.delimeter.herestring.begin.jai" },
-            "2": {
-              "patterns": [
-                {
-                  "name": "invalid.illegal.herestring.jai",
-                  "match": "\\S"
-                }
-              ]
-            }
-          },
-          "contentName": "string.unquoted.jai",
-          "end": "^\\s*(\\1)\\b",
-          "endCaptures": {
-            "1": { "name": "constant.other.delimeter.herestring.end.jai" }
-          }
-        }
-      ],
-      "end": "(?=im)possible"
+    "top-level": {
+      "name": "meta.top-level.jai",
+      "begin": "",
+      "patterns": [ { "include": "$self" } ],
+      "end": "(?=n)p"
     },
     
     "comments": {
@@ -143,7 +68,7 @@
       },
       "patterns": [
         { "include": "#comments" },
-        { "include": "#empty-lines" }
+        { "include": "#whitespace" }
       ],
       "end": "\\b([a-z](?:[a-z_]|\\\\ *)*)",
       "endCaptures": {
@@ -754,13 +679,831 @@
       "match": "\\b[a-zA-Z_](\\w|\\\\ *)*"
     },
     
-    "empty-lines": {
-      "match": "(^|\\G)\\s*($|\\n)"
+    "whitespace": {
+      "match": "\\s+"
     },
     
     "invalid": {
       "name": "invalid.illegal.jai",
       "match": "."
+    },
+    
+    "here-strings": {
+      "comment": "Due to technical limitations, heres are only fully highlighted if they follow strict syntax: '#string' <non-breaking-identifier> <newline>",
+      "patterns": [
+        { "include": "#bat-here-strings" },
+        { "include": "#clojure-here-strings" },
+        { "include": "#coffeescript-here-strings" },
+        { "include": "#cpp-here-strings" },
+        { "include": "#css-here-strings" },
+        { "include": "#c-here-strings" },
+        { "include": "#diff-here-strings" },
+        { "include": "#dockerfile-here-strings" },
+        { "include": "#fsharp-here-strings" },
+        { "include": "#git-commit-here-strings" },
+        { "include": "#git-rebase-here-strings" },
+        { "include": "#go-here-strings" },
+        { "include": "#groovy-here-strings" },
+        { "include": "#handlebars-here-strings" },
+        { "include": "#html-here-strings" },
+        { "include": "#ini-here-strings" },
+        { "include": "#properties-here-strings" },
+        { "include": "#jade-here-strings" },
+        { "include": "#jai-here-strings" },
+        { "include": "#java-here-strings" },
+        { "include": "#js-here-strings" },
+        { "include": "#json-here-strings" },
+        { "include": "#less-here-strings" },
+        { "include": "#lua-here-strings" },
+        { "include": "#makefile-here-strings" },
+        { "include": "#md-here-strings" },
+        { "include": "#objc-here-strings" },
+        { "include": "#perl6-here-strings" },
+        { "include": "#perl-here-strings" },
+        { "include": "#php-here-strings" },
+        { "include": "#ps1-here-strings" },
+        { "include": "#py-here-strings" },
+        { "include": "#razor-here-strings" },
+        { "include": "#ruby-here-strings" },
+        { "include": "#rust-here-strings" },
+        { "include": "#r-here-strings" },
+        { "include": "#scss-here-strings" },
+        { "include": "#shaderlab-here-strings" },
+        { "include": "#shellscript-here-strings" },
+        { "include": "#sql-here-strings" },
+        { "include": "#swift-here-strings" },
+        { "include": "#tsx-here-strings" },
+        { "include": "#ts-here-strings" },
+        { "include": "#vb-here-strings" },
+        { "include": "#xml-here-strings" },
+        { "include": "#xsl-here-strings" },
+        { "include": "#yaml-here-strings" },
+        { "include": "#standard-here-strings" }
+      ]
+    },
+    "bat-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(bat)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.dosbat" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "clojure-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(clojure)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.clojure" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "coffeescript-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(coffeescript|coffee)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.coffee" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "cpp-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(cpp)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.cpp" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "css-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(css)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.css" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "c-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(c)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.c" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "diff-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(diff)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.diff" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "dockerfile-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(dockerfile)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.dockerfile" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "fsharp-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(fsharp)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.fsharp" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "git-commit-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(git-commit)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.git-commit" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "git-rebase-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(git-rebase)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.git-rebase" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "go-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(go)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.go" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "groovy-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(groovy)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.groovy" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "handlebars-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(handlebars)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "text.html.handlebars" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "html-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(html)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "text.html.basic" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "ini-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(ini)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.ini" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "properties-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(properties)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.properties" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "jade-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(jade)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "text.jade" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "jai-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(jai)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.jai" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "java-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(java)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.java" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "js-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(javascriptreact|javascript|jsx|js)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.js" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "json-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(json)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.json" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "less-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(less)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.css.less" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "lua-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(lua)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.lua" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "makefile-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(makefile|make)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.makefile" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "md-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(markdown|markdn|mdown|md)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "text.html.markdown" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "objc-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(objective-c|objc)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.objc" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "perl6-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(perl6)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.perl.6" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "perl-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(perl)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.perl" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "php-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(php)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "text.html.php" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "ps1-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(powershell|ps1)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.powershell" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "py-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(python|py)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.python" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "razor-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(razor)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "text.html.cshtml" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "ruby-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(ruby)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.ruby" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "rust-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(rust)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.rust" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "r-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(r)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.r" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "scss-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(scss)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.css.scss" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "shaderlab-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(shaderlab)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.shaderlab" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "shellscript-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(shellscript|shell|bash|sh)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.shell" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "sql-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(sql)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.sql" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "swift-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(swift)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.swift" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "tsx-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(typescriptreact|tsx)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.tsx" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "ts-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(typescript|ts)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.ts" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "vb-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(visualbasic|basic|vb)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.asp.vb.net" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "xml-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(xml)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "text.xml" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "xsl-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(xsl)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.xml.xsl" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "yaml-here-strings": {
+      "begin": "(#)(string)\\s+((?i)([a-zA-Z_]\\w*)?(yaml|yml)(?!\\w))(.*)(\\n|$)",
+      "patterns": [ { "include": "source.yaml" } ],
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "5": { "name": "markup.italic.here.embed.$5.jai" },
+        "6": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "end": "^\\s*((\\4)(\\5))\\b",
+      "endCaptures": {
+        "1": { "name": "constant.other.delimeter.here.end.$1.jai" },
+        "3": { "name": "markup.italic.here.embed.$3.jai" }
+      }
+    },
+    "standard-here-strings": {
+      "begin": "(#)(string)\\s+([a-zA-Z_]\\w*)(.*)(\\n|$)",
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.directive.jai" },
+        "2": { "name": "keyword.directive.string.jai" },
+        "3": { "name": "constant.other.delimiter.here.begin.$3.jai" },
+        "4": { "patterns": [ { "name": "invalid.illegal.here.jai", "match": "\\S+" } ] }
+      },
+      "contentName": "string.unquoted.here.$3.jai",
+      "end": "^\\s*(\\3)\\b",
+      "endCaptures": { "1": { "name": "constant.other.delimeter.here.end.$1.jai" } }
     }
   }
 }
