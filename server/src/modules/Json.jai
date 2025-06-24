@@ -107,7 +107,7 @@ free_json :: (element: *JSON_Element) {
 
 get_element :: inline (object: *JSON_Object, name: string, default := null) -> *JSON_Element {
   assert(xx object, "Attempted to get \"%\" from an object, but the object was null", name);
-  value, success := table_find(*object.value, name);
+  success, value := table_find_new(*object.value, name);
   if !success then value = default;
   return value;
 }

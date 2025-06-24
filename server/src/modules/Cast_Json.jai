@@ -97,9 +97,9 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
     print_to_builder(*builder, "// For '%' with notes: %\n", type_name, notes);
     print_to_builder(*builder, "_cast_json :: (json: *JSON_Element, out: *$T, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none, $scope: Code) -> success: bool {\n");
     print_to_builder(*builder, "  if array_find(notes, \"$Ignore\") return true;\n");
-    print_to_builder(*builder, "  assert_cast_json(xx out, \"Attempted to cast %%, but out was null\", print_json(json,, temp));\n");
+    print_to_builder(*builder, "  assert_cast_json(xx out, \"Attempted to cast \%, but out was null\", print_json(json,, temp));\n");
     print_to_builder(*builder, "  assert_cast_json(json || array_find(notes, \"?\"), \"json was null, but '%' was not marked as optional ('@?')\");\n", get_type_name(type,, temp));
-    #if SHOULD_LOG print_to_builder(*builder, "  log(\"Casting %% to %\", print_json(json,, temp));\n", type_name);
+    #if SHOULD_LOG print_to_builder(*builder, "  log(\"Casting \% to %\", print_json(json,, temp));\n", type_name);
     print_to_builder(*builder, "  value: T;\n");
     print_to_builder(*builder, "  if !json {\n");
     print_to_builder(*builder, "    out.* = value;\n");
@@ -109,15 +109,15 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
     if #complete type.type == {
       case .INTEGER; #through;
       case .FLOAT;
-        print_to_builder(*builder, "  assert_cast_json(json.kind == .NUMBER, \"Expected a number, but got %%\", print_json(json,, temp));\n");
+        print_to_builder(*builder, "  assert_cast_json(json.kind == .NUMBER, \"Expected a number, but got \%\", print_json(json,, temp));\n");
         print_to_builder(*builder, "  value = xx as_number(json).value;\n");
       
       case .BOOL;
-        print_to_builder(*builder, "  assert_cast_json(json.kind == .BOOLEAN, \"Expected a boolean, but got %%\", print_json(json,, temp));\n");
+        print_to_builder(*builder, "  assert_cast_json(json.kind == .BOOLEAN, \"Expected a boolean, but got \%\", print_json(json,, temp));\n");
         print_to_builder(*builder, "  value = xx as_boolean(json).value;\n");
       
       case .STRING;
-        print_to_builder(*builder, "  assert_cast_json(json.kind == .STRING, \"Expected a string, but got %%\", print_json(json,, temp));\n");
+        print_to_builder(*builder, "  assert_cast_json(json.kind == .STRING, \"Expected a string, but got \%\", print_json(json,, temp));\n");
         print_to_builder(*builder, "  value = copy_string(as_string(json).value);\n");
       
       case .POINTER;
@@ -133,15 +133,15 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
         assert(!(t.textual_flags & .UNION), "Cannot cast JSON into the union '%', or any union\n", type_name);
         if array_find(notes, "$Table") {
           //TODO: Round-trip the key parsing
-          print_to_builder(*builder, "  assert_cast_json(json.kind == .OBJECT, \"Expected an object for $Table, but got %%\", print_json(json,, temp));\n");
+          print_to_builder(*builder, "  assert_cast_json(json.kind == .OBJECT, \"Expected an object for $Table, but got \%\", print_json(json,, temp));\n");
           print_to_builder(*builder, "  for as_object(json).value {\n");
           print_to_builder(*builder, "    key_string := JSON_String.{value = it_index};\n");
           print_to_builder(*builder, "    member_key: out.Key_Type;\n");
           print_to_builder(*builder, "    success = cast_json(*key_string, *member_key, .[], .%, should_assert, log, scope);\n", blacklist);
-          print_to_builder(*builder, "    assert_cast_json(success, \"Could not cast %% to the key '%%'\", print_json(*key_string,, temp), out.Key_Type);\n");
+          print_to_builder(*builder, "    assert_cast_json(success, \"Could not cast \% to the key '\%'\", print_json(*key_string,, temp), out.Key_Type);\n");
           print_to_builder(*builder, "    member_value := find_or_add(*value, member_key);\n");
           print_to_builder(*builder, "    success = cast_json(it, member_value, .[], .%, should_assert, log, scope);\n", blacklist);
-          print_to_builder(*builder, "    assert_cast_json(success, \"Could not cast %% to the value '%%'\", print_json(it,, temp), out.Value_Type);\n");
+          print_to_builder(*builder, "    assert_cast_json(success, \"Could not cast \% to the value '\%'\", print_json(it,, temp), out.Value_Type);\n");
           print_to_builder(*builder, "  }\n");
         } else {
           for t.members {
@@ -155,20 +155,20 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
             if it.flags & .USING || it.name == "_" {
               print_to_builder(*builder, "  success = cast_json(json, *value.%, .%, .%, should_assert, log, scope);\n", it.name, it.notes, blacklist);
             } else {
-              print_to_builder(*builder, "  assert_cast_json(json.kind == .OBJECT || json.kind == .ARRAY, \"Expected an array or object because '%' is a struct, but got %%\", print_json(json,, temp));\n", type_name);
+              print_to_builder(*builder, "  assert_cast_json(json.kind == .OBJECT || json.kind == .ARRAY, \"Expected an array or object because '%' is a struct, but got \%\", print_json(json,, temp));\n", type_name);
               print_to_builder(*builder, "  if json.kind == .OBJECT {\n");
               print_to_builder(*builder, "    success = cast_json(get_element(as_object(json), \"%\"), *value.%, .%, .%, should_assert, log, scope);\n", name, it.name, it.notes, blacklist);
               print_to_builder(*builder, "  } else {\n");
               print_to_builder(*builder, "    success = cast_json(get_element(as_array(json), %), *value.%, .%, .%, should_assert, log, scope);\n", it_index, it.name, it.notes, blacklist);
               print_to_builder(*builder, "  }\n");
             }
-            print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast %% to the struct '%' because casting the member '%' (%) failed\", print_json(json,, temp));\n", type_name, it.name, get_type_name(it.type));
+            print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast \% to the struct '%' because casting the member '%' (%) failed\", print_json(json,, temp));\n", type_name, it.name, get_type_name(it.type));
           }
         }
       
       case .ARRAY;
         t: *Type_Info_Array = xx type;
-        print_to_builder(*builder, "  assert_cast_json(json.kind == .ARRAY, \"Expected an array for '%', but got %%\", print_json(json,, temp));\n", type_name);
+        print_to_builder(*builder, "  assert_cast_json(json.kind == .ARRAY, \"Expected an array for '%', but got \%\", print_json(json,, temp));\n", type_name);
         print_to_builder(*builder, "  array := as_array(json).value;\n");
         element_name := get_type_name(t.element_type);
         if t.array_type == .VIEW {
@@ -209,7 +209,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
           }
         }
         if has_unblacklisted_notes {
-          print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast %% to any of the following: [");
+          print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast \% to any of the following: [");
           for notes {
             if !array_find(blacklist, it)
             if it_index append(*builder, ", ");
@@ -252,7 +252,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
           print_to_builder(builder, "%check := %;\n", indentation, value);
           print_to_builder(builder, "%if check == {\n", indentation);
           for t.names print_to_builder(builder, "%  case %; value % .%;\n", indentation, tprint(wrapper, it), operation, it);
-          print_to_builder(builder, "%  case; assert_cast_json(false, \"The provided value '%%' didn't match any of the options in '%'\", check);\n", indentation, type_name);
+          print_to_builder(builder, "%  case; assert_cast_json(false, \"The provided value '\%' didn't match any of the options in '%'\", check);\n", indentation, type_name);
           print_to_builder(builder, "%}\n", indentation);
         }
         t: *Type_Info_Enum = xx type;
@@ -266,7 +266,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
             print_to_builder(*builder, "    value = cast(T) as_number(json).value;\n");
             print_to_builder(*builder, "    check := value;\n");
             for t.names print_to_builder(*builder, "    check &= ~.%;\n", it);
-            print_to_builder(*builder, "    assert_cast_json(!check, \"The provided enum_flags value '%%' didn't match any of the options in '%'\", value);\n",  type_name);
+            print_to_builder(*builder, "    assert_cast_json(!check, \"The provided enum_flags value '\%' didn't match any of the options in '%'\", value);\n",  type_name);
             print_to_builder(*builder, "  } else if json.kind == .ARRAY {\n");
             print_to_builder(*builder, "    array := as_array(json).value;\n");
             print_to_builder(*builder, "    for array {\n");
@@ -274,15 +274,15 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
             build_switch_case(*builder, t, type_name, "as_string(json).value", "\"%\"", "|=", "        ");
             print_to_builder(*builder, "      } else if json.kind == .NUMBER {\n");
             build_switch_case(*builder, t, type_name, tprint("cast(T) as_number(json).value"), ".%", "|=", "        ");
-            print_to_builder(*builder, "      } else assert_cast_json(false, \"Expected only strings and numbers within the array because '%' is an enum, but got %%\", print_json(json,, temp));\n", type_name);
+            print_to_builder(*builder, "      } else assert_cast_json(false, \"Expected only strings and numbers within the array because '%' is an enum, but got \%\", print_json(json,, temp));\n", type_name);
             print_to_builder(*builder, "    }\n");
-            print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected an array or number because '%' is an enum_flags, but got %%\", print_json(json,, temp));\n", type_name);
+            print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected an array or number because '%' is an enum_flags, but got \%\", print_json(json,, temp));\n", type_name);
           } else {
             print_to_builder(*builder, "  if json.kind == .STRING {\n");
             build_switch_case(*builder, t, type_name, "as_string(json).value", "\"%\"", "=", "    ");
             print_to_builder(*builder, "  } else if json.kind == .NUMBER {\n");
             build_switch_case(*builder, t, type_name, tprint("cast(T) as_number(json).value"), ".%", "=", "    ");
-            print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected a string or number because '%' is an enum, but got %%\", print_json(json,, temp));\n", type_name);
+            print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected a string or number because '%' is an enum, but got \%\", print_json(json,, temp));\n", type_name);
           }
         } else {
           if t.enum_type_flags & .FLAGS {
@@ -296,16 +296,16 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
             build_switch_case(*builder, t, type_name, "as_string(json).value", "\"%\"", "|=", "        ");
             print_to_builder(*builder, "      } else if json.kind == .NUMBER {\n");
             print_to_builder(*builder, "        value |= xx as_number(json).value;\n");
-            print_to_builder(*builder, "      } else assert_cast_json(false, \"Expected only strings and numbers within the array because '%' is an enum, but got %%\", print_json(json,, temp));\n", type_name);
+            print_to_builder(*builder, "      } else assert_cast_json(false, \"Expected only strings and numbers within the array because '%' is an enum, but got \%\", print_json(json,, temp));\n", type_name);
             print_to_builder(*builder, "    }\n");
-            print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected an array or number because '%' is an enum_flags, but got %%\", print_json(json,, temp));\n", type_name);
+            print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected an array or number because '%' is an enum_flags, but got \%\", print_json(json,, temp));\n", type_name);
           } else {
             print_to_builder(*builder, "  if json.kind == .STRING {\n");
             //TODO: Store the string in a map and return it on round trip
             build_switch_case(*builder, t, type_name, "as_string(json).value", "\"%\"", "=", "    ");
             print_to_builder(*builder, "  } else if json.kind == .NUMBER {\n");
             print_to_builder(*builder, "    value = xx as_number(json).value;\n");
-            print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected a string or number because '%' is an enum, but got %%\", print_json(json,, temp));\n", type_name);
+            print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected a string or number because '%' is an enum, but got \%\", print_json(json,, temp));\n", type_name);
           }
         }
       
@@ -314,7 +314,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
         variant_name := get_type_name(t.variant_of);
         print_to_builder(*builder, "  V :: #insert,scope(scope) \"#type %;\";\n", variant_name);
         print_to_builder(*builder, "  success := cast_json(json, cast(*V) *value, .%, .%, should_assert, log, scope);\n", notes, blacklist);
-        print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast '%%' to the variant % of '%'\", print_json(json,, temp));\n", type_name, variant_name);
+        print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast '\%' to the variant % of '%'\", print_json(json,, temp));\n", type_name, variant_name);
       
       // No good way to parse these, so we'll just ignore them
       case .PROCEDURE;
@@ -322,7 +322,10 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
       case .POLYMORPHIC_VARIABLE;
       case .TYPE;
       case .CODE;
-      case;
+
+      case .UNTYPED_LITERAL; #through;
+      case .UNTYPED_ENUM;
+        assert(false, "What is this?");
     }
     
     print_to_builder(*builder, "  out.* = value;\n");
@@ -493,7 +496,7 @@ cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: s
       _value := cast_value([] void);
       if optional && _value.count == 0 && _value.data == null return null;
       array := make_array();
-      for < _value.count - 1 .. 0 {
+      for #v2 < 0 .. _value.count - 1 {
         member := _value.data + it * t.element_type.runtime_size;
         set_element(array, it, cast_json(member, t.element_type, .[], log));
       }
@@ -519,7 +522,10 @@ cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: s
     case .POLYMORPHIC_VARIABLE; #through;
     case .TYPE; #through;
     case .CODE; #through;
-    case;
+    
+    case .UNTYPED_LITERAL; #through;
+    case .UNTYPED_ENUM;
+      assert(false, "What is this?");
       return null;
   }
 }
@@ -636,7 +642,10 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] strin
     case .POLYMORPHIC_VARIABLE;
     case .TYPE;
     case .CODE;
-    case;
+    
+    case .UNTYPED_LITERAL; #through;
+    case .UNTYPED_ENUM;
+      assert(false, "What is this?");
   }
 }
 
@@ -730,7 +739,10 @@ free_casted_json :: (value: *void, type: *Type_Info, log: (f: string, a: ..Any, 
     case .POLYMORPHIC_VARIABLE;
     case .TYPE;
     case .CODE;
-    case;
+    
+    case .UNTYPED_LITERAL; #through;
+    case .UNTYPED_ENUM;
+      assert(false, "What is this?");
   }
 }
 
@@ -887,6 +899,11 @@ get_type_name :: (type: *Type_Info) -> string {
         ifx t.variant_flags & .DISTINCT then ",distinct" else "",
         ifx t.variant_flags & .ISA then ",isa" else "",
         get_type_name(t.variant_of)); 
+
+    case .UNTYPED_LITERAL; #through;
+    case .UNTYPED_ENUM;
+      assert(false, "What is this?");
+      return "";
   }
 }
 

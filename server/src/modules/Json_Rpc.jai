@@ -536,7 +536,7 @@ threaded_rpc_handler_loop : Thread_Proc : (thread: *Thread) -> s64 {
     method: JSON_RPC_Caster_Data;
     // if thread_state.request {
       name = thread_state.request.method;
-      method=, success := table_find(*state.request_methods, name);
+      success, method= := table_find_new(*state.request_methods, name);
       assert(success);
       rpc_debug_log("Found '%'", name);
       return name, method;

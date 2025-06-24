@@ -12,7 +12,8 @@ read_next :: (buffer: *u8, to_read: s64) -> bytes_read: u32 {
 }
 
 read_into :: (buffer: *[..]u8) {
-  maybe_grow(buffer);
+	if buffer.count >= buffer.allocated
+    array_resize(buffer, max(8, 2 * buffer.count));
   buffer.count += read_next(buffer.data + buffer.count, buffer.allocated - buffer.count);
 }
 
