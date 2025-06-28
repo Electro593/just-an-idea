@@ -157,9 +157,9 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
             } else {
               print_to_builder(*builder, "  assert_cast_json(json.kind == .OBJECT || json.kind == .ARRAY, \"Expected an array or object because '%' is a struct, but got \%\", print_json(json,, temp));\n", type_name);
               print_to_builder(*builder, "  if json.kind == .OBJECT {\n");
-              print_to_builder(*builder, "    success = cast_json(get_element(as_object(json), \"%\"), *value.%, .%, .%, should_assert, log, scope);\n", name, it.name, it.notes, blacklist);
+              print_to_builder(*builder, "    success = cast_json(get(as_object(json), \"%\"), *value.%, .%, .%, should_assert, log, scope);\n", name, it.name, it.notes, blacklist);
               print_to_builder(*builder, "  } else {\n");
-              print_to_builder(*builder, "    success = cast_json(get_element(as_array(json), %), *value.%, .%, .%, should_assert, log, scope);\n", it_index, it.name, it.notes, blacklist);
+              print_to_builder(*builder, "    success = cast_json(get(as_array(json), %), *value.%, .%, .%, should_assert, log, scope);\n", it_index, it.name, it.notes, blacklist);
               print_to_builder(*builder, "  }\n");
             }
             print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast \% to the struct '%' because casting the member '%' (%) failed\", print_json(json,, temp));\n", type_name, it.name, get_type_name(it.type));
@@ -279,7 +279,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
             print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected an array or number because '%' is an enum_flags, but got \%\", print_json(json,, temp));\n", type_name);
           } else {
             print_to_builder(*builder, "  if json.kind == .STRING {\n");
-            build_switch_case(*builder, t, type_name, "as_string(json).value", "\"%\"", "=", "    ");
+            build_switch_case(*builder, t, type_name, "replace_chars(as_string(json).value, \"/\", \"_\")", "\"%\"", "=", "    ");
             print_to_builder(*builder, "  } else if json.kind == .NUMBER {\n");
             build_switch_case(*builder, t, type_name, tprint("cast(T) as_number(json).value"), ".%", "=", "    ");
             print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected a string or number because '%' is an enum, but got \%\", print_json(json,, temp));\n", type_name);

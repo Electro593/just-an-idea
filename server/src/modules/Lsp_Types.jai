@@ -2991,3 +2991,4 @@ LSP_SentTelemetryParams :: struct {
 #scope_module
 
 #import "Hash_Table";
+#import "Json";

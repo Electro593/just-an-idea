@@ -6,5 +6,8 @@
         "out": true
     },
     "editor.tabSize": 2,
-    "editor.insertSpaces": true
+    "editor.insertSpaces": false,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "editor.renderWhitespace": "selection"
 }

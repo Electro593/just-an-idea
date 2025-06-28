@@ -105,18 +105,28 @@ free_json :: (element: *JSON_Element) {
   free(element);
 }
 
-get_element :: inline (object: *JSON_Object, name: string, default := null) -> *JSON_Element {
+get :: inline (object: *JSON_Object, name: string, default := null) -> *JSON_Element {
   assert(xx object, "Attempted to get \"%\" from an object, but the object was null", name);
   success, value := table_find_new(*object.value, name);
   if !success then value = default;
   return value;
 }
 
-get_element :: inline (array: *JSON_Array, index: int, default := null) -> *JSON_Element {
+get :: inline (array: *JSON_Array, index: int, default := null) -> *JSON_Element {
   assert(xx array, "Attempted to get index % from an array, but the array was null", index);
   assert(index >= 0, "Attempted to get index % from an array, but the index is less than 0", index);
   if index >= array.value.count then return default;
   return array.value[index];
+}
+
+get_int :: inline (object: *JSON_Object, name: string, default := 0) -> int {
+  elem := get(object, name);
+  return ifx elem && elem.kind == .NUMBER then xx as_number(elem).value else default;
+}
+
+get_string :: inline (object: *JSON_Object, name: string, default := "") -> string {
+  elem := get(object, name);
+  return ifx elem && elem.kind == .STRING then as_string(elem).value else default;
 }
 
 as_null :: inline (element: *JSON_Element) -> *JSON_String {
@@ -204,6 +214,10 @@ set_element :: (array: *JSON_Array, index: int, element: *JSON_Element) {
       array_resize(*array.value, index + 1, true);
     array.value[index] = element;
   }
+}
+
+append :: (array: *JSON_Array, element: *JSON_Element) {
+  set_element(array, array.count, element);
 }
 
 print_json :: (element: *JSON_Element) -> string {
