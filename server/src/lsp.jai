@@ -92,7 +92,8 @@ lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> L
 	lsif := get_lsif(data);
 
 	document := table_find_pointer(*lsif.documents, params.textDocument.uri);
-	if !document return .{make_null_any()};
+	if !document
+		return .{make_null_any()};
 
 	// Binary search to find a fitting result set
 	low := 0;
@@ -157,10 +158,10 @@ lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> L
 		for item_id: item_ids {
 			item := table_find_pointer(*lsif.ranges, item_id);
 			if !item continue;
-			
+
 			array_add(*links, .{
 				originSelectionRange = .{ .{ xx range.l0, xx range.c0 }, .{ xx range.l1, xx range.c1 } },
-				targetUri = uri,
+				targetUri = copy_string(uri),
 				targetRange = .{ .{ xx item.l0, xx item.c0 }, .{ xx item.l1, xx item.c1 } },
 				targetSelectionRange = .{ .{ xx item.l0, xx item.c0 }, .{ xx item.l1, xx item.c1 } }
 			});
@@ -218,7 +219,7 @@ launch_compiler :: (data: *Data, document: LSP_DocumentUri) {
 	success := create_process(*data.compiler, "jai", document, "file", "--", "import_dir", "server/src/modules", "meta", "Parse", capture_and_return_output = true);
 	assert(success, "Failed to launch compiler: 'jai % file -- import_dir server/src/modules meta Parse' in extension directory", document);
 
-	data.lsif_pending = false;
+	data.lsif_pending = true;
 }
 
 get_lsif :: (data: *Data) -> LSIF {
@@ -230,12 +231,17 @@ get_lsif :: (data: *Data) -> LSIF {
 	if result.type != .EXITED
 		return data.lsif;
 
+	if result.exit_code != 0 {
+		debug_log(data, tprint("Compiler exited with exit code %\n", result.exit_code));
+		return data.lsif;
+	}
+
 	raw_lsif:, success = read_entire_file("database/lsif.json");
 	if !success return data.lsif;
 	defer free(raw_lsif);
 
-	free_lsif(*data.lsif);
-	data.lsif = populate_lsif(parse_json(raw_lsif));
+	free_lsif(data, *data.lsif);
+	data.lsif = populate_lsif(data, parse_json(raw_lsif));
 	return data.lsif;
 }
 

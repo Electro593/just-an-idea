@@ -17,6 +17,7 @@ builder: String_Builder;
 documents: Table(*Message_File, Document);
 declarations: Table(*Code_Declaration, Declaration);
 references: Table(*Code_Ident, Reference);
+sepstr := "\n\t";
 next_id := 1;
 
 #run {
@@ -89,7 +90,7 @@ next_id := 1;
     visited = *visited
   };
 
-  print_to_builder(*builder, "[\n");
+  print_to_builder(*builder, "[");
 
   while true {
 		message := compiler_wait_for_message();
@@ -121,7 +122,7 @@ next_id := 1;
 
   add_contains();
 
-  print_to_builder(*builder, "]\n");
+  print_to_builder(*builder, "\n]\n");
   file_write(*file, *builder);
   file_close(*file);
 }
@@ -149,7 +150,8 @@ get_or_add_document :: (node: *Code_Node) -> *Document {
   if newly_added {
     document.id = next_id;
     next_id += 1;
-    print_to_builder(*builder, "\t{ \"id\": %, \"type\": \"vertex\", \"label\": \"document\", \"uri\": \"file:///%\", \"languageId\": \"jai\" },\n", document.id, node.enclosing_load.fully_pathed_filename);
+    print_to_builder(*builder, "%{ \"id\": %, \"type\": \"vertex\", \"label\": \"document\", \"uri\": \"file:///%\", \"languageId\": \"jai\" }", sepstr, document.id, node.enclosing_load.fully_pathed_filename);
+    sepstr = ",\n\t";
   }
   return document;
 }
@@ -162,25 +164,24 @@ add_declaration :: (decl: *Code_Declaration) -> *Declaration {
   if newly_added {
     declaration.id = next_id;
     array_add(*document.ranges, declaration.id);
-
-    print_to_builder(*builder, "\t{ \"id\": %, \"type\": \"vertex\", \"label\": \"range\", \"start\": { \"line\": %, \"character\": % }, \"end\": { \"line\": %, \"character\": % } },\n", declaration.id, decl.l0-1, decl.c0-1, decl.l1-1, decl.c0-1 + decl.name.count);
+    print_to_builder(*builder, "%{ \"id\": %, \"type\": \"vertex\", \"label\": \"range\", \"start\": { \"line\": %, \"character\": % }, \"end\": { \"line\": %, \"character\": % } }", sepstr, declaration.id, decl.l0-1, decl.c0-1, decl.l1-1, decl.c0-1 + decl.name.count);
     next_id += 1;
 
     declaration.result_set_id = next_id;
-    print_to_builder(*builder, "\t{ \"id\": %, \"type\": \"vertex\", \"label\": \"resultSet\" },\n", declaration.result_set_id);
+    print_to_builder(*builder, "%{ \"id\": %, \"type\": \"vertex\", \"label\": \"resultSet\" }", sepstr, declaration.result_set_id);
     next_id += 1;
 
     defn_result_id := next_id;
-    print_to_builder(*builder, "\t{ \"id\": %, \"type\": \"vertex\", \"label\": \"definitionResult\" },\n", defn_result_id);
+    print_to_builder(*builder, "%{ \"id\": %, \"type\": \"vertex\", \"label\": \"definitionResult\" }", sepstr, defn_result_id);
     next_id += 1;
 
-    print_to_builder(*builder, "\t{ \"id\": %, \"type\": \"edge\", \"label\": \"next\", \"outV\": %, \"inV\": % },\n", next_id, declaration.id, declaration.result_set_id);
+    print_to_builder(*builder, "%{ \"id\": %, \"type\": \"edge\", \"label\": \"next\", \"outV\": %, \"inV\": % }", sepstr, next_id, declaration.id, declaration.result_set_id);
     next_id += 1;
 
-    print_to_builder(*builder, "\t{ \"id\": %, \"type\": \"edge\", \"label\": \"textDocument/definition\", \"outV\": %, \"inV\": % },\n", next_id, declaration.result_set_id, defn_result_id);
+    print_to_builder(*builder, "%{ \"id\": %, \"type\": \"edge\", \"label\": \"textDocument/definition\", \"outV\": %, \"inV\": % }", sepstr, next_id, declaration.result_set_id, defn_result_id);
     next_id += 1;
 
-    print_to_builder(*builder, "\t{ \"id\": %, \"type\": \"edge\", \"label\": \"item\", \"outV\": %, \"inVs\": %, \"shard\": % },\n", next_id, defn_result_id, int.[declaration.id], document.id);
+    print_to_builder(*builder, "%{ \"id\": %, \"type\": \"edge\", \"label\": \"item\", \"outV\": %, \"inVs\": %, \"shard\": % }", sepstr, next_id, defn_result_id, int.[declaration.id], document.id);
     next_id += 1;
   }
   return declaration;
@@ -194,15 +195,14 @@ add_reference :: (ref: *Code_Ident) -> *Reference {
 
   reference, newly_added := find_or_add(*references, ref);
   if newly_added {
-    array_add(*document.ranges, reference.id);
-
     reference.id = next_id;
-    print_to_builder(*builder, "\t{ \"id\": %, \"type\": \"vertex\", \"label\": \"range\", \"start\": { \"line\": %, \"character\": % }, \"end\": { \"line\": %, \"character\": % } },\n", reference.id, ref.l0, ref.c0, ref.l1, ref.c0 + ref.name.count);
+    array_add(*document.ranges, reference.id);
+    print_to_builder(*builder, "%{ \"id\": %, \"type\": \"vertex\", \"label\": \"range\", \"start\": { \"line\": %, \"character\": % }, \"end\": { \"line\": %, \"character\": % } }", sepstr, reference.id, ref.l0-1, ref.c0-1, ref.l1-1, ref.c0-1 + ref.name.count);
     next_id += 1;
 
     reference.result_set_id = declaration.result_set_id;
 
-    print_to_builder(*builder, "\t{ \"id\": %, \"type\": \"edge\", \"label\": \"next\", \"outV\": %, \"inV\": % },\n", next_id, reference.id, reference.result_set_id);
+    print_to_builder(*builder, "%{ \"id\": %, \"type\": \"edge\", \"label\": \"next\", \"outV\": %, \"inV\": % }", sepstr, next_id, reference.id, reference.result_set_id);
     next_id += 1;
   }
   return reference;
@@ -213,7 +213,7 @@ add_contains :: () {
     if !it.ranges.count continue;
     id := next_id;
     next_id += 1;
-    print_to_builder(*builder, "\t{ \"id\": %, \"type\": \"edge\", \"label\": \"contains\", \"outV\": %, \"inVs\": % },\n", id, it.id, it.ranges);
+    print_to_builder(*builder, "%{ \"id\": %, \"type\": \"edge\", \"label\": \"contains\", \"outV\": %, \"inVs\": % }", sepstr, id, it.id, it.ranges);
   }
 }
 
