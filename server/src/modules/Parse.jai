@@ -90,6 +90,7 @@ next_id := 1;
     visited = *visited
   };
 
+  context.print_style.default_format_array.stop_printing_after_this_many_elements = -1;
   print_to_builder(*builder, "[");
 
   while true {
@@ -128,10 +129,7 @@ next_id := 1;
 }
 
 emit_root :: (visitor: *Ast_Visitor, root: *Code_Node) {
-  get_or_add_document(root);
-
   visitor.root = root;
-  if !root.enclosing_load || !ends_with(root.enclosing_load.fully_pathed_filename, "test.jai") return;
   for visitor {
     if it.kind == {
       case .IDENT;
@@ -189,7 +187,7 @@ add_declaration :: (decl: *Code_Declaration) -> *Declaration {
 
 add_reference :: (ref: *Code_Ident) -> *Reference {
   document := get_or_add_document(ref);
-  if !document return null;
+  if !document || !ref.resolved_declaration return null;
   declaration := add_declaration(ref.resolved_declaration);
   if (!declaration) return null;
 

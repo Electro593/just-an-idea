@@ -168,6 +168,8 @@ Data :: struct {
 	buffer: [..] u8;
 	buffer_filename: string;
 
+	root_uri: string;
+
 	is_initialized: bool;
 	is_shutdown: bool;
 	trace: LSP_TraceValue = LSP_TraceValue_Off;
@@ -184,6 +186,7 @@ main :: () {
 	}
 
 	data: Data;
+	data.root_uri = "file:///d:/Programming/Jai/just-an-idea/server/src/test.jai";
 
 	make_directory_if_it_does_not_exist(LOG_FOLDER);
 	loglog := file_open(tprint("%/log.log", LOG_FOLDER), true, true);

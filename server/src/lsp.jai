@@ -67,7 +67,7 @@ lsp_textDocument_didOpen :: (data: *Data, params: *LSP_DidOpenTextDocumentParams
 	assert_running();
 	decode_uri(*params.textDocument.uri);
 	// TODO: Handle externally-modified files?
-	launch_compiler(data, params.textDocument.uri);
+	launch_compiler(data, data.root_uri);
 }
 
 lsp_textDocument_didChange :: (data: *Data, params: *LSP_DidChangeTextDocumentParams) {
@@ -78,7 +78,7 @@ lsp_textDocument_didChange :: (data: *Data, params: *LSP_DidChangeTextDocumentPa
 lsp_textDocument_didSave :: (data: *Data, params: *LSP_DidSaveTextDocumentParams) {
 	assert_running();
 	decode_uri(*params.textDocument.uri);
-	launch_compiler(data, params.textDocument.uri);
+	launch_compiler(data, data.root_uri);
 }
 
 lsp_textDocument_didClose :: (data: *Data, params: *LSP_DidCloseTextDocumentParams) {
