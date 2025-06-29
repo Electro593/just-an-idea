@@ -46,12 +46,12 @@ JSON_Object :: struct {
 
 parse_json :: (text: string) -> *JSON_Element {
 	json: JSON;
-	json.data = text.data;
-	json.count = text.count;
+	json.text.data = text.data;
+	json.text.count = text.count;
 	json.reallocated = false;
 
 	elem := parse_json(*json);
-	if json.reallocated array_free(json.array);
+	if json.reallocated array_free(json.text);
 	return elem;
 }
 
@@ -319,9 +319,11 @@ print_json :: (element: *JSON_Element) -> string {
 #scope_file
 
 JSON :: struct {
-	using array: [..] u8;
+	text: [..] u8;
 	index: int;
+
 	error: bool;
+	reallocated: bool;
 
 	utf8_buffer: [4] u8;
 }
@@ -352,33 +354,33 @@ validate_utf_8 :: (json: *JSON) {
 	json.error = false;
 
 	it := 0;
-	while it < json.count {
+	while it < json.text.count {
 		codepoint: u32;
 		len := 1;
 
-		c0: u32 = ifx it+0 < json.count then json.data[it+0];
-		c1: u32 = ifx it+1 < json.count then json.data[it+1];
-		c2: u32 = ifx it+2 < json.count then json.data[it+2];
-		c3: u32 = ifx it+3 < json.count then json.data[it+3];
+		c0: u32 = ifx it+0 < json.text.count then json.text.data[it+0];
+		c1: u32 = ifx it+1 < json.text.count then json.text.data[it+1];
+		c2: u32 = ifx it+2 < json.text.count then json.text.data[it+2];
+		c3: u32 = ifx it+3 < json.text.count then json.text.data[it+3];
 
 		if c0 < 0x80 {
 			codepoint = c0;
 		} else if c0 < 0xC0 {
 			assert_continuation(false, json, c0);
 		} else if c0 < 0xE0 {
-			if validate_continuation(json, c1, it, 1, json.count) len += 1;
+			if validate_continuation(json, c1, it, 1, json.text.count) len += 1;
 			codepoint = ((c0 & 0x1F) << 6) | (c1 & 0x3F);
 			if !assert_overlong(0x80 <= codepoint, json, codepoint) len = 1;
 		} else if c0 < 0xF0 {
-			if validate_continuation(json, c1, it, 1, json.count) len += 1;
-			if !json.error && validate_continuation(json, c2, it, 2, json.count) len += 1;
+			if validate_continuation(json, c1, it, 1, json.text.count) len += 1;
+			if !json.error && validate_continuation(json, c2, it, 2, json.text.count) len += 1;
 			codepoint = ((c0 & 0x0F) << 12) | ((c1 & 0x3F) << 6) | (c2 & 0x3F);
-			if !assert_overlong(0x800 <= codepoint, json, it, codepoint) len = 1;
+			if !assert_overlong(0x800 <= codepoint, json, codepoint) len = 1;
 			if !assert_surrogate(codepoint < 0xD800 || codepoint > 0xDFFF, json, codepoint) len = 1;
 		} else {
-			if validate_continuation(json, c1, it, 1, json.count) len += 1;
-			if !json.error && validate_continuation(json, c2, it, 2, json.count) len += 1;
-			if !json.error && validate_continuation(json, c3, it, 3, json.count) len += 1;
+			if validate_continuation(json, c1, it, 1, json.text.count) len += 1;
+			if !json.error && validate_continuation(json, c2, it, 2, json.text.count) len += 1;
+			if !json.error && validate_continuation(json, c3, it, 3, json.text.count) len += 1;
 			codepoint = ((c0 & 0x07) << 18) | ((c1 & 0x3F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
 			if !assert_undefined(codepoint <= 0x10FFFF, json, codepoint) len = 1;
 			if !assert_overlong(0x10000 <= codepoint, json, codepoint) len = 1;
@@ -389,25 +391,25 @@ validate_utf_8 :: (json: *JSON) {
 			dst_offset := it + 3;
 			if src_offset != dst_offset {
 				if !json.reallocated {
-					old_array := json.array;
-					json.allocated = max(8, json.count) * 2;
-					json.data = alloc(json.allocated * size_of(u8));
-					remember_allocators(*json.array);
-					memmove(json.data, old_array.data, it);
-					memmove(json.data + dst_offset, old_array.data + src_offset, old_array.count - src_offset);
+					old_array := json.text;
+					json.text.allocated = max(8, json.text.count) * 2;
+					json.text.data = alloc(json.text.allocated * size_of(u8));
+					remember_allocators(*json.text);
+					memcpy(json.text.data, old_array.data, it);
+					memcpy(json.text.data + dst_offset, old_array.data + src_offset, old_array.count - src_offset);
 					json.reallocated = true;
-					json.count += 3 - len;
+					json.text.count += 3 - len;
 				} else {
-					json.count += 3 - len;
-					maybe_grow(*json.array, size_of(u8));
-					memmove(json.data + dst_offset, json.data + src_offset, json.count - src_offset);
+					json.text.count += 3 - len;
+					maybe_grow(xx *json.text, size_of(u8));
+					memcpy(json.text.data + dst_offset, json.text.data + src_offset, json.text.count - src_offset);
 				}
 			}
 
 			// Insert 0xFFFD, the error character
-			json.data[it] = 0xEF;
-			json.data[it+1] = 0xBF;
-			json.data[it+2] = 0xBD;
+			json.text.data[it] = 0xEF;
+			json.text.data[it+1] = 0xBF;
+			json.text.data[it+2] = 0xBD;
 			len = 3;
 		}
 
@@ -445,12 +447,12 @@ encode_utf_8 :: (codepoint: u32, out: *string) {
 
 //TODO: Make iterative
 parse_json :: (json: *JSON) -> *JSON_Element {
-	assert_syntax(xx json.count, json, "Expected a json stream, but got EOF");
+	assert_syntax(xx json.text.count, json, "Expected a json stream, but got EOF");
 
 	validate_utf_8(json);
 
 	// Skip a BOM, if present
-	if json.count >= 2 && peek(json, 2) == "\uFEFF" || peek(json, 2) == "\uFFFE"
+	if json.text.count >= 2 && peek(json, 2) == "\uFEFF" || peek(json, 2) == "\uFFFE"
 		skip(json, 2);
 
 	return parse_element(json);
@@ -480,7 +482,7 @@ parse_value :: (json: *JSON) -> *JSON_Element {
 			if is_digit(token[0]) || token[0] == #char "-" {
 				element = make_number(parse_number(json));
 			} else {
-				assert_syntax(false, json, "Expected 'null', 'true', 'false', '\"...\"', [...], {...}, or a number, but got %", peek(json, json.count - json.index));
+				assert_syntax(false, json, "Expected 'null', 'true', 'false', '\"...\"', [...], {...}, or a number, but got %", peek(json, json.text.count - json.index));
 			}
 	}
 
@@ -583,7 +585,8 @@ parse_character :: (json: *JSON) -> string {
 
 parse_escape :: (json: *JSON) -> string {
 	c, codepoint := peek(json);
-	result := string.{0, json.utf8_buffer};
+	result: string;
+	result.data = xx json.utf8_buffer.data;
 
 	if c == "u" {
 		error := json.error;
@@ -655,7 +658,7 @@ parse_number :: (json: *JSON) -> float64 {
 	parse_fraction(json);
 	parse_exponent(json);
 
-	number := string.{json.index - index, json.data + index};
+	number := string.{json.index - index, json.text.data + index};
 
 	value, success := string_to_float64(number);
 	json.index = index;
@@ -814,12 +817,12 @@ next :: (json: *JSON) -> string, u32 {
 }
 
 peek :: (json: *JSON, count: int) -> string {
-	if !has_next(json, count) count = json.count - json.index;
-	return string.{count, json.data + json.index};
+	if !has_next(json, count) count = json.text.count - json.index;
+	return string.{count, json.text.data + json.index};
 }
 
 peek :: (json: *JSON) -> string, u32 {
-	c := string.{json.count - json.index, json.data + json.index};
+	c := string.{json.text.count - json.index, json.text.data + json.index};
 	codepoint, count := get_codepoint(c);
 	c.count = count;
 	return c, codepoint;
@@ -859,7 +862,7 @@ skip :: (json: *JSON) {
 }
 
 has_next :: (json: *JSON, count := 1) -> bool {
-	return json.count >= json.index + count;
+	return json.text.count >= json.index + count;
 }
 
 #import "Basic";

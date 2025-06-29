@@ -39,10 +39,17 @@
       {
         "title": "Just an Idea",
         "properties": {
-          "just-an-idea.jaiPath": {
+          "justAnIdea.jaiPath": {
+            "order": 1,
             "type": "string",
             "default": "jai",
-            "description": "The location of the jai compiler executable."
+            "description": "The location of the jai compiler executable. Defaults to assuming it's on the path."
+          },
+          "justAnIdea.mainFile": {
+            "order": 2,
+            "type": "string",
+            "description": "The top-level file of your project. Currently doesn't support custom metaprograms or arguments.",
+            "ignoreSync": true
           }
         }
       }
@@ -51,8 +58,7 @@
       {
         "language": "jai",
         "scopeName": "source.jai",
-        "path": "./syntaxes/iain.tmLanguage.json",
-        "_path": "./syntaxes/jai.tmLanguage.json"
+        "path": "./syntaxes/jai.tmLanguage.json"
       }
     ]
   },
