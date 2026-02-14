@@ -349,7 +349,6 @@ start_rpc_thread :: (proc: Thread_Proc, thread: *Thread = null, index := 0) {
   }
 
   thread.starting_context = context;
-  thread.starting_context.assertion_failed = assert_rpc;
   // thread.starting_context.print_style.default_format_struct = FormatStruct.{use_long_form_if_more_than_this_many_members = -1, use_newlines_if_long_form = true, indentation_width = 2};
   thread.starting_context.json_rpc.thread = thread;
   thread.starting_context.json_rpc.threads_index = index;
@@ -362,6 +361,8 @@ start_rpc_thread :: (proc: Thread_Proc, thread: *Thread = null, index := 0) {
 }
 
 threaded_rpc_parse_loop : Thread_Proc : (thread: *Thread) -> s64 {
+  context.assertion_failed = assert_rpc;
+
   thread_state := *context.json_rpc;
   state := thread_state.state;
   set_error(.INTERNAL_ERROR);
@@ -479,6 +480,8 @@ threaded_rpc_parse_loop : Thread_Proc : (thread: *Thread) -> s64 {
 }
 
 threaded_rpc_handler_loop : Thread_Proc : (thread: *Thread) -> s64 {
+  context.assertion_failed = assert_rpc;
+
   thread_state := *context.json_rpc;
   state := thread_state.state;
   set_error(.INTERNAL_ERROR);
@@ -529,6 +532,7 @@ threaded_rpc_handler_loop : Thread_Proc : (thread: *Thread) -> s64 {
   }
 
   retrieve_method :: () -> name: string, method: JSON_RPC_Caster_Data {
+    rpc_debug_log("Retrieving method...");
     thread_state := *context.json_rpc;
     state := thread_state.state;
     push_error(.METHOD_NOT_FOUND);
@@ -641,6 +645,8 @@ add_response :: (result: Any, error: Any) {
 }
 
 assert_rpc :: (loc: Source_Code_Location, message: string) -> bool {
+  rpc_debug_log("Asserting!");
+
   thread_state := *context.json_rpc;
   state := thread_state.state;
 

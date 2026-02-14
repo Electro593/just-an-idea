@@ -206,12 +206,12 @@ main :: () {
 	add_rpc_request_handler(LSP_REQUEST_INITIALIZE,                 lsp_initialize);
 	add_rpc_request_handler(LSP_NOTIFICATION_INITIALIZED,           lsp_initialized);
 	add_rpc_request_handler(LSP_REQUEST_SHUTDOWN,                   lsp_shutdown);
-	add_rpc_request_handler(LSP_REQUEST_GO_TO_DEFINITION,           lsp_textDocument_definition);
-	add_rpc_request_handler(LSP_NOTIFICATION_DOCUMENT_CHANGED,      lsp_textDocument_didChange);
-	add_rpc_request_handler(LSP_NOTIFICATION_DOCUMENT_CLOSED,       lsp_textDocument_didClose);
-	add_rpc_request_handler(LSP_NOTIFICATION_DOCUMENT_OPENED,       lsp_textDocument_didOpen);
-	add_rpc_request_handler(LSP_NOTIFICATION_DOCUMENT_SAVED,        lsp_textDocument_didSave);
-	add_rpc_request_handler(LSP_NOTIFICATION_WATCHED_FILES_CHANGED, lsp_workspace_didChangeWatchedFiles);
+	// add_rpc_request_handler(LSP_REQUEST_GO_TO_DEFINITION,           lsp_textDocument_definition);
+	// add_rpc_request_handler(LSP_NOTIFICATION_DOCUMENT_CHANGED,      lsp_textDocument_didChange);
+	// add_rpc_request_handler(LSP_NOTIFICATION_DOCUMENT_CLOSED,       lsp_textDocument_didClose);
+	// add_rpc_request_handler(LSP_NOTIFICATION_DOCUMENT_OPENED,       lsp_textDocument_didOpen);
+	// add_rpc_request_handler(LSP_NOTIFICATION_DOCUMENT_SAVED,        lsp_textDocument_didSave);
+	// add_rpc_request_handler(LSP_NOTIFICATION_WATCHED_FILES_CHANGED, lsp_workspace_didChangeWatchedFiles);
 
 	//TODO: Periodic checker thread that kills the server if the client dies
 
