@@ -1,0 +1,7 @@
+.build/
+.vscode/
+client/
+node_modules/
+server/
+.git*
+*.code-workspace
