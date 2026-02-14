@@ -2,14 +2,14 @@
   "comment0": "Due to inherent technical limitations, certain language aspects (such as arbitrary whitespace)",
   "comment1": "cannot be supported by this grammar. As such, the most accurate scoping will be obtained by",
   "comment2": "keeping declarations, parameter lists, and such on one line.",
-  
+
   "comment3": "For simplicity, jai comments won't be mentioned in these json comments. They're possible wherever",
   "comment4": "whitespace occurs.",
-  
+
   "comment5": "Common patterns:",
   "comment6": "- Identifiers and keywords can be split, like 'i\\ f\\ \\ ' resolving to 'if'. This is the regex:",
   "comment7": "  '\\bi(?:\\\\ *)*f\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*'",
-  
+
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "scopeName": "source.jai",
   "patterns": [
@@ -22,6 +22,8 @@
     { "include": "#punctuation" },
     { "include": "#primitives" },
     { "include": "#literals" },
+    { "include": "#declarations" },
+    { "include": "#functions" },
     { "include": "#identifiers" }
   ],
   "repository": {
@@ -31,7 +33,7 @@
       "patterns": [ { "include": "$self" } ],
       "end": "(?=n)p"
     },
-    
+
     "comments": {
       "patterns": [
         { "include": "#line-comments" },
@@ -48,7 +50,7 @@
       "patterns": [ { "include": "#block-comments" } ],
       "end": "\\*\\/"
     },
-    
+
     "notes": {
       "comment": "Notes are started by '@' and ended by whitespace or ';'. Empty notes are invalid.",
       "name": "meta.note.jai",
@@ -59,7 +61,7 @@
         "3": { "name": "comment.line.note.jai" }
       }
     },
-    
+
     "simple-directives": {
       "comment": "The names of the directives, without considering parameters or specifiers",
       "begin": "#",
@@ -385,7 +387,7 @@
         }
       ]
     },
-    
+
     "strings": {
       "name": "string.quoted.double.jai",
       "match": "(\")(.*?)(?:((?<!(?:\\\\\\\\)*\\\\)\")|\\n)",
@@ -406,7 +408,7 @@
         "3": { "name": "punctuation.definition.string.end.jai" }
       }
     },
-    
+
     "punctuation": {
       "match": "({)|(})|(\\[)|(])|(\\()|(\\))|(,)|(;)|(->)|(\\.)|(`)",
       "captures": {
@@ -423,7 +425,7 @@
         "11": { "name": "punctuation.backtick.jai" }
       }
     },
-    
+
     "keywords": {
       "patterns": [
         { "include": "#control-keywords" },
@@ -501,6 +503,10 @@
         {
           "name": "keyword.declaration.struct",
           "match": "\\bs(?:\\\\ *)*t(?:\\\\ *)*r(?:\\\\ *)*u(?:\\\\ *)*c(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "keyword.declaration.union",
+          "match": "\\bu(?:\\\\ *)*n(?:\\\\ *)*i(?:\\\\ *)*o(?:\\\\ *)*n\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
         },
         {
           "name": "keyword.other.using.jai",
@@ -599,7 +605,7 @@
         }
       ]
     },
-    
+
     "primitives": {
       "patterns": [
         {
@@ -657,10 +663,14 @@
         {
           "name": "storage.type.primitive.float.float64.jai",
           "match": "\\bf(?:\\\\ *)*l(?:\\\\ *)*o(?:\\\\ *)*a(?:\\\\ *)*t(?:\\\\ *)*6(?:\\\\ *)*4\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
+        },
+        {
+          "name": "storage.type.string.jai",
+          "match": "\\bs(?:\\\\ *)*t(?:\\\\ *)*r(?:\\\\ *)*i(?:\\\\ *)*n(?:\\\\ *)*g\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*"
         }
       ]
     },
-    
+
     "literals": {
       "patterns": [
         {
@@ -685,21 +695,47 @@
         }
       ]
     },
-    
+
+    "declarations": {
+      "patterns": [
+        {
+          "name": "entity.name.function.jai",
+          "match": "\\b[a-zA-Z_](\\w|\\\\ *)*(?=\\s*:\\s*:\\s*\\()"
+        },
+        {
+          "name": "entity.name.type.enum.jai",
+          "match": "\\b[a-zA-Z_](\\w|\\\\ *)*(?=\\s*:\\s*:\\s*e(?:\\\\ *)*n(?:\\\\ *)*u(?:\\\\ *)*m\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*)"
+        },
+        {
+          "name": "entity.name.type.struct.jai",
+          "match": "\\b[a-zA-Z_](\\w|\\\\ *)*(?=\\s*:\\s*:\\s*s(?:\\\\ *)*t(?:\\\\ *)*r(?:\\\\ *)*u(?:\\\\ *)*c(?:\\\\ *)*t\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*)"
+        },
+        {
+          "name": "entity.name.type.union.jai",
+          "match": "\\b[a-zA-Z_](\\w|\\\\ *)*(?=\\s*:\\s*:\\s*u(?:\\\\ *)*n(?:\\\\ *)*i(?:\\\\ *)*o(?:\\\\ *)*n\\b(?!(?:\\\\ *)*\\w)(?:\\\\ *)*)"
+        }
+      ]
+    },
+
+    "functions": {
+      "name": "entity.name.function.jai",
+      "match": "\\b[a-zA-Z_](\\w|\\\\ *)*(?=\\()"
+    },
+
     "identifiers": {
       "name": "variable.other.identifier.jai",
       "match": "\\b[a-zA-Z_](\\w|\\\\ *)*"
     },
-    
+
     "whitespace": {
       "match": "\\s+"
     },
-    
+
     "invalid": {
       "name": "invalid.illegal.jai",
       "match": "."
     },
-    
+
     "here-strings": {
       "comment": "Due to technical limitations, heres are only fully highlighted if they follow strict syntax: '#string' <non-breaking-identifier> <newline>",
       "patterns": [

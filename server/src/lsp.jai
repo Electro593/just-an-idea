@@ -67,7 +67,7 @@ lsp_textDocument_didOpen :: (data: *Data, params: *LSP_DidOpenTextDocumentParams
 	assert_running();
 	decode_uri(*params.textDocument.uri);
 	// TODO: Handle externally-modified files?
-	launch_compiler(data, data.root_uri);
+	launch_compiler(data);
 }
 
 lsp_textDocument_didChange :: (data: *Data, params: *LSP_DidChangeTextDocumentParams) {
@@ -78,7 +78,7 @@ lsp_textDocument_didChange :: (data: *Data, params: *LSP_DidChangeTextDocumentPa
 lsp_textDocument_didSave :: (data: *Data, params: *LSP_DidSaveTextDocumentParams) {
 	assert_running();
 	decode_uri(*params.textDocument.uri);
-	launch_compiler(data, data.root_uri);
+	launch_compiler(data);
 }
 
 lsp_textDocument_didClose :: (data: *Data, params: *LSP_DidCloseTextDocumentParams) {
@@ -204,11 +204,7 @@ is_process_running :: (process: Process) -> bool {
 	}
 }
 
-launch_compiler :: (data: *Data, document: LSP_DocumentUri) {
-	//TODO: Find main/module file
-	//TODO: Use config if jai is not in path
-	//TODO: Allow for user metaprograms and arguments for specific files
-
+launch_compiler :: (data: *Data) {
 	// Wait for, or kill, the compiler
   kill_process(*data.compiler);
 	deinit(*data.compiler);
@@ -216,33 +212,36 @@ launch_compiler :: (data: *Data, document: LSP_DocumentUri) {
 	// assert(success, "Could not open the index");
 	// defer close_and_unlock_record_file(*data.ast_state);
 
-	success := create_process(*data.compiler, "jai", document, "file", "--", "import_dir", "server/src/modules", "meta", "Parse", capture_and_return_output = true);
-	assert(success, "Failed to launch compiler: 'jai % file -- import_dir server/src/modules meta Parse' in extension directory", document);
+	success := create_process(*data.compiler, .. data.compiler_command, capture_and_return_output = true);
+	assert(success, "Failed to launch compiler: % in extension directory", data.compiler_command);
 
-	data.lsif_pending = true;
+	data.compiler_pending = true;
 }
 
 get_lsif :: (data: *Data) -> LSIF {
-	if !data.lsif_pending return data.lsif;
+	if !data.compiler_pending return data.lsif;
 
-	success, result := get_process_result(*data.compiler, 0);
-	if result.type != .STILL_RUNNING
-		data.lsif_pending = false;
-	if result.type != .EXITED
-		return data.lsif;
-
-	if result.exit_code != 0 {
-		debug_log(data, tprint("Compiler exited with exit code %\n", result.exit_code));
-		return data.lsif;
-	}
-
-	raw_lsif:, success = read_entire_file("database/lsif.json");
-	if !success return data.lsif;
-	defer free(raw_lsif);
-
-	free_lsif(data, *data.lsif);
-	data.lsif = populate_lsif(data, parse_json(raw_lsif));
+	// TODO remove
 	return data.lsif;
+
+// 	success, result := get_process_result(*data.compiler, 0);
+// 	if result.type != .STILL_RUNNING
+// 		data.compiler_pending = false;
+// 	if result.type != .EXITED
+// 		return data.lsif;
+//
+// 	if result.exit_code != 0 {
+// 		debug_log(data, tprint("Compiler exited with exit code %\n", result.exit_code));
+// 		return data.lsif;
+// 	}
+//
+// 	raw_lsif:, success = read_entire_file("database/lsif.json");
+// 	if !success return data.lsif;
+// 	defer free(raw_lsif);
+//
+// 	free_lsif(data, *data.lsif);
+// 	data.lsif = populate_lsif(data, parse_json(raw_lsif));
+// 	return data.lsif;
 }
 
 location_links_to_locations :: (links: [] LSP_LocationLink) -> [] LSP_Location {

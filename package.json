@@ -3,7 +3,7 @@
   "displayName": "Just an Idea",
   "description": "Language support for the Jai language",
   "author": "Electro_593",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "electro593",
   "repository": {
     "type": "git",
@@ -45,10 +45,17 @@
             "default": "jai",
             "description": "The location of the jai compiler executable. Defaults to assuming it's on the path."
           },
-          "justAnIdea.mainFile": {
+          "justAnIdea.buildFile": {
             "order": 2,
             "type": "string",
-            "description": "The top-level file of your project. Currently doesn't support custom metaprograms or arguments.",
+            "description": "The top-level file of your project. Will be built with a custom metaprogram to generate syntax info.",
+            "ignoreSync": true
+          },
+          "justAnIdea.buildArgs": {
+            "order": 3,
+            "type": "array",
+            "description": "Arguments to pass to your program while it's being built. This is useful if you need to disable certain features in your metaprogram.",
+            "default": [],
             "ignoreSync": true
           }
         }

@@ -1,5 +1,9 @@
 #module_parameters (DATABASE_FOLDER := "database") ();
 
+//
+// Maintains an AST database that can be queried efficiently.
+//
+
 LOCK_FILE_NAME :: "lock";
 WORKSPACE_MAP_FILE_NAME :: "workspaces_map";
 AST_BLOCK_EXP :: 12;

@@ -15,19 +15,33 @@ export function activate(context: ExtensionContext) {
 
   const serverProcess = context.asAbsolutePath(path.join("out", serverName));
 
+  const config = workspace.getConfiguration("justAnIdea");
+  const jaiPath = config.get<string>("jaiPath") ?? "jai";
+  const buildFile = config.get<string>("buildFile");
+  const buildArgs = config.get<unknown[]>("buildArgs") ?? [];
+
+  if (!buildFile) throw new Error("justAnIdea.buildFile cannot be empty");
+  for (const [i, arg] of buildArgs.entries())
+    if (typeof arg != "string")
+      throw new Error(
+        `justAnIdea.buildArgs[${i}] must be a string. Got: ${arg}`,
+      );
+
+  const resolvedBuildFile = path.resolve(buildFile!);
+
+  const args = [jaiPath, resolvedBuildFile, ...(buildArgs as string[])];
+
   let serverOptions: ServerOptions = {
     run: {
       command: serverProcess,
-      options: {
-        cwd: context.extensionPath,
-      },
+      options: { cwd: context.extensionPath },
+      args,
       transport: TransportKind.stdio,
     },
     debug: {
       command: serverProcess,
-      options: {
-        cwd: context.extensionPath,
-      },
+      options: { cwd: context.extensionPath },
+      args,
       transport: TransportKind.stdio,
     },
   };

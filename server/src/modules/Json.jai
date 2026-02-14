@@ -218,7 +218,7 @@ set_element :: (array: *JSON_Array, index: int, element: *JSON_Element) {
 }
 
 append :: (array: *JSON_Array, element: *JSON_Element) {
-	set_element(array, array.count, element);
+	set_element(array, array.value.count, element);
 }
 
 print_json :: (element: *JSON_Element) -> string {

@@ -27,59 +27,21 @@ next_id := 1;
 	});
 	meta_options := get_build_options();
 
-  assert(meta_options.compile_time_command_line.count >= 2, "Expected 'jai target file|module ..args -- import_dir server/src/modules meta Parse' but the args were %", meta_options.compile_time_command_line);
+  build_file := meta_options.compile_time_command_line[0];
 
-  file_type := meta_options.compile_time_command_line[1];
-  assert(file_type == "file" || file_type == "module", "Invalid file type %; should be 'file' or 'module'", file_type);
-
-  file_uri := meta_options.compile_time_command_line[0];
-  found, file_domain, file_path := split_from_left(file_uri, ":///");
-  if !found file_domain, file_path = "", file_uri;
-	full_file_path := get_absolute_path(file_path);
-  if full_file_path[1] == #char ":"
-    full_file_path[0] = to_upper(full_file_path[0]);
-  _, file_directory, file_name := split_from_right_by_any(full_file_path, "/\\");
-  found=, file_module_name, file_extension := split_from_right(file_name, #char ".");
-  if !found file_module_name, file_extension = file_name, ".jai";
-
-  // ast_state := initialize_ast_database_state();
-  file, success := file_open("database/lsif.json", true);
-  if !success return;
-
-	workspace := compiler_create_workspace("just-an-idea:parse");
+  workspace := compiler_create_workspace("just-an-idea:parse");
 
 	options := get_build_options(workspace);
 	options.output_type = .NO_OUTPUT;
 	options.write_added_strings = false;
 	options.dead_code_elimination = .NONE;
-  options.import_path[0] = sprint("%/modules", file_directory);
-  if file_type == "module" {
-    options.compile_time_command_line = .{
-      meta_options.compile_time_command_line.count - 2,
-      *meta_options.compile_time_command_line[2]
-    };
-  } else {
-    options.compile_time_command_line = .[];
-  }
+  options.compile_time_command_line = meta_options.compile_time_command_line;
+  options.import_path = meta_options.import_path;
 	set_optimization(*options, .VERY_DEBUG);
 	set_build_options(options, workspace);
 
 	compiler_begin_intercept(workspace);
-
-  if file_type == "module" {
-    builder: String_Builder;
-    init_string_builder(*builder,, temp);
-    append(*builder, "#import \"");
-    append(*builder, file_module_name);
-    //TODO: Prevent remote code execution
-    append(*builder, "\" (");
-    for 2..meta_options.compile_time_command_line.count-1
-      print_to_builder(*builder, "%0%", ifx it == 2 then "" else ", ", meta_options.compile_time_command_line[it]);
-    append(*builder, ");");
-    add_build_string(builder_to_string(*builder), workspace);
-  } else {
-  	add_build_file(full_file_path, workspace);
-  }
+	add_build_file(build_file, workspace);
 
   //TODO: Dirty flag to only work on files that were flushed
   //TODO: For files that are too large, do an on-demand parsing and skip the index
@@ -124,8 +86,10 @@ next_id := 1;
   add_contains();
 
   print_to_builder(*builder, "\n]\n");
-  file_write(*file, *builder);
-  file_close(*file);
+
+  print(builder_to_string(*builder));
+  // file_write(*file, *builder);
+  // file_close(*file);
 }
 
 emit_root :: (visitor: *Ast_Visitor, root: *Code_Node) {

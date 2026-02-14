@@ -372,6 +372,11 @@ for_expansion :: (visitor: Ast_Visitor, body: Code, flags: For_Flags) #expand {
           using node: *Code_Resolved_Overload = xx curr;
           push(xx *source_expression);
           push(xx *result);
+
+        case .DIRECTIVE_OVERLAY;
+          using node: *Code_Directive_Overlay = xx curr;
+          push(xx *declaration_or_using);
+          push(xx *target_expression);
       }
     }
 
