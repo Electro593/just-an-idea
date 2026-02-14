@@ -75,7 +75,7 @@
   ],
   "scripts": {
     "esbuild": "esbuild ./client/src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --minify",
-    "compile": "yarn esbuild && jai server/src/server.jai",
+    "compile": "yarn install && yarn esbuild && jai server/src/server.jai",
     "package": "yarn compile && vsce package"
   },
   "devDependencies": {

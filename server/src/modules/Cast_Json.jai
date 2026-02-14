@@ -87,12 +87,12 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
       `return false;
     }
   }
-  
+
   //TODO: Name casing/format mapper?
   construct_cast_json :: (type: *Type_Info, notes: [] string, blacklist: [] string) -> string {
     builder: String_Builder;
     init_string_builder(*builder,, temp);
-    
+
     type_name := get_type_name(type);
     print_to_builder(*builder, "// For '%' with notes: %\n", type_name, notes);
     print_to_builder(*builder, "_cast_json :: (json: *JSON_Element, out: *$T, $should_assert := true, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none, $scope: Code) -> success: bool {\n");
@@ -105,28 +105,28 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
     print_to_builder(*builder, "    out.* = value;\n");
     print_to_builder(*builder, "    return true;\n");
     print_to_builder(*builder, "  }\n");
-    
+
     if #complete type.type == {
       case .INTEGER; #through;
       case .FLOAT;
         print_to_builder(*builder, "  assert_cast_json(json.kind == .NUMBER, \"Expected a number, but got \%\", print_json(json,, temp));\n");
         print_to_builder(*builder, "  value = xx as_number(json).value;\n");
-      
+
       case .BOOL;
         print_to_builder(*builder, "  assert_cast_json(json.kind == .BOOLEAN, \"Expected a boolean, but got \%\", print_json(json,, temp));\n");
         print_to_builder(*builder, "  value = xx as_boolean(json).value;\n");
-      
+
       case .STRING;
         print_to_builder(*builder, "  assert_cast_json(json.kind == .STRING, \"Expected a string, but got \%\", print_json(json,, temp));\n");
         print_to_builder(*builder, "  value = copy_string(as_string(json).value);\n");
-      
+
       case .POINTER;
         t: *Type_Info_Pointer = xx type;
         print_to_builder(*builder, "  value = alloc(%);\n", t.pointer_to.runtime_size);
         print_to_builder(*builder, "  cast_json(json, value, .%, .%, should_assert, log, scope);\n", notes, blacklist);
-      
+
       case .VOID;
-      
+
       case .STRUCT;
         t: *Type_Info_Struct = xx type;
         print_to_builder(*builder, "  success: bool;\n");
@@ -165,7 +165,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
             print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast \% to the struct '%' because casting the member '%' (%) failed\", print_json(json,, temp));\n", type_name, it.name, get_type_name(it.type));
           }
         }
-      
+
       case .ARRAY;
         t: *Type_Info_Array = xx type;
         print_to_builder(*builder, "  assert_cast_json(json.kind == .ARRAY, \"Expected an array for '%', but got \%\", print_json(json,, temp));\n", type_name);
@@ -183,7 +183,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
           case .RESIZABLE;
             print_to_builder(*builder, "    cast_json(it, array_add(*value), .%, .%, should_assert, log, scope);\n", notes, blacklist);
         }
-      
+
       case .ANY;
         print_to_builder(*builder, "  success := false;\n");
         has_unblacklisted_notes := false;
@@ -246,7 +246,7 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
           // print_to_builder(*builder, "        cast_json(it, find_or_add(object, copy_string(it_index)), .%, .%, should_assert, log, scope);\n", notes, blacklist);
           // print_to_builder(*builder, "  }\n");
         }
-      
+
       case .ENUM;
         build_switch_case :: (builder: *String_Builder, t: *Type_Info_Enum, type_name: string, value: string, wrapper: string, operation: string, indentation: string) {
           print_to_builder(builder, "%check := %;\n", indentation, value);
@@ -308,14 +308,14 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
             print_to_builder(*builder, "  } else assert_cast_json(false, \"Expected a string or number because '%' is an enum, but got \%\", print_json(json,, temp));\n", type_name);
           }
         }
-      
+
       case .VARIANT;
         t: *Type_Info_Variant = xx type;
         variant_name := get_type_name(t.variant_of);
         print_to_builder(*builder, "  V :: #insert,scope(scope) \"#type %;\";\n", variant_name);
         print_to_builder(*builder, "  success := cast_json(json, cast(*V) *value, .%, .%, should_assert, log, scope);\n", notes, blacklist);
         print_to_builder(*builder, "  assert_cast_json(success, \"Could not cast '\%' to the variant % of '%'\", print_json(json,, temp));\n", type_name, variant_name);
-      
+
       // No good way to parse these, so we'll just ignore them
       case .PROCEDURE;
       case .OVERLOAD_SET;
@@ -327,29 +327,29 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
       case .UNTYPED_ENUM;
         assert(false, "What is this?");
     }
-    
+
     print_to_builder(*builder, "  out.* = value;\n");
     print_to_builder(*builder, "  return true;\n");
     print_to_builder(*builder, "}\n");
-    
+
     return builder_to_string(*builder);
   }
-  
+
   #insert #run construct_cast_json(type_info(T), notes, blacklist);
   return _cast_json(json, out, should_assert, log, scope);
 }
 
 cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> json: *JSON_Element {
   assert(xx value, "Cannot cast a null value (of type % with notes %)", type, notes);
-  
+
   cast_value :: ($T: Type) -> T #expand {
     return (cast(*T) `value).*;
   }
-  
+
   if array_find(notes, "$Ignore") return null;
   optional := array_find(notes, "?");
   if !value return null;
-  
+
   #if SHOULD_LOG log("Casting % with notes %: %", get_type_name(type,, temp), notes, Any.{type = type, value_pointer = value});
   if #complete type.type == {
     case .INTEGER;
@@ -395,7 +395,7 @@ cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: s
         }
       }
       return null;
-      
+
     case .FLOAT;
       if type.runtime_size == {
         case size_of(float32);
@@ -408,32 +408,32 @@ cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: s
           return make_number(_value);
       }
       return null;
-    
+
     case .BOOL;
       _value := cast_value(bool);
       if optional && _value == false return null;
       return make_boolean(_value);
-    
+
     case .STRING;
       _value := cast_value(string);
       if optional && _value == "" return null;
       return make_string(copy_string(_value));
-    
+
     case .POINTER;
       t: *Type_Info_Pointer = xx type;
       _value := cast_value(*void);
       if optional && _value == null return null;
       if !_value return make_null();
       return cast_json(_value, t.pointer_to, .[], log);
-    
+
     case .VOID;
       return null;
-    
+
     case .STRUCT;
       t: *Type_Info_Struct = xx type;
       assert(!(t.textual_flags & .UNION), "Encountered '%', but cannot serialize unions to JSON", get_type_name(type,, temp));
       if (array_find(notes, "$Table")) {
-        _value := cast_value(Table(void, void));
+        _value := cast_value(Table(void, void, x => 0));
         assert(t.specified_parameters.count >= 2 && t.specified_parameters[0].name == "Key_Type" && t.specified_parameters[1].name == "Value_Type", "Expected a Hash_Table.Table because of '$Table', but got '%'", get_type_name(t,, temp));
         if optional && _value.allocated == 0 return null;
         key_type := t.specified_parameters[0].type;
@@ -490,39 +490,39 @@ cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: s
         }
         return object;
       }
-    
+
     case .ARRAY;
       t: *Type_Info_Array = xx type;
       _value := cast_value([] void);
       if optional && _value.count == 0 && _value.data == null return null;
       array := make_array();
-      for #v2 < 0 .. _value.count - 1 {
+      for < 0 .. _value.count - 1 {
         member := _value.data + it * t.element_type.runtime_size;
         set_element(array, it, cast_json(member, t.element_type, .[], log));
       }
       return array;
-    
+
     case .ANY;
       _value := cast_value(Any);
       if optional && _value.type == null && _value.value_pointer == null return null;
       if _value.type != null && _value.value_pointer == null return make_null();
       if _value.type == type_info(JSON_Element) return cast_any(_value, JSON_Element);
       return cast_json(_value.value_pointer, _value.type, .[], log);
-    
+
     case .ENUM;
       t: *Type_Info_Enum = xx type;
       return cast_json(value, t.internal_type, notes, log);
-    
+
     case .VARIANT;
       t: *Type_Info_Variant = xx type;
       return cast_json(value, t.variant_of, notes, log);
-    
+
     case .PROCEDURE; #through;
     case .OVERLOAD_SET; #through;
     case .POLYMORPHIC_VARIABLE; #through;
     case .TYPE; #through;
     case .CODE; #through;
-    
+
     case .UNTYPED_LITERAL; #through;
     case .UNTYPED_ENUM;
       assert(false, "What is this?");
@@ -534,26 +534,26 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] strin
   if !value return;
   assert(xx type, "Cannot copy casted json with a null type");
   assert(xx out, "Cannot copy casted json to a null output");
-  
+
   cast_value :: ($T: Type) -> T #expand {
     return (cast(*T) `value).*;
   }
-  
+
   set_out :: (value: $T) #expand {
     (cast(*T) `out).* = value;
   }
-  
+
   json_log("Copying % to %: %", get_type_name(type,, temp), out, Any.{type, value});
-  
+
   if #complete type.type == {
     case .INTEGER; #through;
     case .FLOAT; #through;
     case .BOOL;
       memcpy(out, value, type.runtime_size);
-    
+
     case .STRING;
       set_out(copy_string(cast_value(string)));
-    
+
     case .POINTER;
       t: *Type_Info_Pointer = xx type;
       _value := cast_value(*void);
@@ -563,15 +563,15 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] strin
         copy_casted_json(_value, t.pointer_to, _out, notes, log);
         set_out(_out);
       }
-    
+
     case .VOID;
-    
+
     case .STRUCT;
       t: *Type_Info_Struct = xx type;
       if t.textual_flags & .UNION return;
       if (array_find(notes, "$Table")) {
         assert(t.specified_parameters.count >= 2 && t.specified_parameters[0].name == "Key_Type" && t.specified_parameters[1].name == "Value_Type", "Expected a Hash_Table.Table because of '$Table', but got '%'", get_type_name(t,, temp));
-        _value := cast_value(Table(void, void));
+        _value := cast_value(Table(void, void, x => 0));
         _out := _value;
         key_type := t.specified_parameters[0].type;
         value_type := t.specified_parameters[1].type;
@@ -598,7 +598,7 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] strin
           copy_casted_json(xx (cast(*u8) value + it.offset_in_bytes), it.type, xx (cast(*u8) out + it.offset_in_bytes), it.notes, log);
         }
       }
-    
+
     case .ARRAY;
       t: *Type_Info_Array = xx type;
       assert(t.array_type != .FIXED, "Cannot copy fixed arrays yet");
@@ -618,7 +618,7 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] strin
           copy_casted_json(_value.data + it * element_size, t.element_type, _out.data + it * element_size, .[], log);
         set_out(_out);
       }
-    
+
     case .ANY;
       _value := cast_value(Any);
       if !_value.value_pointer set_out(_value);
@@ -628,21 +628,21 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] strin
         copy_casted_json(_value.value_pointer, _value.type, _out.value_pointer, .[], log);
         set_out(_out);
       }
-    
+
     case .ENUM;
       t: *Type_Info_Enum = xx type;
       copy_casted_json(value, t.internal_type, out, notes, log);
-    
+
     case .VARIANT;
       t: *Type_Info_Variant = xx type;
       copy_casted_json(value, t.variant_of, out, notes, log);
-    
+
     case .PROCEDURE;
     case .OVERLOAD_SET;
     case .POLYMORPHIC_VARIABLE;
     case .TYPE;
     case .CODE;
-    
+
     case .UNTYPED_LITERAL; #through;
     case .UNTYPED_ENUM;
       assert(false, "What is this?");
@@ -651,36 +651,36 @@ copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] strin
 
 free_casted_json :: (value: *void, type: *Type_Info, log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) {
   if !value || !type return;
-  
+
   cast_value :: ($T: Type) -> *T #expand {
     return cast(*T) `value;
   }
-  
+
   json_log("Freeing %: %", get_type_name(type,, temp), Any.{type, value});
-  
+
   if #complete type.type == {
     case .INTEGER;
     case .FLOAT;
     case .BOOL;
-    
+
     case .STRING;
       str := cast_value(string);
       free(str.*);
       str.* = "";
-    
+
     case .POINTER;
       t: *Type_Info_Pointer = xx type;
       ptr := cast_value(*void);
       free_casted_json(ptr.*, t.pointer_to, log);
       free(ptr.*);
       ptr.* = null;
-    
+
     case .VOID;
-    
+
     case .STRUCT;
       t: *Type_Info_Struct = xx type;
       if array_find(t.notes, "$Table") {
-        table := cast_value(Table(void, void));
+        table := cast_value(Table(void, void, x => 0));
         assert(t.specified_parameters.count >= 2 && t.specified_parameters[0].name == "Key_Type" && t.specified_parameters[1].name == "Value_Type", "Expected a Hash_Table.Table because of '$Table', but got '%'", get_type_name(t,, temp));
         key_type := t.specified_parameters[0].type;
         value_type := t.specified_parameters[1].type;
@@ -708,7 +708,7 @@ free_casted_json :: (value: *void, type: *Type_Info, log: (f: string, a: ..Any, 
           free_casted_json(xx (cast(*u8) value + it.offset_in_bytes), it.type, log);
         }
       }
-    
+
     case .ARRAY;
       t: *Type_Info_Array = xx type;
       array := cast_value([] void);
@@ -718,7 +718,7 @@ free_casted_json :: (value: *void, type: *Type_Info, log: (f: string, a: ..Any, 
         array_reset(cast_value([..] void));
       else if t.array_type == .VIEW
         array_reset(array);
-    
+
     case .ANY;
       any := cast_value(Any);
       if any.type == type_info(JSON_Element) free_json(cast_any(any.*, JSON_Element));
@@ -727,19 +727,19 @@ free_casted_json :: (value: *void, type: *Type_Info, log: (f: string, a: ..Any, 
         free(any.value_pointer);
       }
       any.* = Any.{};
-    
+
     case .ENUM;
-    
+
     case .VARIANT;
       t: *Type_Info_Variant = xx type;
       free_casted_json(value, t.variant_of, log);
-    
+
     case .PROCEDURE;
     case .OVERLOAD_SET;
     case .POLYMORPHIC_VARIABLE;
     case .TYPE;
     case .CODE;
-    
+
     case .UNTYPED_LITERAL; #through;
     case .UNTYPED_ENUM;
       assert(false, "What is this?");
@@ -754,20 +754,20 @@ get_type_name :: (type: *Type_Info) -> string {
     case .ANY; return "Any";
     case .TYPE; return "Type";
     case .CODE; return "Code";
-    
+
     case .INTEGER;
       if type == type_info(int) return "int";
       t: *Type_Info_Integer = xx type;
       return tprint("%0%", ifx t.signed then "s" else "u", t.runtime_size * 8);
-    
+
     case .FLOAT;
       if type == type_info(float) return "float";
       return tprint("float%", type.runtime_size * 8);
-    
+
     case .POINTER;
       t: *Type_Info_Pointer = xx type;
       return tprint("*%", get_type_name(t.pointer_to));
-    
+
     case .PROCEDURE;
       t: *Type_Info_Procedure = xx type;
       builder: String_Builder;
@@ -788,7 +788,7 @@ get_type_name :: (type: *Type_Info) -> string {
       if t.procedure_flags & .IS_CPP_METHOD append(*builder, " #cpp_method");
       if t.procedure_flags & .HAS_CPP_NON_POD_RETURN_TYPE append(*builder, " #cpp_return_type_is_non_pod");
       return builder_to_string(*builder);
-    
+
     case .STRUCT;
       append_struct_member_value :: (builder: *String_Builder, parent: *Type_Info_Struct, member: Type_Info_Struct_Member) {
         data: *u8 = parent.constant_storage.data + member.offset_into_constant_storage;
@@ -818,7 +818,7 @@ get_type_name :: (type: *Type_Info) -> string {
           print_to_builder(builder, " @%", it);
         if print_delimiter append(builder, " ");
       }
-      
+
       t: *Type_Info_Struct = xx type;
       builder: String_Builder;
       init_string_builder(*builder,, temp);
@@ -858,7 +858,7 @@ get_type_name :: (type: *Type_Info) -> string {
         if t.textual_flags & .NO_PADDING append(*builder, " #no_padding");
       }
       return builder_to_string(*builder);
-    
+
     case .ARRAY;
       t: *Type_Info_Array = xx type;
       element_name := get_type_name(t.element_type);
@@ -867,11 +867,11 @@ get_type_name :: (type: *Type_Info) -> string {
         case .VIEW; return tprint("[] %", element_name);
         case .RESIZABLE; return tprint("[..] %", element_name);
       }
-    
+
     case .OVERLOAD_SET;
       assert(false, "Could not determine the type name for %", type.*);
       return "";
-    
+
     case .ENUM;
       t: *Type_Info_Enum = xx type;
       if t.name return t.name;
@@ -888,17 +888,17 @@ get_type_name :: (type: *Type_Info) -> string {
         print_to_builder(*builder, "% :: %; ", it, t.values[it_index]);
       append(*builder, "}");
       return builder_to_string(*builder);
-    
+
     case .POLYMORPHIC_VARIABLE;
       return tprint("$T_%", cast(*void) type);
-    
+
     case .VARIANT;
       t: *Type_Info_Variant = xx type;
       if t.name return t.name;
       return tprint("#type%0% %",
         ifx t.variant_flags & .DISTINCT then ",distinct" else "",
         ifx t.variant_flags & .ISA then ",isa" else "",
-        get_type_name(t.variant_of)); 
+        get_type_name(t.variant_of));
 
     case .UNTYPED_LITERAL; #through;
     case .UNTYPED_ENUM;

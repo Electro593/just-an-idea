@@ -96,7 +96,7 @@ populate_lsif :: (data: *Data, json: *JSON_Element) -> LSIF {
 			case "edge";
 				if label == {
 					case "contains";
-						success, doc_obj := table_find_new(*lsif.objects, get_int(obj, "outV"));
+						success, doc_obj := table_find(*lsif.objects, get_int(obj, "outV"));
 						if !success continue;
 						document := table_find_pointer(*lsif.documents, get_string(doc_obj, "uri"));
 						if !document continue;
@@ -107,7 +107,7 @@ populate_lsif :: (data: *Data, json: *JSON_Element) -> LSIF {
 						if !range continue;
 						range.result_set_id = get_int(obj, "inV");
 					case "item";
-						success, doc_obj := table_find_new(*lsif.objects, get_int(obj, "shard"));
+						success, doc_obj := table_find(*lsif.objects, get_int(obj, "shard"));
 						if !success continue;
 						definition := table_find_pointer(*lsif.definitions, get_int(obj, "outV"));
 						if !definition continue;

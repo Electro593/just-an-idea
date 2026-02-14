@@ -1,10 +1,11 @@
 read_next :: (data: *Data, buffer: *u8, to_read: s64) -> bytes_read: u32 {
+  bytes_read: u32 = 0;
   #if OS == .WINDOWS {
-    bytes_read: u32;
     success := ReadFile(GetStdHandle(STD_INPUT_HANDLE), buffer, xx to_read, *bytes_read);
   } else {
-    bytes_read := read(STDIN_FILENO, buffer, xx to_read);
-    success := bytes_read >= 0;
+    bytes_read_or_error := read(STDIN_FILENO, buffer, xx to_read);
+    success := bytes_read_or_error >= 0;
+    if success  bytes_read = xx bytes_read_or_error;
   }
 
   assert(xx success, "Couldn't read from stdin");

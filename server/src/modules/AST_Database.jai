@@ -6,17 +6,17 @@ AST_BLOCK_EXP :: 12;
 
 AST_State :: struct {
   initialized: bool;
-  
+
   lock_file: File;
   lock_file_name: string;
   locked: bool;
-  
+
   workspace_map_file: File;
   workspace_map_file_name: string;
   workspace_map: Workspace_Map_Header;
-  
+
   ast_file_states: [..] AST_File_State;
-  
+
   AST_File_State :: struct {
     workspace_index: u64;
     file: File;
@@ -98,32 +98,32 @@ write_table :: inline (file: File, position: *s64, table: *[..] $T) -> success: 
 lock_record_file :: (using state: *AST_State, for_writing: bool) {
   assert_initialized(state);
   if locked return;
-  
+
   lock_file=, success := file_open(lock_file_name, for_writing);
   while !success {
     sleep_milliseconds(10);
     lock_file, success = file_open(lock_file_name, for_writing);
   }
-  
+
   locked = true;
 }
 
 //TODO: Check that locking actually works
 lock_and_open_record_file :: (using state: *AST_State, terminate: *Process, for_writing: bool) -> success: bool {
   assert_initialized(state);
-  
+
   lock_record_file(state, for_writing);
-  
+
   if terminate {
     kill_process(terminate);
     deinit(terminate);
   }
-  
+
   if !read_workspace_map(state, for_writing) {
     file_close(*lock_file);
     return false;
   }
-  
+
   return true;
 }
 
@@ -131,7 +131,7 @@ read_workspace_map :: (using state: *AST_State, for_writing: bool) -> success: b
   exists := file_exists(workspace_map_file_name);
   workspace_map_file=, success := file_open(workspace_map_file_name, for_writing, true);
   if !success return false;
-  
+
   if exists {
     verify :: (success: bool) #expand {
       if !success {
@@ -142,39 +142,39 @@ read_workspace_map :: (using state: *AST_State, for_writing: bool) -> success: b
         `return false;
       }
     }
-    
+
     position := 0;
     verify(read_blocks(workspace_map_file, *position, *workspace_map, size_of(Workspace_Map_Header)));
     verify(read_table(workspace_map_file, *position, *workspace_map.map));
     verify(read_table(workspace_map_file, *position, *workspace_map.string_table));
-    
+
     for * entry: workspace_map.map.entries {
       entry.key.data += cast(u64) workspace_map.string_table.data;
     }
   }
-  
+
   return true;
 }
 
 save_workspace_map :: (using state: *AST_State) -> success: bool {
   assert_locked(state);
-  
+
   for * workspace_map.string_table {
     it.data -= cast(u64) workspace_map.string_table.data;
   }
-  
+
   position := get_block_offset(size_of(Workspace_Map_Header));
   if !write_table(workspace_map_file, *position, *workspace_map.string_table) return false;
   if !write_table(workspace_map_file, *position, *workspace_map.map) return false;
   position = 0;
   if !write_blocks(workspace_map_file, *position, *workspace_map) return false;
-  
+
   return read_workspace_map(state, true);
 }
 
 read_ast_file :: (using state: *AST_State, workspace_index: u64) -> ast_file_state: *AST_State.AST_File_State {
   assert_initialized(state);
-  
+
   file_name := sprint("%", workspace_index);
   file: File;
   using header: AST_File_Header;
@@ -182,7 +182,7 @@ read_ast_file :: (using state: *AST_State, workspace_index: u64) -> ast_file_sta
   nodes: Table(*Code_Node, void);
   success, opened: bool;
   position := 0;
-  
+
   verify :: (success: bool) #expand {
     if !success {
       using `header;
@@ -196,7 +196,7 @@ read_ast_file :: (using state: *AST_State, workspace_index: u64) -> ast_file_sta
       `return null;
     }
   }
-  
+
   deserialize :: (data: *[..] u8, visited: *Table($T, void), key: *T, on_first: Code) #expand {
     _void: void;
     if !key return;
@@ -209,21 +209,21 @@ read_ast_file :: (using state: *AST_State, workspace_index: u64) -> ast_file_sta
       }
     }
   }
-  
+
   deserialize :: (key: **Message_File) #expand {
     deserialize(*`message_table, *`messages, xx key, #code {
       deserialize(*key.*.fully_pathed_filename);
       deserialize(*key.*.enclosing_import);
     });
   }
-  
+
   deserialize :: (key: **Message_Import) #expand {
     deserialize(*`message_table, *`messages, xx key, #code {
       deserialize(*key.*.module_name);
       deserialize(*key.*.fully_pathed_filename);
     });
   }
-  
+
   deserialize :: (key: **Code_Node, not_yet_visited: bool) #expand {
     deserialize(*`node_table, *`nodes, key, #code {
       if not_yet_visited {
@@ -231,13 +231,13 @@ read_ast_file :: (using state: *AST_State, workspace_index: u64) -> ast_file_sta
       }
     });
   }
-  
+
   deserialize :: (key: *string) #expand {
     if !key return;
     if key.data == xx -1 key.data = null;
     else key.data += cast(u64) `string_table.data;
   }
-  
+
   verify(file_exists(file_name));
   file, success = file_open(file_name);
   verify(success);
@@ -248,7 +248,7 @@ read_ast_file :: (using state: *AST_State, workspace_index: u64) -> ast_file_sta
   verify(read_table(file, *position, *message_table));
   verify(read_table(file, *position, *string_table));
   verify(read_table(file, *position, *node_pointer_table));
-  
+
   for * entry: documents.entries {
     if entry.hash < FIRST_VALID_HASH continue;
     deserialize(*entry.key);
@@ -259,10 +259,10 @@ read_ast_file :: (using state: *AST_State, workspace_index: u64) -> ast_file_sta
       }
     }
   }
-  
+
   deinit(*messages);
   deinit(*nodes);
-  
+
   file_state := array_add(*ast_file_states);
   file_state.* = .{
     workspace_index = workspace_index,
@@ -270,13 +270,13 @@ read_ast_file :: (using state: *AST_State, workspace_index: u64) -> ast_file_sta
     file = file,
     header = header
   };
-  
+
   return file_state;
 }
 
 close_and_unlock_record_file :: (using state: *AST_State) {
   assert_initialized(state);
-  
+
   for * ast_file_states {
     deinit(*it.header.documents);
     array_free(it.header.node_table);
@@ -288,30 +288,30 @@ close_and_unlock_record_file :: (using state: *AST_State) {
     remove it;
   }
   array_free(ast_file_states);
-  
+
   deinit(*workspace_map.map);
   array_free(workspace_map.string_table);
-  
+
   file_close(*workspace_map_file);
   file_close(*lock_file);
 }
 
 get_node_from_location :: (using state: *AST_State, target: Code_Node.Kind, uri: string, line: u64, char: u64) -> *Code_Node {
   assert_initialized(state);
-  
+
   if !lock_and_open_record_file(state, null, false) return null;
   defer close_and_unlock_record_file(state);
-  
-  success, workspace_index := table_find_new(*workspace_map.map, uri);
+
+  success, workspace_index := table_find(*workspace_map.map, uri);
   if !success return null;
-  
+
   ast_file_state := read_ast_file(state, workspace_index);
   if !ast_file_state return null;
-  
-  success=, nodes := table_find_new(*ast_file_state.header.documents, uri);
+
+  success=, nodes := table_find(*ast_file_state.header.documents, uri);
   visited: Table(*Code_Node, void);
   defer deinit(*visited);
-  
+
   for root: nodes {
     for node, not_yet_visited: Ast_Visitor.{ root = root, visited = *visited } {
       if not_yet_visited {
@@ -320,7 +320,7 @@ get_node_from_location :: (using state: *AST_State, target: Code_Node.Kind, uri:
       }
     }
   }
-  
+
   return null;
 }
 
@@ -331,7 +331,7 @@ is_location_within_node :: inline (uri: string, line: u64, char: u64, using node
   if uri != node_uri return false;
   within_l0 := (line == xx l0 && char >= xx c0) || line > xx l0;
   within_l1 := (line == xx l1 && char < xx c1) || line < xx l1;
-  return within_l0 && within_l1; 
+  return within_l0 && within_l1;
 }
 
 #scope_module
