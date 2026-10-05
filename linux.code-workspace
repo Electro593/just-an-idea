@@ -8,6 +8,8 @@
 		}
 	],
 	"settings": {
-		"typescript.tsc.autoDetect": "off"
+		"justAnIdea.jaiPath": "jai",
+		"justAnIdea.buildFile": "${workspaceFolder}/server/src/server.jai",
+		"justAnIdea.buildArgs": []
 	}
 }
