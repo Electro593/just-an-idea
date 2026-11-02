@@ -713,7 +713,7 @@ assert_rpc :: (loc: Source_Code_Location, message: string) -> bool {
   rpc_debug_log("Exiting");
   thread_deinit(thread_state.thread);
   #if OS == .WINDOWS {
-    kernel32 :: #system_library "kernel32";
+    kernel32 :: #library,system "kernel32";
     ExitThread :: (exit_code: u32) #foreign kernel32;
     ExitThread(1);
   }

@@ -189,7 +189,7 @@ assert_running :: () #expand {
 
 is_process_running :: (process: Process) -> bool {
 	#if OS == .WINDOWS {
-		kernel32 :: #system_library "kernel32";
+		kernel32 :: #library,system "kernel32";
 		OpenProcess :: (dwDesiredAccess: DWORD, bInheritHandle: BOOL, dwProcessId: DWORD) -> HANDLE #foreign kernel32;
 		SYNCHRONIZE : DWORD : 0x00100000;
 
