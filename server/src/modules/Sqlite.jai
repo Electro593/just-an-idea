@@ -1,6 +1,4 @@
-#module_parameters (MIGRATIONS: [] string = .[]) ();
-
-Sqlite_Primary_Result :: enum {
+Primary_Result :: enum {
 	OK         :: 0;    /* Successful result */
 	ERROR      :: 1;    /* Generic error */
 	INTERNAL   :: 2;    /* Internal logic error in SQLite */
@@ -16,7 +14,7 @@ Sqlite_Primary_Result :: enum {
 	NOTFOUND   :: 12;   /* Unknown opcode in sqlite3_file_control() */
 	FULL       :: 13;   /* Insertion failed because database is full */
 	CANTOPEN   :: 14;   /* Unable to open the database file */
-	PROTOCOL   :: 15;   /* Database lock protocol error */
+	PROTOCOL   :: 15;   /* Connection lock protocol error */
 	EMPTY      :: 16;   /* No content */
 	SCHEMA     :: 17;   /* The database schema changed */
 	TOOBIG     :: 18;   /* String or BLOB exceeds size limit */
@@ -34,8 +32,8 @@ Sqlite_Primary_Result :: enum {
 	DONE       :: 101;  /* sqlite3_step() has finished executing */
 }
 
-Sqlite_Result :: enum {
-	using Sqlite_Primary_Result;
+Result :: enum {
+	using Primary_Result;
 
 	OK_LOAD_PERMANENTLY :: OK | 1 << 8;
 	OK_SYMLINK          :: OK | 2 << 8;  /* internal only */
@@ -133,7 +131,21 @@ Sqlite_Result :: enum {
 	WARNING_AUTOINDEX :: WARNING | 1 << 8;
 }
 
-Sqlite_Encoding :: enum {
+Value_Type :: enum {
+	INTEGER :: 1;
+	FLOAT   :: 2;
+	TEXT    :: 3;
+	BLOB    :: 4;
+	NULL    :: 5;
+}
+
+Lifetime :: enum {
+	TRANSIENT :: -1;
+	STATIC    :: 0;
+	// Any other value is .DESTRUCTOR, created via destructor(callback)
+}
+
+Text_Encoding :: enum {
 	UTF8          ::  1;  /* IMP: R-37514-35566 */
 	UTF16LE       ::  2;  /* IMP: R-03371-37637 */
 	UTF16BE       ::  3;  /* IMP: R-51971-34154 */
@@ -143,16 +155,15 @@ Sqlite_Encoding :: enum {
 	UTF8_ZT       :: 16;  /* Zero-terminated UTF8 */
 }
 
-Sqlite_Lifetime :: enum {
-	TRANSIENT :: -1;
-	STATIC    :: 0;
+Carray_Bind_Flags :: enum_flags {
+	INT32  :: 0;  /* Data is [] s32 */
+	INT64  :: 1;  /* Data is [] s64 */
+	DOUBLE :: 2;  /* Data is [] float64 */
+	TEXT   :: 3;  /* Data is [] *u8 */
+	BLOB   :: 4;  /* Data is [] iovec */
 }
 
-sqlite_destructor :: (destructor: (param: *void)) -> Sqlite_Lifetime {
-	return xx cast(*void) destructor;
-}
-
-Sqlite_Prepare_Flags :: enum_flags {
+Prepare_Flags :: enum_flags {
 	PERSISTENT :: 1 << 0;
 	NORMALIZE  :: 1 << 1;
 	NO_VTAB    :: 1 << 2;
@@ -160,7 +171,7 @@ Sqlite_Prepare_Flags :: enum_flags {
 	FROM_DDL   :: 1 << 5;
 }
 
-Sqlite_Open_Flags :: enum_flags {
+Open_Flags :: enum_flags {
 	READONLY      :: 1 <<  0;  /* Ok for sqlite3_open_v2() */
 	READWRITE     :: 1 <<  1;  /* Ok for sqlite3_open_v2() */
 	CREATE        :: 1 <<  2;  /* Ok for sqlite3_open_v2() */
@@ -185,88 +196,122 @@ Sqlite_Open_Flags :: enum_flags {
 	EXRESCODE     :: 1 << 25;  /* Extended result codes */
 }
 
-Sqlite_Type :: enum {
-	INTEGER :: 1;
-	FLOAT   :: 2;
-	TEXT    :: 3;
-	BLOB    :: 4;
-	NULL    :: 5;
+Api_Routines :: struct {}
+Backup :: struct {}
+Blob :: struct {}
+Context :: struct {}
+Connection :: struct {}
+Statement :: struct {}
+Value :: struct {}
+
+Auto_Vacuum_Pages_Callback :: #type (param: *void, schema: *u8, num_database_pages: u32, num_free_pages: u32, num_bytes_per_page: u32) -> (num_free_pages_to_remove: u32) #c_call;
+Busy_Handler_Callback :: #type (param: *void, num_previous_attempts: s32) -> (try_again: bool) #c_call;
+Collation_Needed_Callback :: #type (param: *void, connection: *Connection, encoding: Text_Encoding, collation_name: *u8) -> () #c_call;
+Collation_Needed16_Callback :: #type (param: *void, connection: *Connection, encoding: Text_Encoding, collation_name: *u16) -> () #c_call;
+Destructor_Callback :: #type (param_to_destroy: *void) -> () #c_call;
+Extension_Entry_Point_Callback :: #type (connection: *Connection, error_message_out: **u8, api_thunk: *Api_Routines) -> (result: Result) #c_call;
+
+destructor :: (destructor: Destructor_Callback) -> Lifetime {
+	return xx cast(*void) destructor;
 }
 
-Sqlite_Database :: struct {}
-Sqlite_Statement :: struct {}
-Sqlite_Value :: struct {}
+open :: (filename: string) -> (result: Result, connection: *Connection) {
+	connection: *Connection;
+	result := sqlite3_open_v2(
+		filename,
+		*connection,
+		.READWRITE | .CREATE | .EXRESCODE,
+		null
+	);
 
-open :: (filename: string) -> (result: Sqlite_Result, database: *Sqlite_Database) {
-	database: *Sqlite_Database;
-	result := sqlite3_open_v2(filename, *database, .EXRESCODE, null);
 	if result != .OK {
-		sqlite3_close(database);
+		sqlite3_close(connection);
 		return result, null;
 	}
 
-	return .OK, database;
+	return .OK, connection;
 }
 
-column_int :: (
-	statement: *Sqlite_Statement,
-	column_index: int,
-	$T: Type = int
-) -> T
-#modify {
-	return (cast(*Type_Info) T).type == .INTEGER;
-}
-#expand {
-	return xx sqlite3_column_int64(statement, xx column_index);
+close :: (connection: *Connection) -> Result {
+	sqlite3_close(connection);
 }
 
-column_float :: (
-	statement: *Sqlite_Statement,
-	column_index: int,
-	$T: Type = float
-) -> float64
-#modify {
-	return (cast(*Type_Info) T).type == .FLOAT;
+prepare :: (connection: *Connection, sql: string, cached := false) -> (result: Result, statement: *Statement = null, sql_remainder := "") {
+	statement: *Statement = ---;
+	sql_remainder: *u8 = ---;
+
+	result := sqlite3_prepare_v3(
+		connection,
+		sql.data,
+		xx sql.count,
+		ifx cached then .PERSISTENT else 0,
+		*statement,
+		*sql_remainder
+	);
+	if result != .OK return result;
+
+	return result, statement, to_string(sql_remainder);
 }
-#expand {
-	return xx sqlite3_column_double(statement, xx column_index);
-}
 
-column_text :: (
-	statement: *Sqlite_Statement,
-	column_index: int,
-	persist := true
-) -> (text: string, result: Sqlite_Result) {
-	database := sqlite3_db_handle(statement);
-	text := "";
+bind :: (statement: *Statement, params: Any, index: s32 = 1) -> Result {
+	count := sqlite3_bind_parameter_count(statement);
+	if (count == 0) return .OK;
 
-	text.data = sqlite3_column_text(statement, xx column_index);
-	result := sqlite3_errcode(database);
-	if result != .OK then return "", result;
+	any := unwrap_any(params);
+	type := any.type;
+	ptr := any.value_pointer;
 
-	text.count = sqlite3_column_bytes(statement, xx column_index);
-	result = sqlite3_errcode(database);
-	if result != .OK then return "", result;
+	if type.type == {
+	case .PROCEDURE;
+		// FUTURE: Could allow dynamic evaluation here
+		return .MISUSE;
 
-	if persist then text = copy_string(text);
-	return text, .OK;
+	case .STRUCT;
+		info: *Type_Info_Struct = xx params.type;
+		for info.members {
+			elem_ptr := ptr + it.offset_in_bytes;
+			new_params := Any.{ type = it.type, value_pointer = elem_ptr };
+			named_index := sqlite3_bind_parameter_index(statement, it.name.data);
+			if named_index > 0 && named_index <= count {
+				result := bind_primitive(statement, named_index, new_params);
+				if result != .OK return result;
+			}
+		}
+		return .OK;
+
+	case .ARRAY;
+		info: *Type_Info_Array = xx params.type;
+		value := (.*) cast(*[] void) ptr;
+		for 0 .. value.count - 1 {
+			elem_ptr := value.data + info.element_type.runtime_size * it;
+			new_params := Any.{ type = info.element_type, value_pointer = elem_ptr };
+			elem_index := cast(s32) (it + index);
+			if elem_index <= count {
+				result := bind_primitive(statement, elem_index, new_params);
+				if result != .OK return result;
+			}
+		}
+		return .OK;
+	}
+
+	return bind_primitive(statement, index, params);
 }
 
 column :: (
-	statement: *Sqlite_Statement,
+	statement: *Statement,
 	column_index: int,
 	$T: Type
-) -> (value: T, result: Sqlite_Result) #expand {
+) -> (value: T, result: Result) #expand {
 	value: T;
 	result := column(statement, column_index, *value);
 	return value, result;
 }
 
 column :: (
-	statement: *Sqlite_Statement,
+	statement: *Statement,
 	column_index: int,
 	value: *$T
-) -> Sqlite_Result
+) -> Result
 #modify {
 	if (cast(*Type_Info) T).type == {
 	case .INTEGER; return true;
@@ -284,16 +329,16 @@ column :: (
 }
 #expand {
 	column_blob :: (
-		statement: *Sqlite_Statement,
+		statement: *Statement,
 		column_index: int
-	) -> (data: [] u8, result: Sqlite_Result) {
-		database := sqlite3_db_handle(statement);
+	) -> (data: [] u8, result: Result) {
+		connection := sqlite3_db_handle(statement);
 		data := sqlite3_column_blob(statement, xx column_index);
-		result := sqlite3_errcode(database);
+		result := sqlite3_errcode(connection);
 		if data == null then return .[], result;
 
 		count := sqlite3_column_bytes(statement, xx column_index);
-		result = sqlite3_errcode(database);
+		result = sqlite3_errcode(connection);
 		if result != .OK then return .[], result;
 
 		return .{ data = data, count = count }, .OK;
@@ -311,13 +356,13 @@ column :: (
 
 	case .STRING;
 		value.* = "";
-		database := sqlite3_db_handle(statement);
+		connection := sqlite3_db_handle(statement);
 		data := sqlite3_column_text(statement, xx column_index);
-		result := sqlite3_errcode(database);
+		result := sqlite3_errcode(connection);
 		if data == null then return result;
 
 		count := sqlite3_column_bytes(statement, xx column_index);
-		result = sqlite3_errcode(database);
+		result = sqlite3_errcode(connection);
 		if result != .OK then return result;
 
 		value.* = .{ data = alloc(value.count), count = count };
@@ -375,7 +420,7 @@ column :: (
 
 	case .ANY;
 		column_type := sqlite3_column_type(statement, xx column_index);
-		result := Sqlite_Result.OK;
+		result := Result.OK;
 
 		if #complete column_type == {
 		case .INTEGER;
@@ -412,94 +457,54 @@ column :: (
 	return .OK;
 }
 
-prepare :: (database: *Sqlite_Database, sql: string) -> (result: Sqlite_Result, statement: *Sqlite_Statement = null, sql_remainder := "") {
-	statement: *Sqlite_Statement = ---;
-	sql_remainder: *u8 = ---;
+exec :: (connection: *Connection, sql: string) -> Result {
+	remainder := sql;
 
-	result := sqlite3_prepare_v3(
-		database,
-		sql.data,
-		xx sql.count,
-		.PERSISTENT,
-		*statement,
-		*sql_remainder
-	);
-	if result != .OK return result;
+	while remainder.count > 0 {
+		result:, statement:, remainder = prepare(connection, remainder);
+		if result != .OK return result;
 
-	return result, statement, to_string(sql_remainder);
-}
+		result = sqlite3_step(statement);
+		while result == .ROW
+			result = sqlite3_step(statement);
 
-bind :: (statement: *Sqlite_Statement, params: Any, index: s32 = 1) -> Sqlite_Result {
-	count := sqlite3_bind_parameter_count(statement);
-	if (count == 0) return .OK;
-
-	any := unwrap_any(params);
-	type := any.type;
-	ptr := any.value_pointer;
-
-	if type.type == {
-	case .PROCEDURE;
-		// FUTURE: Could allow dynamic evaluation here
-		return .MISUSE;
-
-	case .STRUCT;
-		info: *Type_Info_Struct = xx params.type;
-		for info.members {
-			elem_ptr := ptr + it.offset_in_bytes;
-			new_params := Any.{ type = it.type, value_pointer = elem_ptr };
-			named_index := sqlite3_bind_parameter_index(statement, it.name.data);
-			if named_index > 0 && named_index <= count {
-				result := bind_primitive(statement, named_index, new_params);
-				if result != .OK return result;
-			}
+		if result != .DONE {
+			sqlite3_finalize(statement);
+			return result;
 		}
-		return .OK;
-
-	case .ARRAY;
-		info: *Type_Info_Array = xx params.type;
-		value := (.*) cast(*[] void) ptr;
-		for 0 .. value.count - 1 {
-			elem_ptr := value.data + info.element_type.runtime_size * it;
-			new_params := Any.{ type = info.element_type, value_pointer = elem_ptr };
-			elem_index := cast(s32) (it + index);
-			if elem_index <= count {
-				result := bind_primitive(statement, elem_index, new_params);
-				if result != .OK return result;
-			}
-		}
-		return .OK;
 	}
 
-	return bind_primitive(statement, index, params);
+	return .OK;
 }
 
 exec :: (
-	database: *Sqlite_Database,
+	connection: *Connection,
 	sql: string,
 	params := Any.{},
-	mapper: (statement: *Sqlite_Statement) -> $T = null,
-	cached_statement: **Sqlite_Statement = null
-) -> (result: Sqlite_Result, rows: [] T = .[]) {
-	statement := ifx cached_statement == null then null else cached_statement.*;
-	result := Sqlite_Result.OK;
+	mapper: (statement: *Statement) -> $T = null,
+	cached_statement: **Statement = null
+) -> (result: Result, rows: [] T = .[]) {
+	cached := cached_statement != null;
+	statement := ifx cached then cached_statement.* else null;
+	result := Result.OK;
 	remainder := "";
 
 	if statement == null {
-		result, statement, remainder = prepare(database, sql);
+		result, statement, remainder = prepare(connection, sql, cached = cached);
 		if result != .OK return result;
-		if cached_statement != null then cached_statement.* = statement;
-		assert(remainder == "");
+		if cached then cached_statement.* = statement;
+		assert(remainder == "", "Cannot execute multiple cached or result-set statements");
 	} else {
 		result = sqlite3_clear_bindings(statement);
 		if result != .OK return result;
 	}
 
 	defer {
-		exit_result := Sqlite_Result.OK;
-		if cached_statement == null
-			exit_result := sqlite3_finalize(statement);
-		else
+		exit_result := Result.OK;
+		if cached
 			exit_result := sqlite3_reset(statement);
+		else
+			exit_result := sqlite3_finalize(statement);
 		if result == .OK && exit_result != .OK return exit_result;
 	}
 
@@ -523,83 +528,11 @@ exec :: (
 	return result, rows;
 }
 
+finalize :: (statement: *Statement) -> Result {
+	return sqlite3_finalize(statement);
+}
+
 #scope_file
-
-INIT_SQL :: #string SQL
-CREATE TABLE IF NOT EXISTS schema_version
-	AS SELECT 0 AS version;
-
-SELECT version
-FROM schema_version;
-SQL
-
-CONNECTION_SQL :: #string SQL
-PRAGMA foreign_keys = ON;
-SQL
-
-libsqlite3 :: #library,system "libsqlite3";
-
-sqlite3_bind_blob :: (statement: *Sqlite_Statement, index: s32, value: *void, size: s32, lifetime: Sqlite_Lifetime) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_bind_blob64 :: (statement: *Sqlite_Statement, index: s32, value: *void, size: u64, lifetime: Sqlite_Lifetime) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_bind_double :: (statement: *Sqlite_Statement, index: s32, value: float64) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_bind_int :: (statement: *Sqlite_Statement, index: s32, value: s32) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_bind_int64 :: (statement: *Sqlite_Statement, index: s32, value: s64) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_bind_null :: (statement: *Sqlite_Statement, index: s32) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_bind_text :: (statement: *Sqlite_Statement, index: s32, value: *u8, size: s32, lifetime: Sqlite_Lifetime) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_bind_text16 :: (statement: *Sqlite_Statement, index: s32, value: *u16, size: s32, lifetime: Sqlite_Lifetime) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_bind_text64 :: (statement: *Sqlite_Statement, index: s32, value: *u8, size: u64, lifetime: Sqlite_Lifetime, encoding: Sqlite_Encoding) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_bind_value :: (statement: *Sqlite_Statement, index: s32, value: *Sqlite_Value) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_bind_parameter_count :: (statement: *Sqlite_Statement) -> s32 #foreign libsqlite3;
-sqlite3_bind_parameter_index :: (statement: *Sqlite_Statement, name: *u8) -> s32 #foreign libsqlite3;
-sqlite3_bind_parameter_name :: (statement: *Sqlite_Statement, index: s32) -> *u8 #foreign libsqlite3;
-sqlite3_bind_pointer :: (statement: *Sqlite_Statement, index: s32, value: *void, type: *u8, lifetime: Sqlite_Lifetime) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_bind_zeroblob :: (statement: *Sqlite_Statement, index: s32, size: s32) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_bind_zeroblob64 :: (statement: *Sqlite_Statement, index: s32, size: u64) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_clear_bindings :: (statement: *Sqlite_Statement) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_close :: (database: *Sqlite_Database) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_close_v2 :: (database: *Sqlite_Database) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_column_blob :: (statement: *Sqlite_Statement, column_index: s32) -> *void #foreign libsqlite3;
-sqlite3_column_bytes :: (statement: *Sqlite_Statement, column_index: s32) -> s32 #foreign libsqlite3;
-sqlite3_column_bytes16 :: (statement: *Sqlite_Statement, column_index: s32) -> s32 #foreign libsqlite3;
-sqlite3_column_count :: (statement: *Sqlite_Statement) -> s32 #foreign libsqlite3;
-sqlite3_column_database_name :: (statement: *Sqlite_Statement, column_index: s32) -> *u8 #foreign libsqlite3;
-sqlite3_column_database_name16 :: (statement: *Sqlite_Statement, column_index: s32) -> *u16 #foreign libsqlite3;
-sqlite3_column_decltype :: (statement: *Sqlite_Statement, column_index: s32) -> *u8 #foreign libsqlite3;
-sqlite3_column_decltype16 :: (statement: *Sqlite_Statement, column_index: s32) -> *u16 #foreign libsqlite3;
-sqlite3_column_double :: (statement: *Sqlite_Statement, column_index: s32) -> float64 #foreign libsqlite3;
-sqlite3_column_int :: (statement: *Sqlite_Statement, column_index: s32) -> s32 #foreign libsqlite3;
-sqlite3_column_int64 :: (statement: *Sqlite_Statement, column_index: s32) -> s64 #foreign libsqlite3;
-sqlite3_column_name :: (statement: *Sqlite_Statement, column_index: s32) -> *u8 #foreign libsqlite3;
-sqlite3_column_name16 :: (statement: *Sqlite_Statement, column_index: s32) -> *u16 #foreign libsqlite3;
-sqlite3_column_origin_name :: (statement: *Sqlite_Statement, column_index: s32) -> *u8 #foreign libsqlite3;
-sqlite3_column_origin_name16 :: (statement: *Sqlite_Statement, column_index: s32) -> *u16 #foreign libsqlite3;
-sqlite3_column_table_name :: (statement: *Sqlite_Statement, column_index: s32) -> *u8 #foreign libsqlite3;
-sqlite3_column_table_name16 :: (statement: *Sqlite_Statement, column_index: s32) -> *u16 #foreign libsqlite3;
-sqlite3_column_text :: (statement: *Sqlite_Statement, column_index: s32) -> *u8 #foreign libsqlite3;
-sqlite3_column_text16 :: (statement: *Sqlite_Statement, column_index: s32) -> *u16 #foreign libsqlite3;
-sqlite3_column_type :: (statement: *Sqlite_Statement, column_index: s32) -> Sqlite_Type #foreign libsqlite3;
-sqlite3_column_value :: (statement: *Sqlite_Statement, column_index: s32) -> *Sqlite_Value #foreign libsqlite3;
-sqlite3_data_count :: (statement: *Sqlite_Statement) -> s32 #foreign libsqlite3;
-sqlite3_db_handle :: (statement: *Sqlite_Statement) -> *Sqlite_Database #foreign libsqlite3;
-sqlite3_errcode :: (database: *Sqlite_Database) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_errmsg :: (database: *Sqlite_Database) -> *u8 #foreign libsqlite3;
-sqlite3_errmsg16 :: (database: *Sqlite_Database) -> *u16 #foreign libsqlite3;
-sqlite3_error_offset :: (database: *Sqlite_Database) -> s32 #foreign libsqlite3;
-sqlite3_errstr :: (result: Sqlite_Result) -> *u8 #foreign libsqlite3;
-sqlite3_extended_errcode :: (database: *Sqlite_Database) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_extended_result_codes :: (database: *Sqlite_Database, enabled: bool) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_finalize :: (statement: *Sqlite_Statement) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_open :: (filename: *u8, database: **Sqlite_Database) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_open16 :: (filename: *u16, database: **Sqlite_Database) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_open_v2 :: (filename: *u8, database: **Sqlite_Database, flags: Sqlite_Open_Flags, vfs_name: *u8) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_prepare :: (database: *Sqlite_Database, sql: *u8, size: s32, statement: **Sqlite_Statement, sql_tail: **u8) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_prepare_v2 :: (database: *Sqlite_Database, sql: *u8, size: s32, statement: **Sqlite_Statement, sql_tail: **u8) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_prepare_v3 :: (database: *Sqlite_Database, sql: *u8, size: s32, flags: Sqlite_Prepare_Flags, statement: **Sqlite_Statement, sql_tail: **u8) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_prepare16 :: (database: *Sqlite_Database, sql: *u16, size: s32, statement: **Sqlite_Statement, sql_tail: **u16) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_prepare16_v2 :: (database: *Sqlite_Database, sql: *u16, size: s32, statement: **Sqlite_Statement, sql_tail: **u16) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_prepare16_v3 :: (database: *Sqlite_Database, sql: *u16, size: s32, flags: Sqlite_Prepare_Flags, statement: **Sqlite_Statement, sql_tail: **u16) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_reset :: (statement: *Sqlite_Statement) -> Sqlite_Result #foreign libsqlite3;
-sqlite3_step :: (statement: *Sqlite_Statement) -> Sqlite_Result #foreign libsqlite3;
 
 unwrap_any :: (any: Any) -> Any {
 	result := any;
@@ -633,7 +566,7 @@ unwrap_variants :: (type: Type) -> Type #expand {
 	return (.*) cast(*Type) *info;
 }
 
-bind_primitive :: (statement: *Sqlite_Statement, index: s32, params: Any) -> Sqlite_Result {
+bind_primitive :: (statement: *Statement, index: s32, params: Any) -> Result {
 	any := unwrap_any(params);
 	type := any.type;
 	ptr := any.value_pointer;
@@ -695,7 +628,7 @@ bind_primitive :: (statement: *Sqlite_Statement, index: s32, params: Any) -> Sql
 		// FUTURE: Wide chars, custom lifetimes
 		value := (.*) cast(*string) ptr;
 		if value.count < 0 return .MISUSE;
-		encoding: Sqlite_Encoding = ifx value.data && !value.data[value.count] then .UTF8_ZT else .UTF8;
+		encoding: Encoding = ifx value.data && !value.data[value.count] then .UTF8_ZT else .UTF8;
 		return sqlite3_bind_text64(statement, index, value.data, xx value.count, .STATIC, encoding);
 
 	case .ARRAY;
@@ -713,5 +646,94 @@ bind_primitive :: (statement: *Sqlite_Statement, index: s32, params: Any) -> Sql
 
 	return .MISUSE;
 }
+
+libsqlite3 :: #library,system "libsqlite3";
+
+sqlite3_aggregate_context :: (function_context: *Context, num_bytes_to_allocate: s32) -> (context_buffer: *void) #foreign libsqlite3;
+sqlite3_auto_extension :: (entry_point: Extension_Entry_Point_Callback) -> (result: Result) #foreign libsqlite3;
+sqlite3_autovacuum_pages :: (connection: *Connection, callback: Auto_Vacuum_Pages_Callback, param: *void, param_lifetime: Lifetime) -> (result: Result) #foreign libsqlite3;
+sqlite3_backup_finish :: (backup: *Backup) -> (result: Result) #foreign libsqlite3;
+sqlite3_backup_init :: (destination_connection: *Connection, destination_database_name: *u8, source_connection: *Connection, source_database_name: *u8) -> (backup: *Backup) #foreign libsqlite3;
+sqlite3_backup_pagecount :: (backup: *Backup) -> (num_source_pages: s32) #foreign libsqlite3;
+sqlite3_backup_remaining :: (backup: *Backup) -> (num_pages_to_copy: s32) #foreign libsqlite3;
+sqlite3_backup_step :: (backup: *Backup, num_pages_to_copy: s32) -> (result: Result) #foreign libsqlite3;
+sqlite3_bind_blob :: (statement: *Statement, param_index: s32, value: *void, num_bytes: s32, value_lifetime: Lifetime) -> (result: Result) #foreign libsqlite3;
+sqlite3_bind_blob64 :: (statement: *Statement, param_index: s32, value: *void, num_bytes: u64, value_lifetime: Lifetime) -> (result: Result) #foreign libsqlite3;
+sqlite3_bind_double :: (statement: *Statement, param_index: s32, value: float64) -> (result: Result) #foreign libsqlite3;
+sqlite3_bind_int :: (statement: *Statement, param_index: s32, value: s32) -> (result: Result) #foreign libsqlite3;
+sqlite3_bind_int64 :: (statement: *Statement, param_index: s32, value: s64) -> (result: Result) #foreign libsqlite3;
+sqlite3_bind_null :: (statement: *Statement, param_index: s32) -> (result: Result) #foreign libsqlite3;
+sqlite3_bind_parameter_count :: (statement: *Statement) -> (num_params: s32) #foreign libsqlite3;
+sqlite3_bind_parameter_index :: (statement: *Statement, param_name: *u8) -> (param_index: s32) #foreign libsqlite3;
+sqlite3_bind_parameter_name :: (statement: *Statement, param_index: s32) -> (param_name: *u8) #foreign libsqlite3;
+sqlite3_bind_pointer :: (statement: *Statement, param_index: s32, value: *void, type: *u8, lifetime: Lifetime) -> (result: Result) #foreign libsqlite3;
+sqlite3_bind_text :: (statement: *Statement, param_index: s32, value: *u8, num_bytes: s32, value_lifetime: Lifetime) -> (result: Result) #foreign libsqlite3;
+sqlite3_bind_text16 :: (statement: *Statement, param_index: s32, value: *u16, num_bytes: s32, value_lifetime: Lifetime) -> (result: Result) #foreign libsqlite3;
+sqlite3_bind_text64 :: (statement: *Statement, param_index: s32, value: *u8, num_bytes: u64, value_lifetime: Lifetime, text_encoding: Text_Encoding) -> (result: Result) #foreign libsqlite3;
+sqlite3_bind_value :: (statement: *Statement, param_index: s32, value: *Value) -> (result: Result) #foreign libsqlite3;
+sqlite3_bind_zeroblob :: (statement: *Statement, param_index: s32, num_bytes: s32) -> (result: Result) #foreign libsqlite3;
+sqlite3_bind_zeroblob64 :: (statement: *Statement, param_index: s32, num_bytes: u64) -> (result: Result) #foreign libsqlite3;
+sqlite3_blob_bytes :: (blob: *Blob) -> (num_bytes: s32) #foreign libsqlite3;
+sqlite3_blob_close :: (blob: *Blob) -> (result: Result) #foreign libsqlite3;
+sqlite3_blob_open :: (connection: *Connection, database_name: *u8, table_name: *u8, column_name: *u8, row_id: s64, is_writable: bool, blob_out: **Blob) -> (result: Result) #foreign libsqlite3;
+sqlite3_blob_read :: (blob: *Blob, destination_buffer: *void, num_bytes_to_read: s32, offset_from_start: s32) -> (result: Result) #foreign libsqlite3;
+sqlite3_blob_reopen :: (blob: *Blob, row_id_to_open: s64) -> (result: Result) #foreign libsqlite3;
+sqlite3_blob_write :: (blob: *Blob, source_buffer: *void, num_bytes_to_write: s32, offset_from_start: s32) -> (result: Result) #foreign libsqlite3;
+sqlite3_busy_handler :: (connection: *Connection, callback: Busy_Handler_Callback, param: *void) -> (result: Result) #foreign libsqlite3;
+sqlite3_busy_timeout :: (connection: *Connection, timeout_milliseconds: s32) -> (result: Result) #foreign libsqlite3;
+sqlite3_cancel_auto_extension :: (entry_point: Extension_Entry_Point_Callback) -> (was_previously_registered: bool) #foreign libsqlite3;
+// sqlite3_carray_bind :: (statement: *Statement, param_index: s32, array_data: *void, array_count: s32, flags: Carray_Bind_Flags, data_lifetime: Lifetime) -> (result: Result) #foreign libsqlite3;
+// sqlite3_carray_bind_v2 :: (statement: *Statement, param_index: s32, array_data: *void, array_count: s32, flags: Carray_Bind_Flags, data_lifetime: Lifetime, destructor_param: *void) -> (result: Result) #foreign libsqlite3;
+sqlite3_changes :: (connection: *Connection) -> (num_rows_changed: s32) #foreign libsqlite3;
+sqlite3_changes64 :: (connection: *Connection) -> (num_rows_changed: s64) #foreign libsqlite3;
+sqlite3_clear_bindings :: (statement: *Statement) -> (result: Result) #foreign libsqlite3;
+sqlite3_close :: (connection: *Connection) -> (result: Result) #foreign libsqlite3;
+sqlite3_close_v2 :: (connection: *Connection) -> (result: Result) #foreign libsqlite3;
+sqlite3_collation_needed :: (connection: *Connection, param: *void, callback: Collation_Needed_Callback) -> (result: Result) #foreign libsqlite3;
+sqlite3_collation_needed16 :: (connection: *Connection, param: *void, callback: Collation_Needed16_Callback) -> (result: Result) #foreign libsqlite3;
+sqlite3_column_blob :: (statement: *Statement, column_index: s32) -> (value: *void) #foreign libsqlite3;
+sqlite3_column_bytes :: (statement: *Statement, column_index: s32) -> (num_bytes: s32) #foreign libsqlite3;
+sqlite3_column_bytes16 :: (statement: *Statement, column_index: s32) -> (num_bytes: s32) #foreign libsqlite3;
+sqlite3_column_count :: (statement: *Statement) -> (num_columns: s32) #foreign libsqlite3;
+sqlite3_column_database_name :: (statement: *Statement, column_index: s32) -> (origin_database_name: *u8) #foreign libsqlite3;
+sqlite3_column_database_name16 :: (statement: *Statement, column_index: s32) -> (origin_database_name: *u16) #foreign libsqlite3;
+sqlite3_column_decltype :: (statement: *Statement, column_index: s32) -> (declared_type_name: *u8) #foreign libsqlite3;
+sqlite3_column_decltype16 :: (statement: *Statement, column_index: s32) -> (declared_type_name: *u16) #foreign libsqlite3;
+sqlite3_column_double :: (statement: *Statement, column_index: s32) -> (value: float64) #foreign libsqlite3;
+sqlite3_column_int :: (statement: *Statement, column_index: s32) -> (value: s32) #foreign libsqlite3;
+sqlite3_column_int64 :: (statement: *Statement, column_index: s32) -> (value: s64) #foreign libsqlite3;
+sqlite3_column_name :: (statement: *Statement, column_index: s32) -> (column_name: *u8) #foreign libsqlite3;
+sqlite3_column_name16 :: (statement: *Statement, column_index: s32) -> (column_name: *u16) #foreign libsqlite3;
+sqlite3_column_origin_name :: (statement: *Statement, column_index: s32) -> (origin_column_name: *u8) #foreign libsqlite3;
+sqlite3_column_origin_name16 :: (statement: *Statement, column_index: s32) -> (origin_column_name: *u16) #foreign libsqlite3;
+sqlite3_column_table_name :: (statement: *Statement, column_index: s32) -> (origin_table_name: *u8) #foreign libsqlite3;
+sqlite3_column_table_name16 :: (statement: *Statement, column_index: s32) -> (origin_table_name: *u16) #foreign libsqlite3;
+sqlite3_column_text :: (statement: *Statement, column_index: s32) -> (value: *u8) #foreign libsqlite3;
+sqlite3_column_text16 :: (statement: *Statement, column_index: s32) -> (value: *u16) #foreign libsqlite3;
+sqlite3_column_type :: (statement: *Statement, column_index: s32) -> (value_type: Value_Type) #foreign libsqlite3;
+sqlite3_column_value :: (statement: *Statement, column_index: s32) -> (value: *Value) #foreign libsqlite3;
+
+sqlite3_data_count :: (statement: *Statement) -> s32 #foreign libsqlite3;
+sqlite3_db_handle :: (statement: *Statement) -> *Connection #foreign libsqlite3;
+sqlite3_errcode :: (connection: *Connection) -> Result #foreign libsqlite3;
+sqlite3_errmsg :: (connection: *Connection) -> *u8 #foreign libsqlite3;
+sqlite3_errmsg16 :: (connection: *Connection) -> *u16 #foreign libsqlite3;
+sqlite3_error_offset :: (connection: *Connection) -> s32 #foreign libsqlite3;
+sqlite3_errstr :: (result: Result) -> *u8 #foreign libsqlite3;
+sqlite3_extended_errcode :: (connection: *Connection) -> Result #foreign libsqlite3;
+sqlite3_extended_result_codes :: (connection: *Connection, enabled: bool) -> Result #foreign libsqlite3;
+sqlite3_finalize :: (statement: *Statement) -> Result #foreign libsqlite3;
+sqlite3_open :: (filename: *u8, connection: **Connection) -> Result #foreign libsqlite3;
+sqlite3_open16 :: (filename: *u16, connection: **Connection) -> Result #foreign libsqlite3;
+sqlite3_open_v2 :: (filename: *u8, connection: **Connection, flags: Open_Flags, vfs_name: *u8) -> Result #foreign libsqlite3;
+sqlite3_prepare :: (connection: *Connection, sql: *u8, size: s32, statement: **Statement, sql_tail: **u8) -> Result #foreign libsqlite3;
+sqlite3_prepare_v2 :: (connection: *Connection, sql: *u8, size: s32, statement: **Statement, sql_tail: **u8) -> Result #foreign libsqlite3;
+sqlite3_prepare_v3 :: (connection: *Connection, sql: *u8, size: s32, flags: Prepare_Flags, statement: **Statement, sql_tail: **u8) -> Result #foreign libsqlite3;
+sqlite3_prepare16 :: (connection: *Connection, sql: *u16, size: s32, statement: **Statement, sql_tail: **u16) -> Result #foreign libsqlite3;
+sqlite3_prepare16_v2 :: (connection: *Connection, sql: *u16, size: s32, statement: **Statement, sql_tail: **u16) -> Result #foreign libsqlite3;
+sqlite3_prepare16_v3 :: (connection: *Connection, sql: *u16, size: s32, flags: Prepare_Flags, statement: **Statement, sql_tail: **u16) -> Result #foreign libsqlite3;
+sqlite3_reset :: (statement: *Statement) -> Result #foreign libsqlite3;
+sqlite3_reset_auto_extension :: () -> () #foreign libsqlite3;
+sqlite3_step :: (statement: *Statement) -> Result #foreign libsqlite3;
 
 #import "Basic";

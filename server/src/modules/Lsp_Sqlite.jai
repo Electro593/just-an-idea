@@ -1,13 +1,59 @@
+Statement_Id :: enum {
+	GET_LINKED_RANGES;
+	COUNT;
+}
 
 Connection :: struct {
-	database: *Sqlite_Database;
-	statements: struct {
-		get_linked_ranges: *Sqlite_Statement;
-	}
+	connection: *Sqlite.Connection;
+	statement_cache: [Statement_Id.COUNT] *Sqlite.Statement;
 }
 
 Link_Type :: enum {
 	DEFINITION;
+}
+
+Project :: struct {
+	main_document_uri: string;
+	last_open_epoch: int;
+}
+
+init :: (filename: string) -> Connection {
+	result, sqlite_connection := Sqlite.open(filename);
+	assert(result == .OK);
+
+	connection := Connection.{};
+	connection.connection = sqlite_connection;
+
+	result := Sqlite.exec(
+		sqlite_connection,
+		#string SQL
+			PRAGMA foreign_keys = ON;
+
+			CREATE TABLE IF NOT EXISTS schema_version AS
+			SELECT 0 AS version;
+		SQL
+	);
+	assert(result == .OK);
+
+	apply_migrations(connection);
+
+	return connection;
+}
+
+deinit :: (connection: *Connection) {
+	if !connection.connection return;
+
+	for * connection.statement_cache {
+		if it.* {
+			result := Sqlite.finalize(it.*);
+			assert(result == .OK);
+			it.* = null;
+		}
+	}
+
+	result := Sqlite.close(connection.connection);
+	assert(result == .OK);
+	connection.connection = null;
 }
 
 get_linked_ranges :: (
@@ -18,8 +64,8 @@ get_linked_ranges :: (
 	source_char: int,
 	link_type: Link_Type
 ) -> [] LSP_Location {
-	_, rows := exec(
-		connection.database,
+	result, rows := Sqlite.exec(
+		connection.connection,
 		#string SQL
 			WITH source_ranges AS (
 				SELECT ranges.range_id
@@ -68,26 +114,33 @@ get_linked_ranges :: (
 			source_char,
 			link_type
 		},
-		(statement: *Sqlite_Statement) -> LSP_Location {
+		(statement: *Sqlite.Statement) -> LSP_Location {
 			return .{
-				// TODO: free uri
-				uri = column(statement, 0, string),
+				uri = Sqlite.column(statement, 0, string),
 				range = .{
 					start = .{
-						line = column(statement, 1, u32),
-						character = column(statement, 2, u32),
+						line = Sqlite.column(statement, 1, u32),
+						character = Sqlite.column(statement, 2, u32),
 					},
 					end = .{
-						line = column(statement, 3, u32),
-						character = column(statement, 4, u32),
+						line = Sqlite.column(statement, 3, u32),
+						character = Sqlite.column(statement, 4, u32),
 					}
 				}
 			};
 		},
-		*connection.statements.get_linked_ranges
+		*connection.statement_cache[Statement_Id.GET_LINKED_RANGES]
 	);
+	assert(result == .OK);
 	return rows;
 }
+
+// get_projects
+// invalidate_projects
+// get_documents
+// invalidate_documents
+// invalidate_region
+// insert_linked_range
 
 #scope_file
 
@@ -96,13 +149,15 @@ SCHEMA_MIGRATIONS :: string.[
 #string SQL
 CREATE TABLE documents (
 	document_id INTEGER PRIMARY KEY,
-	document_uri TEXT UNIQUE NOT NULL
+	document_uri TEXT UNIQUE NOT NULL,
+	last_edit_epoch INTEGER NOT NULL
 ) STRICT;
 
 CREATE TABLE projects (
 	project_id INTEGER PRIMARY KEY,
 	main_document_id INTEGER NOT NULL
-		REFERENCES documents (document_id) ON DELETE CASCADE
+		REFERENCES documents (document_id) ON DELETE CASCADE,
+	last_open_epoch INTEGER NOT NULL
 ) STRICT;
 
 CREATE TABLE ranges (
@@ -129,8 +184,43 @@ CREATE TABLE range_links (
 SQL
 ];
 
+apply_migrations :: (connection: *Connection) {
+	result, rows = Sqlite.exec(
+		connection.database,
+		#string SQL
+			SELECT version
+			FROM schema_version
+		SQL,
+		mapper = (statement: *Sqlite.Statement) -> int {
+			return Sqlite.column(statement, 0, int);
+		}
+	);
+	assert(result == .OK);
+
+	version := ifx rows.count then rows[0] else 0;
+	Basic.array_free(rows);
+
+	for version .. SCHEMA_MIGRATIONS.count - 1 {
+		result = Sqlite.exec(
+			connection.database,
+			SCHEMA_MIGRATIONS[it]
+		);
+		assert(result == .OK);
+	}
+
+	result = Sqlite.exec(
+		connection.database,
+		#string SQL
+			UPDATE schema_version
+			SET version = @version
+		SQL,
+		params = struct { version: int; }.{ SCHEMA_MIGRATIONS.count }
+	);
+	assert(result == .OK);
+}
+
 Basic :: #import "Basic";
 assert :: Basic.assert;
 
 #import "Lsp_Types";
-#import "Sqlite" (MIGRATIONS = SCHEMA_MIGRATIONS);
+Sqlite :: #import "Sqlite";
