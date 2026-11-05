@@ -110,10 +110,22 @@ read_message_from_stdin : JSON_RPC_Read_Message : (_data: *void) -> string {
 }
 
 send_message_to_stdout : JSON_RPC_Send_Message : (data: *void, message: string) {
-  print("Content-Length: %\r\n", message.count);
-  print("Content-Type: application/vscode-jsonrpc; charset=utf-8\r\n");
-  print("\r\n");
-  print(message);
+  builder: String_Builder;
+  init_string_builder(*builder);
+  print_to_builder(*builder, "Content-Length: %\r\n", message.count);
+  append(*builder, "Content-Type: application/vscode-jsonrpc; charset=utf-8\r\n");
+  append(*builder, "\r\n");
+  append(*builder, message);
+
+  buffer := builder_to_string(*builder);
+  write_string(buffer);
+  free(buffer);
+
+  #if OS == .WINDOWS {
+    FlushFileBuffers(GetStdHandle(STD_OUTPUT_HANDLE));
+  } else {
+    fflush(stdout);
+  }
 }
 
 debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string, to_standard_error := false) -> bytes_printed: s64 {
