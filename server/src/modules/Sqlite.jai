@@ -208,8 +208,10 @@ Auto_Vacuum_Pages_Callback :: #type (param: *void, schema: *u8, num_database_pag
 Busy_Handler_Callback :: #type (param: *void, num_previous_attempts: s32) -> (try_again: bool) #c_call;
 Collation_Needed_Callback :: #type (param: *void, connection: *Connection, encoding: Text_Encoding, collation_name: *u8) -> () #c_call;
 Collation_Needed16_Callback :: #type (param: *void, connection: *Connection, encoding: Text_Encoding, collation_name: *u16) -> () #c_call;
+Commit_Hook_Callback :: #type (param: *void) -> (should_rollback: bool) #c_call;
 Destructor_Callback :: #type (param_to_destroy: *void) -> () #c_call;
 Extension_Entry_Point_Callback :: #type (connection: *Connection, error_message_out: **u8, api_thunk: *Api_Routines) -> (result: Result) #c_call;
+Rollback_Hook_Callback :: #type (param: *void) -> () #c_call;
 
 destructor :: (destructor: Destructor_Callback) -> Lifetime {
 	return xx cast(*void) destructor;
@@ -463,6 +465,7 @@ exec :: (connection: *Connection, sql: string) -> Result {
 	while remainder.count > 0 {
 		result:, statement:, remainder = prepare(connection, remainder);
 		if result != .OK return result;
+		if statement == null continue;
 
 		result = sqlite3_step(statement);
 		while result == .ROW
@@ -493,6 +496,7 @@ exec :: (
 		result, statement, remainder = prepare(connection, sql, cached = cached);
 		if result != .OK return result;
 		if cached then cached_statement.* = statement;
+		assert(statement != null, "Statement was empty");
 		assert(remainder == "", "Cannot execute multiple cached or result-set statements");
 	} else {
 		result = sqlite3_clear_bindings(statement);
@@ -712,6 +716,13 @@ sqlite3_column_text :: (statement: *Statement, column_index: s32) -> (value: *u8
 sqlite3_column_text16 :: (statement: *Statement, column_index: s32) -> (value: *u16) #foreign libsqlite3;
 sqlite3_column_type :: (statement: *Statement, column_index: s32) -> (value_type: Value_Type) #foreign libsqlite3;
 sqlite3_column_value :: (statement: *Statement, column_index: s32) -> (value: *Value) #foreign libsqlite3;
+sqlite3_commit_hook :: (connection: *Connection, callback: Commit_Hook_Callback, param: *void) -> (previous_param: *void) #foreign libsqlite3;
+sqlite3_compileoption_get :: (option_index: s32) -> (option_name: *u8) #foreign libsqlite3;
+sqlite3_compileoption_used :: (option_name: *u8) -> (is_used: bool) #foreign libsqlite3;
+sqlite3_complete :: (sql: *u8) -> (is_complete: bool) #foreign libsqlite3;
+sqlite3_complete16 :: (sql: *u16) -> (is_complete: bool) #foreign libsqlite3;
+
+sqlite3_ :: () -> () #foreign libsqlite3;
 
 sqlite3_data_count :: (statement: *Statement) -> s32 #foreign libsqlite3;
 sqlite3_db_handle :: (statement: *Statement) -> *Connection #foreign libsqlite3;
@@ -723,6 +734,7 @@ sqlite3_errstr :: (result: Result) -> *u8 #foreign libsqlite3;
 sqlite3_extended_errcode :: (connection: *Connection) -> Result #foreign libsqlite3;
 sqlite3_extended_result_codes :: (connection: *Connection, enabled: bool) -> Result #foreign libsqlite3;
 sqlite3_finalize :: (statement: *Statement) -> Result #foreign libsqlite3;
+sqlite3_incomplete :: (sql: *u16) -> (result: s64) #foreign libsqlite3; // FUTURE: Add typing for the result aggregate
 sqlite3_open :: (filename: *u8, connection: **Connection) -> Result #foreign libsqlite3;
 sqlite3_open16 :: (filename: *u16, connection: **Connection) -> Result #foreign libsqlite3;
 sqlite3_open_v2 :: (filename: *u8, connection: **Connection, flags: Open_Flags, vfs_name: *u8) -> Result #foreign libsqlite3;
@@ -734,6 +746,7 @@ sqlite3_prepare16_v2 :: (connection: *Connection, sql: *u16, size: s32, statemen
 sqlite3_prepare16_v3 :: (connection: *Connection, sql: *u16, size: s32, flags: Prepare_Flags, statement: **Statement, sql_tail: **u16) -> Result #foreign libsqlite3;
 sqlite3_reset :: (statement: *Statement) -> Result #foreign libsqlite3;
 sqlite3_reset_auto_extension :: () -> () #foreign libsqlite3;
+sqlite3_rollback_hook :: (connection: *Connection, callback: Rollback_Hook_Callback, param: *void) -> (previous_param: *void) #foreign libsqlite3;
 sqlite3_step :: (statement: *Statement) -> Result #foreign libsqlite3;
 
 #import "Basic";
