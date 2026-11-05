@@ -6,10 +6,5 @@
 		{
 			"path": "../../../programs/jai"
 		}
-	],
-	"settings": {
-		"justAnIdea.jaiPath": "jai",
-		"justAnIdea.buildFile": "${workspaceFolder}/server/src/server.jai",
-		"justAnIdea.buildArgs": []
-	}
+	]
 }

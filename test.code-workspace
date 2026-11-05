@@ -8,6 +8,6 @@
 		}
 	],
 	"settings": {
-		"justAnIdea.buildFile": "${workspaceFolder}/server/src/server.jai",
+		"justAnIdea.buildFile": "/home/aria/programming/jai/just-an-idea/server/src/test.jai",
 	}
 }

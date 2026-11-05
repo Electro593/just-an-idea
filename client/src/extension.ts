@@ -1,52 +1,91 @@
 import * as path from "path";
-import { workspace, ExtensionContext } from "vscode";
+import * as vscode from "vscode";
+import fs from "fs/promises";
+import which from "which";
 
 import {
   LanguageClient,
   LanguageClientOptions,
   ServerOptions,
-  TransportKind,
 } from "vscode-languageclient/node";
+import { spawn } from "child_process";
 
 let client: LanguageClient;
 
-export function activate(context: ExtensionContext) {
-  const serverName = process.platform == "win32" ? "server.exe" : "server";
-
-  const serverProcess = context.asAbsolutePath(path.join("out", serverName));
-
-  const config = workspace.getConfiguration("justAnIdea");
+export async function activate(context: vscode.ExtensionContext) {
+  const config = vscode.workspace.getConfiguration("justAnIdea");
   const jaiPath = config.get<string>("jaiPath") ?? "jai";
   const buildFile = config.get<string>("buildFile");
   const buildArgs = config.get<unknown[]>("buildArgs") ?? [];
 
   if (!buildFile) throw new Error("justAnIdea.buildFile cannot be empty");
-  for (const [i, arg] of buildArgs.entries())
-    if (typeof arg != "string")
+  for (const [i, arg] of buildArgs.entries()) {
+    if (typeof arg !== "string")
       throw new Error(
         `justAnIdea.buildArgs[${i}] must be a string. Got: ${arg}`,
       );
 
-  const resolvedBuildFile = path.resolve(buildFile!);
+    if (arg === "--")
+      throw new Error(
+        `justAnIdea.buildArgs[${i}] cannot have the value "--", since this is reserved for the language server metaprogram"`,
+      );
+  }
 
-  const args = [jaiPath, resolvedBuildFile, ...(buildArgs as string[])];
+  try {
+    await fs.rm(context.asAbsolutePath("log"), {
+      recursive: true,
+      force: true,
+    });
+  } catch (err) {
+    console.error("Failed to delete log files:", err);
+  }
 
-  let serverOptions: ServerOptions = {
-    run: {
-      command: serverProcess,
-      options: { cwd: context.extensionPath },
-      args,
-      transport: TransportKind.stdio,
-    },
-    debug: {
-      command: serverProcess,
-      options: { cwd: context.extensionPath },
-      args,
-      transport: TransportKind.stdio,
-    },
+  let command = jaiPath;
+  try {
+    command = await which(command);
+  } catch {
+    command = path.resolve(command);
+  }
+
+  const args = [
+    path.resolve(buildFile!),
+    ...(buildArgs as string[]),
+    "--",
+    "import_dir",
+    "server/src/modules",
+    "meta",
+    "Server",
+  ];
+
+  const serverOptions: ServerOptions = () => {
+    const serverProcess = spawn(command, args, {
+      cwd: context.extensionPath,
+      env: process.env,
+    });
+
+    serverProcess.stderr.on("data", (chunk: Buffer) => {
+      console.log(`[RAW SERVER STDERR]: ${chunk.toString("utf8")}`);
+    });
+
+    return Promise.resolve({
+      writer: serverProcess.stdin,
+      reader: serverProcess.stdout,
+    });
   };
 
-  let clientOptions: LanguageClientOptions = {
+  //   const executable: Executable = {
+  //     command,
+  //     args,
+  //     options: { cwd: context.extensionPath, env: process.env },
+  //     transport: TransportKind.stdio,
+  //   };
+  //
+  //   const serverOptions: ServerOptions = {
+  //     run: executable,
+  //     debug: executable,
+  //   };
+
+  const clientOptions: LanguageClientOptions = {
     documentSelector: [
       {
         scheme: "file",
@@ -54,7 +93,7 @@ export function activate(context: ExtensionContext) {
       },
     ],
     synchronize: {
-      fileEvents: workspace.createFileSystemWatcher("**/*.jai"),
+      fileEvents: vscode.workspace.createFileSystemWatcher("**/*.jai"),
     },
   };
 

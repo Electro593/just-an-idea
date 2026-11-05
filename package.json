@@ -82,17 +82,19 @@
   ],
   "scripts": {
     "esbuild": "esbuild ./client/src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --minify",
-    "compile": "yarn install && yarn esbuild && jai server/src/server.jai",
-    "package": "yarn compile && vsce package"
+    "compile": "npm install && npm run esbuild",
+    "package": "npm run compile && vsce package"
   },
   "devDependencies": {
     "@types/node": "^20.14.1",
     "@types/vscode": "^1.89.0",
+    "@types/which": "^3.0.4",
     "@vscode/vsce": "^2.24.0",
     "esbuild": "^0.21.4",
     "vsce": "^2.15.0"
   },
   "dependencies": {
-    "vscode-languageclient": "^9.0.1"
+    "vscode-languageclient": "^9.0.1",
+    "which": "^7.0.0"
   }
 }

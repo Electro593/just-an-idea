@@ -119,10 +119,6 @@ send_message_to_stdout : JSON_RPC_Send_Message : (data: *void, message: string) 
 debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string, to_standard_error := false) -> bytes_printed: s64 {
   data: *Data = xx _data;
 
-  #if OS == .WINDOWS {
-    stdin := File.{GetStdHandle(STD_INPUT_HANDLE)};
-  }
-
   file, file_opened := file_open(data.buffer_filename, true, true, false);
   if file_opened {
     file_seek(file, 0, .END);
@@ -131,4 +127,12 @@ debug_log : JSON_RPC_Debug_Log : (_data: *void, message: string, to_standard_err
   }
 
   return message.count;
+}
+
+#scope_file
+
+#if OS == .WINDOWS {
+	#import "Windows";
+} else {
+	#import "POSIX";
 }
