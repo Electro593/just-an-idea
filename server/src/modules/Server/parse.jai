@@ -1,9 +1,7 @@
-Range :: struct {
-	reference: *Code_Ident;
-}
+Location :: Code_Node.Location;
 
 Document :: struct {
-	ranges: [..] Range;
+	references: [..] *Code_Ident;
 }
 
 Project :: struct {
@@ -43,7 +41,7 @@ init_parser :: (using parser: *Parser) -> string {
 deinit :: (using parser: *Parser) {
 	destroy_project(*project);
 
-	for documents array_free(it.ranges);
+	for documents array_free(it.references);
 	deinit(*documents);
 
 	destroy(*mutex);
@@ -56,6 +54,7 @@ parse_project :: (using parser: *Parser, filename: string) {
 	project.parser = parser;
 
 	project.thread.data = *project;
+  project.thread.starting_context = context;
 	thread_init(*project.thread, run_parser);
 
 	project.is_running = true;
@@ -140,21 +139,20 @@ emit_root :: (project: *Project, visitor: *Ast_Visitor, root: *Code_Node) {
   }
 }
 
-add_reference :: (using project: *Project, ident: *Code_Ident) {
+add_reference :: (project: *Project, ident: *Code_Ident) {
 	filename := get_filename(ident);
-  if !filename || ident.l0 < 1 || ident.c0 < 1 || ident.l1 < 1 || ident.c1 < 1 return null;
+  if !filename || ident.l0 < 1 || ident.c0 < 1 || ident.l1 < 1 || ident.c1 < 1 return;
 
-	lock(*parser.mutex);
-	defer unlock(*parser.mutex);
+	lock(*project.parser.mutex);
+	defer unlock(*project.parser.mutex);
 
-	document, newly_added := find_or_add(*parser.documents, filename);
-  if newly_added then document.file = ident.enclosing_load;
+	document := find_or_add(*project.parser.documents, filename);
 
 	found, _, index := binary_search(
-		*document.references,
+		document.references,
 		ident,
 		(target: *Code_Ident, current: *Code_Ident) -> int {
-			return compare_node_locations(target.location, current.location);
+			return compare_locations(target, current);
 		}
 	);
 
@@ -169,7 +167,7 @@ get_reference :: (parser: *Parser, filename: string, line: s32, character: s32) 
 	found, document := table_find(*parser.documents, filename);
 	if !found return null;
 
-	location := Code_Node.Location.{
+	location := Location.{
 		l0 = line,
 		c0 = character,
 		l1 = line,
@@ -177,17 +175,18 @@ get_reference :: (parser: *Parser, filename: string, line: s32, character: s32) 
 	};
 
 	found=, reference, index := binary_search(
-		*document.references,
+		document.references,
 		location,
 		(target: Location, current: *Code_Ident) -> int {
-			return compare_node_locations(target, current.location);
+			return compare_locations(target, current);
 		});
 
-	if found return reference;
+	if found && location_contains(reference, line, character)
+		return reference;
 
 	if index > 0 {
 		just_before := document.references[index - 1];
-		if location_contains(just_before.location, line, character)
+		if location_contains(just_before, line, character)
 			return just_before;
 	}
 
@@ -207,6 +206,27 @@ location_contains :: (location: Location, line: s32, character: s32) -> bool {
 	if location.l0 == line && location.c0 > character return false;
 	if location.l1 == line && location.c1 <= character return false;
 	return true;
+}
+
+print_location :: (using location: Location) -> string {
+	builder: String_Builder;
+	init_string_builder(*builder);
+
+	filename := ifx enclosing_load then enclosing_load.fully_pathed_filename else "";
+	valid_end := l1 > l0 || (l1 == l0 && c1 > c0);
+
+	if filename append(*builder, filename);
+	if l0 > 0 {
+		if filename append(*builder, "::");
+		print_to_builder(*builder, "%", l0);
+		if c0 > 0 print_to_builder(*builder, ":%", c0);
+		if l1 > l0 || (l1 == l0 && c1 > c0) {
+			print_to_builder(*builder, "-%", l1);
+			if c1 > 0 print_to_builder(*builder, ":%", c1);
+		}
+	}
+
+	return builder_to_string(*builder);
 }
 
 #import "Basic";

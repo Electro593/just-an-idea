@@ -581,7 +581,7 @@ threaded_rpc_handler_loop : Thread_Proc : (thread: *Thread) -> s64 {
     for * state.responses_to_send {
       if it.count_remaining > 0 continue;
       response := it.*;
-      json := cast_json(response,, temp);
+      json := cast_json(response, log = rpc_debug_log,, temp);
       free_casted_json(*response);
       remove it;
       printed_json := print_json(json,, temp);
@@ -725,7 +725,7 @@ assert_rpc :: (loc: Source_Code_Location, message: string) -> bool {
 }
 
 #import "Basic";
-#import "Cast_Json" (SHOULD_LOG = true);
+#import "Cast_Json" (SHOULD_LOG = false);
 #import "Hash_Table";
 #import "Json";
 #import "Thread";

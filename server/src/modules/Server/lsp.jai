@@ -19,7 +19,7 @@ lsp_initialize :: (data: *Data, params: *LSP_InitializeParams) -> LSP_Initialize
 	result.serverInfo.name = copy_string(SERVER_NAME);
 	result.serverInfo.version = copy_string(SERVER_VERSION);
 
-	result.capabilities.declarationProvider = alloc_any(!!params.capabilities.textDocument.declaration);
+	result.capabilities.definitionProvider = alloc_any(!!params.capabilities.textDocument.definition);
 
 	data.capabilities = copy_casted_json(params.capabilities);
 
@@ -32,6 +32,7 @@ lsp_initialized :: (data: *Data, params: *LSP_InitializedParams) {
 
 	thread := *data.watchdog_thread;
 	thread.data = data;
+  thread.starting_context = context;
 
 	thread_init(thread, (thread: *Thread) -> s64 {
 		data: *Data = xx thread.data;
@@ -85,21 +86,19 @@ lsp_exit :: (data: *Data) {
 	exit(1);
 }
 
-lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) -> LSP_DeclarationResult {
+lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> LSP_DefinitionResult {
 	assert_running();
 
 	filename := decode_uri(params.textDocument.uri);
 	line: s32 = xx (params.position.line + 1);
 	character: s32 = xx (params.position.character + 1);
 
-	if wait_for_file(*data.parser, filename, 1000) {
-		declaration := get_declaration(*data.parser, filename, line, character);
+	declaration := get_declaration(*data.parser, filename, line, character);
 
-		if declaration
-			return .{ alloc_any(get_location(declaration.location)) };
-	}
+	if declaration && is_valid_location(declaration)
+		return .{ alloc_any(get_location(declaration)) };
 
-	return .{ alloc_any(make_null_any()) };
+	return .{ make_null_any() };
 }
 
 // lsp_textDocument_didOpen :: (data: *Data, params: *LSP_DidOpenTextDocumentParams) {
@@ -146,17 +145,23 @@ is_process_running :: (process: Process) -> bool {
 	}
 }
 
-get_location :: (using node: *Code_Node) -> LSP_Location {
-	uri := encode_uri(get_filename(location));
+is_valid_location :: (using location: Location) -> bool {
+	if !location.enclosing_load return false;
+	if !location.enclosing_load.fully_pathed_filename return false;
+	if l0 < 1 || c0 < 1 return false;
+	if l1 < l0 || (l1 == l0 && c1 <= c0) return false;
+	return true;
+}
 
-	if l0 < 1 || l1 < 1 || c0 < 1 || c1 < 1
-		return .{ uri, .{ 0, 0 }, .{ 0, 0 } };
-
-	return .{ uri, .{ l0 - 1, c0 - 1 }, .{ l1 - 1, c1 - 1 } };
+get_location :: (using location: Location) -> LSP_Location {
+	uri := encode_uri(location.enclosing_load.fully_pathed_filename);
+	return .{ uri, .{ .{ xx (l0 - 1), xx (c0 - 1) }, .{ xx (l1 - 1), xx (c1 - 1) } } };
 }
 
 encode_uri :: (filename: string) -> string {
-	// TODO
+	// TODO: Do this properly
+	PREFIX :: #ifx OS == .WINDOWS then "file:///" else "file://";
+	return sprint("%%", PREFIX, filename);
 }
 
 decode_uri :: (uri: string) -> string {
@@ -169,7 +174,8 @@ decode_uri :: (uri: string) -> string {
 
 	result := uri;
 
-	has_prefix:, result = contains(result, "file:///");
+	PREFIX :: #ifx OS == .WINDOWS then "file:///" else "file://";
+	has_prefix:, result = contains(result, PREFIX);
 	assert(has_prefix);
 
 	result = copy_string(result,, temp);
@@ -192,13 +198,14 @@ decode_uri :: (uri: string) -> string {
 	result.count = j;
 
 	// Make the drive letter uppercase for consistency
-	if result[1] == #char ":"
-		result[0] = xx to_upper(xx result[0]);
+	#if OS == .WINDOWS {
+		if result[1] == #char ":"
+			result[0] = xx to_upper(xx result[0]);
+	}
 
 	//TODO: Implement the URI spec
 	return result;
 }
 
 #import "Basic";
-#import "Compiler";
 #import "Process";

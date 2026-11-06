@@ -8,7 +8,7 @@ binary_search :: (array: [] $T, target: $E, $$cmp: (target: E, current: T) -> $R
 	while low < high {
 		index := low + (high - low) / 2;
 
-		#if is_constant(cmp) && cmp == null {
+		#if is_constant(cmp) && !cmp {
 			if target < array[index] high = index;
 			else if target > array[index] low = index + 1;
 			else return true, array[index], index;

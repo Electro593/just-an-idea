@@ -72,7 +72,7 @@ alloc_any :: inline (value: Any) -> Any {
 }
 
 make_null_any :: inline () -> Any {
-  return Any.{type_info(void), null};
+  return Any.{ type = type_info(void), value_pointer = null};
 }
 
 make_undef_any :: inline () -> Any {
@@ -342,16 +342,16 @@ cast_json :: (json: *JSON_Element, out: *$T, $notes: [] string = .[], $blacklist
 cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) -> json: *JSON_Element {
   assert(xx value, "Cannot cast a null value (of type % with notes %)", type, notes);
 
-  cast_value :: ($T: Type) -> T #expand {
-    return (cast(*T) `value).*;
-  }
-
   if array_find(notes, "$Ignore") return null;
-  optional := array_find(notes, "?");
-  if !value return null;
 
-  #if SHOULD_LOG log("Casting % with notes %: %", get_type_name(type,, temp), notes, Any.{type = type, value_pointer = value});
-  if #complete type.type == {
+  cast_json_internal :: (value: *void, type: *Type_Info, notes: [] string, log: (f: string, a: ..Any, t := false) -> s64) -> json: *JSON_Element {
+    cast_value :: ($T: Type) -> T #expand {
+      return (cast(*T) `value).*;
+    }
+
+    optional := array_find(notes, "?");
+
+    if #complete type.type == {
     case .INTEGER;
       //TODO Serialize as integer instead of float
       t: *Type_Info_Integer = xx type;
@@ -466,6 +466,7 @@ cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: s
             found, left, right := split_from_left(it, "$Name$");
             if found && !left then name = right;
           }
+          // TODO: Is this correct? Won't this have individual child elements be separately optional?
           if optional && !array_find(notes, "?") {
             notes = .{it.notes.count + 1, alloc((it.notes.count + 1) * size_of(string))};
             memcpy(notes.data, it.notes.data, it.notes.count * size_of(string));
@@ -522,12 +523,20 @@ cast_json :: (value: *void, type: *Type_Info, notes: [] string = .[], log: (f: s
     case .POLYMORPHIC_VARIABLE; #through;
     case .TYPE; #through;
     case .CODE; #through;
-
     case .UNTYPED_LITERAL; #through;
     case .UNTYPED_ENUM;
       assert(false, "What is this?");
       return null;
+    }
+
+    return null;
   }
+
+  #if SHOULD_LOG type_name := get_type_name(type,, temp);
+  #if SHOULD_LOG log("Casting % with notes %: %", type_name, notes, Any.{type = type, value_pointer = value});
+  json := cast_json_internal(value, type, notes, log);
+  #if SHOULD_LOG log("Casted % with notes %: %", type_name, notes, print_json(json,, temp));
+  return json;
 }
 
 copy_casted_json :: (value: *void, type: *Type_Info, out: *void, notes: [] string = .[], log: (f: string, a: ..Any, t := false) -> s64 = cast_json_log_none) {
@@ -721,10 +730,13 @@ free_casted_json :: (value: *void, type: *Type_Info, log: (f: string, a: ..Any, 
 
     case .ANY;
       any := cast_value(Any);
-      if any.type == type_info(JSON_Element) free_json(cast_any(any.*, JSON_Element));
-      else {
-        free_casted_json(any.value_pointer, any.type, log);
-        free(any.value_pointer);
+      if any.value_pointer {
+        if any.type == type_info(JSON_Element) {
+          free_json(cast_any(any.*, JSON_Element));
+        } else {
+          free_casted_json(any.value_pointer, any.type, log);
+          free(any.value_pointer);
+        }
       }
       any.* = Any.{};
 
