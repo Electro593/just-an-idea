@@ -19,9 +19,9 @@ function getServerOptions(options: {
   command: string;
   args: string[];
   spawnRaw?: boolean;
-  trace?: boolean;
+  outputChannel?: vscode.OutputChannel;
 }): ServerOptions {
-  const { context, command, args, spawnRaw = true, trace = false } = options;
+  const { context, command, args, spawnRaw = true, outputChannel } = options;
 
   if (!spawnRaw) {
     const executable: Executable = {
@@ -47,23 +47,23 @@ function getServerOptions(options: {
       detached: false,
     });
 
-    if (trace) {
+    if (outputChannel) {
       const originalWrite = serverProcess.stdin.write.bind(serverProcess.stdin);
       serverProcess.stdin.write = (
         chunk: any,
         encoding?: any,
         cb?: any,
       ): boolean => {
-        console.log(`[RAW SERVER STDIN]: ${chunk.toString("utf8")}`);
+        outputChannel.append(`[RAW SERVER STDIN]: ${chunk.toString("utf8")}`);
         return originalWrite(chunk, encoding, cb);
       };
 
       serverProcess.stdout.on("data", (chunk: Buffer) => {
-        console.log(`[RAW SERVER STDOUT]: ${chunk.toString("utf8")}`);
+        outputChannel.append(`[RAW SERVER STDOUT]: ${chunk.toString("utf8")}`);
       });
 
       serverProcess.stderr.on("data", (chunk: Buffer) => {
-        console.log(`[RAW SERVER STDERR]: ${chunk.toString("utf8")}`);
+        outputChannel.append(`[RAW SERVER STDERR]: ${chunk.toString("utf8")}`);
       });
     }
 
@@ -119,11 +119,15 @@ export async function activate(context: vscode.ExtensionContext) {
     "Server",
   ];
 
+  const outputChannel = vscode.window.createOutputChannel(
+    "Jai Language Server",
+  );
+
   const serverOptions = getServerOptions({
     context,
     command,
     args,
-    trace: true,
+    outputChannel,
   });
 
   const clientOptions: LanguageClientOptions = {
@@ -131,6 +135,7 @@ export async function activate(context: vscode.ExtensionContext) {
     synchronize: {
       fileEvents: vscode.workspace.createFileSystemWatcher("**/*.jai"),
     },
+    outputChannel,
   };
 
   client = new LanguageClient(

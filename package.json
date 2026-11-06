@@ -3,12 +3,13 @@
   "displayName": "Just an Idea",
   "description": "Language support for the Jai language",
   "author": "Electro_593",
-  "version": "0.0.2",
+  "version": "1.0.0",
   "publisher": "electro593",
   "repository": {
     "type": "git",
     "url": "https://github.com/Electro593/just-an-idea.git"
   },
+  "icon": "icons/jai-logo.png",
   "license": "UNLICENSED",
   "engines": {
     "vscode": "^1.89.0"
