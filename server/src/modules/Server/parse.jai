@@ -1,22 +1,86 @@
-Document :: struct {
-	file: *Message_File;
-  references: [..] *Code_Ident;
+Range :: struct {
+	reference: *Code_Ident;
 }
 
-Parsed_Project :: struct {
+Document :: struct {
+	ranges: [..] Range;
+}
+
+Project :: struct {
+	filename: string;
+
 	workspace: Workspace;
-	documents: Table(string, Document),
+
+	is_running: bool;
+	thread: Thread;
+
+	parser: *Parser;
 }
 
 Parser :: struct {
 	options: Build_Options;
-	projects: Table(string, Parsed_Project);
-	blocked_files: Table(string, void);
+	documents: Table(string, Document);
+
+	project: Project;
+
+	mutex: Mutex;
+}
+
+init_parser :: (using parser: *Parser) -> string {
+	options = get_build_options();
+	options.dead_code_elimination = .NONE;
+	set_optimization(*options, .VERY_DEBUG);
+
+	options.compile_time_command_line = array_copy(options.compile_time_command_line);
+	filename := options.compile_time_command_line[0];
+	array_ordered_remove_by_index(*options.compile_time_command_line, 0);
+
+	init(*mutex);
+
+	return filename;
+}
+
+deinit :: (using parser: *Parser) {
+	destroy_project(*project);
+
+	for documents array_free(it.ranges);
+	deinit(*documents);
+
+	destroy(*mutex);
 }
 
 parse_project :: (using parser: *Parser, filename: string) {
-	workspace = compiler_create_workspace("just-an-idea:parse")
-	set_build_options(options);
+	destroy_project(*project);
+
+	project.filename = copy_string(filename);
+	project.parser = parser;
+
+	project.thread.data = *project;
+	thread_init(*project.thread, run_parser);
+
+	project.is_running = true;
+	thread_start(*project.thread);
+}
+
+wait_for_file :: (using parser: *Parser, filename: string, milliseconds: s32 = 0) -> (ready: bool) {
+	if project.is_running
+		return thread_is_done(*project.thread, milliseconds);
+
+	return true;
+}
+
+get_declaration :: (parser: *Parser, filename: string, line: s32, character: s32) -> *Code_Declaration {
+	reference := get_reference(parser, filename, line, character);
+	return ifx reference then reference.resolved_declaration else null;
+}
+
+#scope_file
+
+run_parser : Thread_Proc : (thread: *Thread) -> s64 {
+	using,except(thread) project: *Project = xx thread.data;
+
+	workspace = compiler_create_workspace("just-an-idea:parse");
+	set_build_options(parser.options, workspace);
 
 	compiler_begin_intercept(workspace);
 	add_build_file(filename, workspace);
@@ -27,23 +91,15 @@ parse_project :: (using parser: *Parser, filename: string) {
     visited = *visited
   };
 
-  while true {
+  while is_running {
 		message := compiler_wait_for_message();
 		if message.workspace != workspace continue;
 
 		if message.kind == {
-      case .FILE;
-      case .IMPORT;
-      case .FAILED_IMPORT;
-			case .COMPLETE; break;
-			case .DEBUG_DUMP;
-      case .ERROR; //TODO: Ignore the error?
-			case .PERFORMANCE_REPORT;
+			case .COMPLETE;
+				break;
 
-      case .PHASE;
-        msg: *Message_Phase = xx message;
-        if msg.phase == .TYPECHECKED_ALL_WE_CAN && msg.num_items_waiting_to_typecheck == 0
-          break;
+			case .ERROR; // TODO: Report the error
 
 			case .TYPECHECKED;
 				msg: *Message_Typechecked = xx message;
@@ -55,34 +111,65 @@ parse_project :: (using parser: *Parser, filename: string) {
 	}
 
 	compiler_end_intercept(workspace);
-}
+	deinit(*visited);
 
-destroy_parsed_project :: (using project: *Parsed_Project) {
-	for documents then array_free(it);
-	deinit(documents);
-	compiler_destroy_workspace(workspace);
-}
-
-// Assumes locations are from the same file, non-intersecting
-compare_locations :: (a: Location, b: Location) -> int {
-	if a.l0 != b.l0 return a.l0 - b.l0;
-	if a.c0 != b.c0 return a.c0 - b.c0;
+	is_running = false;
 	return 0;
 }
 
-location_contains :: (location: Location, line: s32, character: s32) -> bool {
-	if location.l0 > line return false;
-	if location.l1 < line return false;
-	if location.l0 == line && location.c0 > character return false;
-	if location.l1 == line && location.c1 <= character return false;
-	return true;
+destroy_project :: (using project: *Project) {
+	if thread.index {
+		is_running = false;
+
+		done := thread_is_done(*thread, -1);
+		assert(done, "Failed to kill parser thread");
+		thread_deinit(*thread);
+	}
+
+	if workspace then compiler_destroy_workspace(workspace);
+	if filename free(filename);
 }
 
-get_reference_at :: (using project: *Parsed_Project, filename: string, line: s32, character: s32) -> *Code_Ident {
-  found, document := table_find(*documents, filename);
+emit_root :: (project: *Project, visitor: *Ast_Visitor, root: *Code_Node) {
+  visitor.root = root;
+  for visitor {
+    if it.kind == {
+      case .IDENT;
+        add_reference(project, xx it);
+    }
+  }
+}
+
+add_reference :: (using project: *Project, ident: *Code_Ident) {
+	filename := get_filename(ident);
+  if !filename || ident.l0 < 1 || ident.c0 < 1 || ident.l1 < 1 || ident.c1 < 1 return null;
+
+	lock(*parser.mutex);
+	defer unlock(*parser.mutex);
+
+	document, newly_added := find_or_add(*parser.documents, filename);
+  if newly_added then document.file = ident.enclosing_load;
+
+	found, _, index := binary_search(
+		*document.references,
+		ident,
+		(target: *Code_Ident, current: *Code_Ident) -> int {
+			return compare_node_locations(target.location, current.location);
+		}
+	);
+
+	if found then document.references[index] = ident;
+	else array_insert_at(*document.references, ident, index);
+}
+
+get_reference :: (parser: *Parser, filename: string, line: s32, character: s32) -> *Code_Ident {
+	lock(*parser.mutex);
+	defer unlock(*parser.mutex);
+
+	found, document := table_find(*parser.documents, filename);
 	if !found return null;
 
-	location := Location.{
+	location := Code_Node.Location.{
 		l0 = line,
 		c0 = character,
 		l1 = line,
@@ -107,38 +194,25 @@ get_reference_at :: (using project: *Parsed_Project, filename: string, line: s32
 	return null;
 }
 
-#scope_file
-
-emit_root :: (project: *Parsed_Project, visitor: *Ast_Visitor, root: *Code_Node) {
-  visitor.root = root;
-  for visitor {
-    if it.kind == {
-      case .IDENT;
-        add_reference(project, xx it);
-    }
-  }
+// Assumes locations are from the same file, non-intersecting
+compare_locations :: (a: Location, b: Location) -> int {
+	if a.l0 != b.l0 return a.l0 - b.l0;
+	if a.c0 != b.c0 return a.c0 - b.c0;
+	return 0;
 }
 
-add_reference :: (project: *Parsed_Project, ident: *Code_Ident) {
-	filename := get_filename(node);
-  if !filename || node.l0 < 1 || node.c0 < 1 || node.l1 < 1 || node.c1 < 1 return null;
-
-  document, newly_added := find_or_add(*project.documents, filename);
-  if newly_added then document.file = node.enclosing_load;
-
-	found, _, index := binary_search(
-		*document.references,
-		ident,
-		(target: *Code_Ident, current: *Code_Ident) -> int {
-			return compare_node_locations(target.location, current.location);
-		}
-	);
-
-	if !found then array_insert_at(*document.references, ident, index);
+location_contains :: (location: Location, line: s32, character: s32) -> bool {
+	if location.l0 > line return false;
+	if location.l1 < line return false;
+	if location.l0 == line && location.c0 > character return false;
+	if location.l1 == line && location.c1 <= character return false;
+	return true;
 }
 
+#import "Basic";
 #import "Compiler";
 #import "Hash_Table";
+#import "Thread";
 
 #import "Ast_Visitor";
 #import "Set";

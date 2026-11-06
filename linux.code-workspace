@@ -6,5 +6,8 @@
 		{
 			"path": "../../../programs/jai"
 		}
-	]
+	],
+	"settings": {
+		"justAnIdea.buildFile": "/home/aria/programming/jai/just-an-idea/server/src/test.jai",
+	}
 }
