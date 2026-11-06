@@ -18,6 +18,7 @@ test_types :: () {
 }
 
 main :: () {
+	print("%\n", !"");
 	// connection: Connection;
 	// get_linked_ranges(*connection, 0, "", 0, 0, .DEFINITION);
 }

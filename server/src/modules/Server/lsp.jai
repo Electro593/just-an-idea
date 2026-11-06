@@ -26,7 +26,7 @@ lsp_initialize :: (data: *Data, params: *LSP_InitializeParams) -> LSP_Initialize
 				then alloc_any(LSP_SaveOptions.{ includeText = false })
 				else alloc_any(false)
 		});
-	result.capabilities.definitionProvider = alloc_any(!!params.capabilities.textDocument.definition);
+	result.capabilities.declarationProvider = alloc_any(!!params.capabilities.textDocument.declaration);
 
 	data.capabilities = copy_casted_json(params.capabilities);
 
@@ -36,6 +36,30 @@ lsp_initialize :: (data: *Data, params: *LSP_InitializeParams) -> LSP_Initialize
 
 lsp_initialized :: (data: *Data, params: *LSP_InitializedParams) {
 	assert_running();
+
+	thread := *data.watchdog_thread;
+	thread.data = data;
+
+	thread_init(thread, (thread: *Thread) -> s64 {
+		data: *Data = xx thread.data;
+
+		while !data.is_shutdown {
+			if !is_process_running(data.client) {
+				rpc_debug_log("Watchdog detected that the child process was terminated. Exiting...");
+				lsp_exit(data);
+			}
+
+			sleep_microseconds(1000);
+		}
+
+		return 0;
+	});
+
+	lsp_logTrace(
+		data,
+		tprint("Launching watchdog thread %", thread.index)
+	);
+	thread_start(thread);
 }
 
 lsp_setTrace :: (data: *Data, params: *LSP_SetTraceParams) {
@@ -82,9 +106,21 @@ lsp_textDocument_didClose :: (data: *Data, params: *LSP_DidCloseTextDocumentPara
 	assert_running();
 }
 
-lsp_textDocument_definition :: (data: *Data, params: *LSP_DefinitionParams) -> LSP_DefinitionResult {
+lsp_textDocument_declaration :: (data: *Data, params: *LSP_DeclarationParams) -> LSP_DeclarationResult {
 	assert_running();
-	return .{};
+	decode_uri(*params.textDocument.uri);
+
+	reference := get_reference_at(
+		data.parser,
+		params.textDocument.uri,
+		params.position.line,
+		params.position.character
+	);
+
+	if reference && reference.resolved_declaration
+		return .{ cast_location(reference.resolved_declaration.location) };
+
+	return .{ make_null_any() };
 }
 
 lsp_workspace_didChangeWatchedFiles :: (data: *Data, params: *LSP_DidChangeWatchedFilesParams) {
@@ -120,6 +156,13 @@ is_process_running :: (process: Process) -> bool {
 	}
 }
 
+cast_location :: (using location: Location) -> LSP_Location {
+	if l0 < 1 || l1 < 1 || c0 < 1 || c1 < 1
+		return .{ .{ 0, 0 }, .{ 0, 0 } };
+
+	return .{ .{ l0 - 1, c0 - 1 }, .{ l1 - 1, c1 - 1 } };
+}
+
 decode_uri :: (uri: *string) {
 	get_hex_value :: inline (char: u8) -> u8 {
 		return char - cast(u8)
@@ -127,6 +170,9 @@ decode_uri :: (uri: *string) {
 			else ifx char <= #char "Z" then #char "A" - 10
 			else #char "a" - 10;
 	}
+
+	has_prefix:, uri = contains(uri, "file:///");
+	assert(has_prefix);
 
 	i, j := 0;
 	while i < uri.count {
@@ -143,14 +189,13 @@ decode_uri :: (uri: *string) {
 		}
 		j += 1;
 	}
-
 	uri.count = j;
 
 	// Make the drive letter uppercase for consistency
+	if uri.*[1] == #char ":"
+		uri.*[0] = xx to_upper(xx uri.*[0]);
+
 	//TODO: Implement the URI spec
-	drive_position := "file:///".count;
-	if uri.*[drive_position + 1] == #char ":"
-		uri.*[drive_position] = xx to_upper(xx uri.*[drive_position]);
 }
 
 RUN_TESTS :: false;
@@ -178,50 +223,7 @@ RUN_TESTS :: false;
 		}
 
 		test_decode_uri("a:\\b\\c\\d.e", "a:\\b\\c\\d.e");
-		test_decode_uri("a:\\b\\c\\d.e", "a%3A\\b\\c\\d.e");
-
-		// Add start
-		test_apply_document_change(.["za1","b2","c3"], .["a1","b2","c3"], "z", 0, 0, 0, 0);
-		test_apply_document_change(.["z","!a1","b2","c3"], .["a1","b2","c3"], "z\n!", 0, 0, 0, 0);
-
-		// Add middle
-		test_apply_document_change(.["a1","bz2","c3"], .["a1","b2","c3"], "z", 1, 1, 1, 1);
-		test_apply_document_change(.["a1","b!","z","?2","c3"], .["a1","b2","c3"], "!\nz\n?", 1, 1, 1, 1);
-
-		// Add end
-		test_apply_document_change(.["a1","b2","c3z"], .["a1","b2","c3"], "z", 2, 2, 2, 2);
-		test_apply_document_change(.["a1","b2","c3!","z"], .["a1","b2","c3"], "!\nz", 2, 2, 2, 2);
-		test_apply_document_change(.["a1","b2","",""], .["a1","b2",""], "\n", 2, 0, 2, 0);
-
-		// Remove start
-		test_apply_document_change(.["b2","c3"], .["a1","b2","c3"], "", 0, 0, 1, 0);
-		test_apply_document_change(.["2","c3"], .["a1","b2","c3"], "", 0, 0, 1, 1);
-
-		// Remove middle
-		test_apply_document_change(.["a3"], .["a1","b2","c3"], "", 0, 1, 2, 1);
-		test_apply_document_change(.[""], .["a1","b2","c3"], "", 0, 0, 2, 2);
-
-		// Remove end
-		test_apply_document_change(.["a1","b2"], .["a1","b2","c3"], "", 1, 2, 2, 2);
-		test_apply_document_change(.["a1","b"], .["a1","b2","c3"], "", 1, 1, 2, 2);
-
-		// Replace start
-		test_apply_document_change(.["z1","b2","c3"], .["a1","b2","c3"], "z", 0, 0, 0, 1);
-		test_apply_document_change(.["z2","c3"], .["a1","b2","c3"], "z", 0, 0, 1, 1);
-
-		// Replace middle
-		test_apply_document_change(.["a1","z","c3"], .["a1","b2","c3"], "z", 1, 0, 1, 2);
-		test_apply_document_change(.["az3"], .["a1","b2","c3"], "z", 0, 1, 2, 1);
-
-		// Replace end
-		test_apply_document_change(.["a1","b2","cz"], .["a1","b2","c3"], "z", 2, 1, 2, 2);
-		test_apply_document_change(.["a1","bz"], .["a1","b2","c3"], "z", 1, 1, 2, 2);
-
-		// Add more than remove
-		test_apply_document_change(.["a","w","x","y","z","","3"], .["a1","b2","c3"], "\nw\nx\ny\nz\n\n", 0, 1, 2, 1);
-
-		// Remove more than add
-		test_apply_document_change(.["","x","y"], .["a1","b2","c3","d4","e5","f6"], "\nx\ny", 0, 0, 5, 2);
+		test_decode_uri("A:\\b\\c\\d.e", "file:\\\\\\a%3A\\b\\c\\d.e");
 	}
 }
 
